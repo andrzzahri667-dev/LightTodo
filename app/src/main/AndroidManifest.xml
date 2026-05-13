@@ -13,6 +13,9 @@
     <!-- Calendar one-way read-only sync (Xiaomi calendar) -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!-- Full-screen reminder -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <!-- Foreground service for the persistent quick-add notification -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -47,6 +50,17 @@
             android:launchMode="singleInstance"
             android:taskAffinity=""
             android:theme="@style/Theme.LightTodo.Transparent" />
+
+        <!-- Full-screen reminder activity -->
+        <activity
+            android:name=".notify.ReminderActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:taskAffinity=""
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.LightTodo.Reminder" />
 
         <!-- Reminder alarm receiver -->
         <receiver
