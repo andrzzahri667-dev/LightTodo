@@ -8,7 +8,7 @@
         android:id="@+id/square_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="center"
+        android:layout_gravity="center_horizontal|top"
         android:background="@drawable/widget_background"
         android:gravity="center"
         android:orientation="vertical"
