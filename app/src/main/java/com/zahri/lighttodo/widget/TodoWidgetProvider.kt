@@ -32,6 +32,12 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
+            "miui.appwidget.action.APPWIDGET_UPDATE" -> {
+                val ids = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
+                if (ids != null) {
+                    onUpdate(context, AppWidgetManager.getInstance(context), ids)
+                }
+            }
             ACTION_ITEM_CLICK -> {
                 val todoId = intent.getLongExtra(EXTRA_TODO_ID, -1L)
                 val isCheck = intent.getBooleanExtra(EXTRA_IS_CHECK, false)
@@ -63,14 +69,13 @@ class TodoWidgetProvider : AppWidgetProvider() {
         fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int) {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)
 
-            // open app on header tap
+            // open app on background tap (any area not covered by list items)
             val openAppPi = PendingIntent.getActivity(
                 context, 0,
                 Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_open_app, openAppPi)
-            views.setOnClickPendingIntent(R.id.widget_title, openAppPi)
+            views.setOnClickPendingIntent(android.R.id.background, openAppPi)
 
             // RemoteViewsService for the list
             val serviceIntent = Intent(context, TodoWidgetService::class.java).apply {

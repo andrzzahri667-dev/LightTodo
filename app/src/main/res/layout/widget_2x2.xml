@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/widget_bg"
     android:padding="6dp">
 
     <LinearLayout
@@ -12,33 +13,15 @@
         android:orientation="vertical"
         android:padding="14dp">
 
-        <RelativeLayout
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp">
-
-            <TextView
-                android:id="@+id/widget_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:text="@string/widget_title"
-                android:textColor="@color/widget_text_primary"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:id="@+id/widget_open_app"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="@drawable/widget_arrow_bg"
-                android:contentDescription="@string/app_name"
-                android:padding="6dp"
-                android:src="@drawable/widget_arrow" />
-        </RelativeLayout>
+            android:layout_marginBottom="6dp"
+            android:text="@string/widget_title"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
 
         <ListView
             android:id="@+id/widget_list"
