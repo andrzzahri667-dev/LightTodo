@@ -7,6 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.util.Log
+import android.util.TypedValue
 import android.widget.RemoteViews
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
@@ -26,8 +30,23 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (id in appWidgetIds) {
-            updateWidget(context, appWidgetManager, id)
+            val options = appWidgetManager.getAppWidgetOptions(id)
+            updateWidget(context, appWidgetManager, id, options)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        val minW = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+        val maxW = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
+        val minH = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+        val maxH = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+        Log.d("Widget", "W: $minW~${maxW}dp  H: $minH~${maxH}dp")
+        updateWidget(context, appWidgetManager, appWidgetId, newOptions)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -66,8 +85,32 @@ class TodoWidgetProvider : AppWidgetProvider() {
         const val EXTRA_TODO_ID = "todo_id"
         const val EXTRA_IS_CHECK = "is_check"
 
-        fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int) {
+        fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int, options: Bundle? = null) {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)
+
+            // Force square: use the shorter dimension
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && options != null) {
+                val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
+                val maxW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
+                val minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+                val maxH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
+                val w = if (maxW > 0) maxW else minW
+                val h = if (maxH > 0) maxH else minH
+                val side = minOf(w, h).takeIf { it > 0 }
+                if (side != null) {
+                    Log.d("Widget", "forcing square: ${side}dp (original W=$w H=$h)")
+                    views.setViewLayoutWidth(
+                        R.id.square_container,
+                        side.toFloat(),
+                        TypedValue.COMPLEX_UNIT_DIP
+                    )
+                    views.setViewLayoutHeight(
+                        R.id.square_container,
+                        side.toFloat(),
+                        TypedValue.COMPLEX_UNIT_DIP
+                    )
+                }
+            }
 
             // open app on background tap (any area not covered by list items)
             val openAppPi = PendingIntent.getActivity(
