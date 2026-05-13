@@ -23,8 +23,9 @@ class UserPrefs(private val context: Context) {
         val DEFAULT_HOURS_BEFORE = intPreferencesKey("default_hours_before")
         val CALENDAR_SYNC_ENABLED = booleanPreferencesKey("calendar_sync_enabled")
         val CALENDAR_ACCOUNT_NAME = stringPreferencesKey("calendar_account_name")
+        val EXCLUDED_CALENDAR_IDS = stringPreferencesKey("excluded_calendar_ids")
         val QUICK_ADD_NOTIF_ENABLED = booleanPreferencesKey("quick_add_notif_enabled")
-        val EXPANDED_TAG_IDS = stringPreferencesKey("collapsed_tag_ids")
+        val COLLAPSED_TAG_IDS = stringPreferencesKey("collapsed_tag_ids")
         val DONE_SECTION_EXPANDED = booleanPreferencesKey("done_section_expanded")
     }
 
@@ -33,9 +34,11 @@ class UserPrefs(private val context: Context) {
         val defaultRemindMinute: Int = 0,
         val defaultHoursBefore: Int = 2,
         val calendarSyncEnabled: Boolean = false,
-        val calendarAccountName: String = "", // empty = match any account containing "xiaomi" by default
+        /** 留空 = 拉取所有日历（除节日外） */
+        val calendarAccountName: String = "",
+        /** 用户在设置里手动勾掉的日历 id */
+        val excludedCalendarIds: Set<Long> = emptySet(),
         val quickAddNotifEnabled: Boolean = false,
-        /** Collapsed group keys; empty = all expanded (the default). */
         val collapsedTagIds: Set<String> = emptySet(),
         val doneSectionExpanded: Boolean = false
     )
@@ -47,8 +50,11 @@ class UserPrefs(private val context: Context) {
             defaultHoursBefore = p[Keys.DEFAULT_HOURS_BEFORE] ?: 2,
             calendarSyncEnabled = p[Keys.CALENDAR_SYNC_ENABLED] ?: false,
             calendarAccountName = p[Keys.CALENDAR_ACCOUNT_NAME].orEmpty(),
+            excludedCalendarIds = p[Keys.EXCLUDED_CALENDAR_IDS]
+                ?.split('|')?.mapNotNull { it.toLongOrNull() }?.toSet() ?: emptySet(),
             quickAddNotifEnabled = p[Keys.QUICK_ADD_NOTIF_ENABLED] ?: false,
-            collapsedTagIds = (p[Keys.EXPANDED_TAG_IDS]?.split('|')?.filter { it.isNotEmpty() }?.toSet()) ?: emptySet(),
+            collapsedTagIds = p[Keys.COLLAPSED_TAG_IDS]
+                ?.split('|')?.filter { it.isNotEmpty() }?.toSet() ?: emptySet(),
             doneSectionExpanded = p[Keys.DONE_SECTION_EXPANDED] ?: false
         )
     }
@@ -74,12 +80,18 @@ class UserPrefs(private val context: Context) {
         context.userPrefsDataStore.edit { it[Keys.CALENDAR_ACCOUNT_NAME] = name }
     }
 
+    suspend fun setExcludedCalendarIds(ids: Set<Long>) {
+        context.userPrefsDataStore.edit {
+            it[Keys.EXCLUDED_CALENDAR_IDS] = ids.joinToString("|")
+        }
+    }
+
     suspend fun setQuickAddNotifEnabled(enabled: Boolean) {
         context.userPrefsDataStore.edit { it[Keys.QUICK_ADD_NOTIF_ENABLED] = enabled }
     }
 
     suspend fun setCollapsedTagIds(ids: Set<String>) {
-        context.userPrefsDataStore.edit { it[Keys.EXPANDED_TAG_IDS] = ids.joinToString("|") }
+        context.userPrefsDataStore.edit { it[Keys.COLLAPSED_TAG_IDS] = ids.joinToString("|") }
     }
 
     suspend fun setDoneSectionExpanded(expanded: Boolean) {

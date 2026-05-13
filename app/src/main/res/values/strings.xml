@@ -42,5 +42,6 @@
 
     <!-- Widget -->
     <string name="widget_title">今日安排</string>
+    <string name="widget_label">今日待办</string>
     <string name="widget_empty">今天没有待办</string>
 </resources>

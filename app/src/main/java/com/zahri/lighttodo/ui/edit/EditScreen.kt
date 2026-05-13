@@ -1,10 +1,7 @@
 package com.zahri.lighttodo.ui.edit
 
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,13 +37,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zahri.lighttodo.ui.components.M3DatePickerDialog
+import com.zahri.lighttodo.ui.components.M3TimePickerDialog
 import com.zahri.lighttodo.ui.theme.AppColors
-import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,8 +53,9 @@ fun EditScreen(
     initialTitle: String? = null,
     vm: EditViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingId, initialTitle) {
         vm.load(editingId, initialTitle)
@@ -67,23 +64,15 @@ fun EditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        if (editingId == null) "新建" else "编辑",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
+                title = { Text(if (editingId == null) "新建" else "编辑", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
                 actions = {
-                    if (editingId != null) {
-                        IconButton(onClick = {
-                            vm.delete()
-                            onBack()
-                        }) {
+                    if (editingId != null && !state.readOnly) {
+                        IconButton(onClick = { vm.delete(); onBack() }) {
                             Icon(Icons.Default.Delete, contentDescription = "删除")
                         }
                     }
@@ -96,10 +85,7 @@ fun EditScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedTextField(
@@ -107,44 +93,42 @@ fun EditScreen(
                 onValueChange = vm::setTitle,
                 label = { Text("标题（可空）") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.readOnly
+                enabled = !state.readOnly,
+                modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = state.note,
                 onValueChange = vm::setNote,
                 label = { Text("备注") },
-                modifier = Modifier.fillMaxWidth().height(120.dp),
-                enabled = !state.readOnly
+                enabled = !state.readOnly,
+                modifier = Modifier.fillMaxWidth().height(120.dp)
             )
 
-            // Date row
+            // 日期
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("日期", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
                 AssistChip(
                     enabled = !state.readOnly,
-                    onClick = {
-                        val d = state.date
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, day -> vm.setDate(y, m + 1, day) },
-                            d.year, d.monthValue - 1, d.dayOfMonth
-                        ).show()
-                    },
-                    label = { Text("%d 年 %02d 月 %02d 日".format(state.date.year, state.date.monthValue, state.date.dayOfMonth)) }
+                    onClick = { showDatePicker = true },
+                    label = {
+                        Text(
+                            "%d 年 %02d 月 %02d 日".format(
+                                state.date.year, state.date.monthValue, state.date.dayOfMonth
+                            )
+                        )
+                    }
                 )
             }
 
-            // Deadline row
+            // 截止时间
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("截止时间", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
                 AssistChip(
                     enabled = !state.readOnly,
-                    onClick = {
-                        val (h, m) = state.deadline ?: (9 to 0)
-                        TimePickerDialog(context, { _, hh, mm -> vm.setDeadline(hh, mm) }, h, m, true).show()
-                    },
-                    label = { Text(state.deadline?.let { "%02d:%02d".format(it.first, it.second) } ?: "全天") }
+                    onClick = { showTimePicker = true },
+                    label = {
+                        Text(state.deadline?.let { "%02d:%02d".format(it.first, it.second) } ?: "全天")
+                    }
                 )
                 if (state.deadline != null && !state.readOnly) {
                     Spacer(Modifier.width(8.dp))
@@ -152,18 +136,18 @@ fun EditScreen(
                 }
             }
 
-            // Remind row
+            // 提醒
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("提醒", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
                 if (state.deadline == null) {
-                    Text("默认（${state.defaultRemindLabel}）", color = MaterialTheme.colorScheme.onSurface)
+                    Text("默认 ${state.defaultRemindLabel}", color = MaterialTheme.colorScheme.onSurface)
                 } else {
                     val hours = state.customHoursBefore ?: state.defaultHoursBefore
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AssistChip(
                             enabled = !state.readOnly,
                             onClick = { vm.adjustHoursBefore(-1) },
-                            label = { Text("-") }
+                            label = { Text("−") }
                         )
                         Spacer(Modifier.width(6.dp))
                         Text("提前 ${hours} 小时", color = MaterialTheme.colorScheme.onSurface)
@@ -177,7 +161,7 @@ fun EditScreen(
                 }
             }
 
-            // Tag row
+            // 标签
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("标签", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
                 OutlinedTextField(
@@ -212,17 +196,32 @@ fun EditScreen(
             Spacer(Modifier.weight(1f))
             if (!state.readOnly) {
                 Button(
-                    onClick = {
-                        vm.save()
-                        onBack()
-                    },
+                    onClick = { vm.save(); onBack() },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Brand, contentColor = Color.Black)
-                ) {
-                    Text("保存", fontWeight = FontWeight.SemiBold)
-                }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.Brand,
+                        contentColor = Color.Black
+                    )
+                ) { Text("保存", fontWeight = FontWeight.SemiBold) }
                 Spacer(Modifier.height(16.dp))
             }
         }
+    }
+
+    if (showDatePicker) {
+        M3DatePickerDialog(
+            initial = state.date,
+            onDismiss = { showDatePicker = false },
+            onPick = { vm.setDate(it.year, it.monthValue, it.dayOfMonth) }
+        )
+    }
+    if (showTimePicker) {
+        val (h, m) = state.deadline ?: (9 to 0)
+        M3TimePickerDialog(
+            initialHour = h,
+            initialMinute = m,
+            onDismiss = { showTimePicker = false },
+            onPick = { hh, mm -> vm.setDeadline(hh, mm) }
+        )
     }
 }

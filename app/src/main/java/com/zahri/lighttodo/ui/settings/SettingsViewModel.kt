@@ -12,10 +12,14 @@ import com.zahri.lighttodo.data.BackupTodo
 import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.data.UserPrefs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -32,6 +36,13 @@ class SettingsViewModel : ViewModel() {
         initialValue = UserPrefs.Snapshot()
     )
 
+    private val _calendars = MutableStateFlow<List<CalendarSync.CalendarInfo>>(emptyList())
+    val calendars: StateFlow<List<CalendarSync.CalendarInfo>> = _calendars.asStateFlow()
+
+    fun refreshCalendarList(context: Context) = viewModelScope.launch {
+        _calendars.value = withContext(Dispatchers.IO) { CalendarSync.listCalendars(context) }
+    }
+
     fun setDefaultRemind(hour: Int, minute: Int) =
         viewModelScope.launch { prefs.setDefaultRemind(hour, minute) }
 
@@ -43,6 +54,12 @@ class SettingsViewModel : ViewModel() {
 
     fun setCalendarAccount(name: String) =
         viewModelScope.launch { prefs.setCalendarAccountName(name) }
+
+    fun toggleCalendarExcluded(id: Long, excluded: Boolean) = viewModelScope.launch {
+        val cur = prefs.snapshot().excludedCalendarIds.toMutableSet()
+        if (excluded) cur += id else cur -= id
+        prefs.setExcludedCalendarIds(cur)
+    }
 
     fun setQuickAddNotif(enabled: Boolean) =
         viewModelScope.launch { prefs.setQuickAddNotifEnabled(enabled) }
@@ -80,7 +97,8 @@ class SettingsViewModel : ViewModel() {
             val text = context.contentResolver.openInputStream(uri)?.use {
                 it.readBytes().toString(Charsets.UTF_8)
             } ?: error("无法读取")
-            val bundle = Json { ignoreUnknownKeys = true }.decodeFromString(BackupBundle.serializer(), text)
+            val bundle = Json { ignoreUnknownKeys = true }
+                .decodeFromString(BackupBundle.serializer(), text)
             db.tagDao().deleteAll()
             db.todoDao().deleteAll()
             db.tagDao().upsertAll(bundle.tags.map { TagEntity(it.id, it.name, it.sortOrder) })

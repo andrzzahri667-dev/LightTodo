@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.calendar
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
@@ -12,22 +13,55 @@ import java.time.LocalDate
 import java.util.Calendar
 
 /**
- * 单向只读拉取小米日历。
+ * 单向只读拉取系统日历（含小米日历）。
  *
- * 设计：
- *  - 仅扫描"小米账户"相关日历（默认匹配 account_name 包含 "xiaomi" / "MI" / "小米"，
- *    设置里也可手动输入指定账户名精确匹配）
- *  - 排除节日和假期：小米的内置节日日历通常 account_type = "LOCAL"
- *    或日历 displayName 包含"节日/假期"。我们用一组 displayName 黑名单 + 仅取
- *    ACCOUNT_TYPE != "LOCAL" 来过滤
- *  - 时间窗口：今天起的近 60 天（避免历史事件刷屏，逾期靠 App 内任务而不是日历）
- *  - 只读：导入的任务带 calendarEventId，编辑页禁用所有字段，只能勾选完成
- *  - 去重：calendarEventId UNIQUE
- *  - 移除已不存在的事件（避免日历删了，待办还留着）
+ * 改进版：
+ *  - 用 Instances.CONTENT_URI 而不是 Events，自动展开重复事件
+ *  - 默认拉取所有非"节日"日历，让用户在设置里勾选要排除哪些
+ *  - 仍然过滤掉 displayName 包含"节日 / 假期"等关键字的日历
  */
 object CalendarSync {
 
-    private val EXCLUDED_NAME_KEYWORDS = listOf("节日", "假期", "假日", "Holidays", "节假日")
+    private val EXCLUDED_NAME_KEYWORDS = listOf("节日", "假期", "假日", "Holidays", "节假日", "Festival")
+
+    data class CalendarInfo(
+        val id: Long,
+        val displayName: String,
+        val accountName: String,
+        val accountType: String
+    )
+
+    /**
+     * 列出系统中所有可用的（非节日）日历，供 UI 让用户勾选。
+     */
+    fun listCalendars(context: Context): List<CalendarInfo> {
+        if (!hasPermission(context)) return emptyList()
+        val cr = context.contentResolver
+        val cursor = cr.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME,
+                CalendarContract.Calendars.ACCOUNT_TYPE
+            ),
+            null, null, null
+        ) ?: return emptyList()
+        val out = mutableListOf<CalendarInfo>()
+        cursor.use {
+            while (it.moveToNext()) {
+                val name = it.getString(1).orEmpty()
+                if (EXCLUDED_NAME_KEYWORDS.any { kw -> name.contains(kw, ignoreCase = true) }) continue
+                out += CalendarInfo(
+                    id = it.getLong(0),
+                    displayName = name,
+                    accountName = it.getString(2).orEmpty(),
+                    accountType = it.getString(3).orEmpty()
+                )
+            }
+        }
+        return out
+    }
 
     /**
      * @return 同步导入的任务条数；-1 表示失败/没权限/未启用
@@ -36,22 +70,19 @@ object CalendarSync {
         val app = context.applicationContext as App
         val prefs = app.prefs.snapshot()
         if (!prefs.calendarSyncEnabled) return -1
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
-            return -1
-        }
+        if (!hasPermission(context)) return -1
 
-        val calendarIds = pickCalendarIds(context, prefs.calendarAccountName)
+        val calendarIds = pickCalendarIds(context, prefs.calendarAccountName, prefs.excludedCalendarIds)
         if (calendarIds.isEmpty()) return 0
 
         val now = LocalDate.now()
         val from = DateUtils.startOfDayMillis(now)
         val to = DateUtils.endOfDayMillis(now.plusDays(60))
 
-        val events = queryEvents(context, calendarIds, from, to)
+        val events = queryInstances(context, calendarIds, from, to)
 
-        // Insert as new entities, dedup by calendarEventId via REPLACE on UNIQUE index
         val existing = app.db.todoDao().listCalendarEventIds().toSet()
-        val now2 = System.currentTimeMillis()
+        val nowMs = System.currentTimeMillis()
 
         val toInsert = mutableListOf<TodoEntity>()
         val seenIds = mutableListOf<Long>()
@@ -67,89 +98,66 @@ object CalendarSync {
                 dateMillis = dateMillis,
                 deadlineHour = h,
                 deadlineMinute = m,
-                remindAtMillis = null, // do not interfere with system calendar reminders
+                remindAtMillis = null, // 不和系统日历自身的提醒抢
                 customRemindHoursBefore = null,
                 tagId = null,
                 done = false,
-                createdAtMillis = now2,
+                createdAtMillis = nowMs,
                 calendarEventId = ev.id
             )
         }
         if (toInsert.isNotEmpty()) {
             app.db.todoDao().upsertAll(toInsert)
         }
-        // Remove events that disappeared
         app.db.todoDao().deleteCalendarOrphans(seenIds)
         return toInsert.size
     }
 
-    private fun pickCalendarIds(context: Context, userFilter: String): List<Long> {
-        val cr = context.contentResolver
-        val cursor = cr.query(
-            CalendarContract.Calendars.CONTENT_URI,
-            arrayOf(
-                CalendarContract.Calendars._ID,
-                CalendarContract.Calendars.ACCOUNT_NAME,
-                CalendarContract.Calendars.ACCOUNT_TYPE,
-                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME
-            ), null, null, null
-        ) ?: return emptyList()
+    private fun hasPermission(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
 
-        val ids = mutableListOf<Long>()
-        cursor.use {
-            while (it.moveToNext()) {
-                val id = it.getLong(0)
-                val acctName = it.getString(1).orEmpty()
-                val acctType = it.getString(2).orEmpty()
-                val displayName = it.getString(3).orEmpty()
-
-                // Skip Holidays / festivals
-                if (EXCLUDED_NAME_KEYWORDS.any { kw -> displayName.contains(kw, ignoreCase = true) }) continue
-                // Skip local-only "Holidays"-ish calendars
-                if (acctType.equals("LOCAL", ignoreCase = true)) continue
-
-                if (matchesAccount(acctName, userFilter)) {
-                    ids += id
-                }
-            }
-        }
-        return ids
-    }
-
-    private fun matchesAccount(acctName: String, userFilter: String): Boolean {
-        val f = userFilter.trim()
-        return if (f.isNotEmpty()) {
-            acctName.equals(f, ignoreCase = true) || acctName.contains(f, ignoreCase = true)
+    private fun pickCalendarIds(
+        context: Context,
+        userFilter: String,
+        excludedIds: Set<Long>
+    ): List<Long> {
+        val all = listCalendars(context)
+        val filtered = if (userFilter.isBlank()) {
+            // 默认：所有非节日日历都拉
+            all
         } else {
-            // Heuristic: any name containing xiaomi / mi / 小米
-            val lower = acctName.lowercase()
-            lower.contains("xiaomi") || lower.contains("小米") || lower.contains("mi.")
-                || lower == "mi" || lower.contains("@mi.com")
+            all.filter { it.accountName.contains(userFilter, ignoreCase = true) }
         }
+        return filtered.map { it.id }.filter { it !in excludedIds }
     }
 
-    private fun queryEvents(
+    private fun queryInstances(
         context: Context,
         calendarIds: List<Long>,
         from: Long,
         to: Long
     ): List<RawEvent> {
-        val cr = context.contentResolver
-        val placeholders = calendarIds.joinToString(",") { "?" }
-        val sel = "${CalendarContract.Events.CALENDAR_ID} IN ($placeholders) AND " +
-                "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?"
-        val args = (calendarIds.map { it.toString() } + listOf(from.toString(), to.toString())).toTypedArray()
+        // Instances API：把范围作为 URI path 传入，会自动展开重复事件
+        val builder = CalendarContract.Instances.CONTENT_URI.buildUpon()
+        ContentUris.appendId(builder, from)
+        ContentUris.appendId(builder, to)
+        val uri = builder.build()
 
-        val cursor = cr.query(
-            CalendarContract.Events.CONTENT_URI,
+        val placeholders = calendarIds.joinToString(",") { "?" }
+        val sel = "${CalendarContract.Instances.CALENDAR_ID} IN ($placeholders)"
+        val args = calendarIds.map { it.toString() }.toTypedArray()
+
+        val cursor = context.contentResolver.query(
+            uri,
             arrayOf(
-                CalendarContract.Events._ID,
-                CalendarContract.Events.TITLE,
-                CalendarContract.Events.DESCRIPTION,
-                CalendarContract.Events.DTSTART,
-                CalendarContract.Events.ALL_DAY
+                CalendarContract.Instances.EVENT_ID,
+                CalendarContract.Instances.TITLE,
+                CalendarContract.Instances.DESCRIPTION,
+                CalendarContract.Instances.BEGIN,
+                CalendarContract.Instances.ALL_DAY
             ),
-            sel, args, "${CalendarContract.Events.DTSTART} ASC"
+            sel, args, "${CalendarContract.Instances.BEGIN} ASC"
         ) ?: return emptyList()
 
         val out = mutableListOf<RawEvent>()

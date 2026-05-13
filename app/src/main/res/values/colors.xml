@@ -18,7 +18,7 @@
     <color name="on_surface_variant_dark">#FFB6B6B6</color>
 
     <!-- Widget -->
-    <color name="widget_bg">#CC1E2226</color>
+    <color name="widget_bg">#FF1E2226</color>
     <color name="widget_text_primary">#FFEDEDED</color>
     <color name="widget_text_secondary">#FFB6B6B6</color>
     <color name="widget_overdue">#FFF26A6A</color>

@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
 
     <!-- Calendar one-way read-only sync (Xiaomi calendar) -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
@@ -28,6 +32,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LightTodo">
 
+        <!-- MIUI 小部件版本号（任一小部件变动时 +1） -->
+        <meta-data
+            android:name="miuiWidgetVersion"
+            android:value="1" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -46,12 +55,25 @@
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:taskAffinity=""
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize"
             android:theme="@style/Theme.LightTodo.Transparent" />
 
         <!-- Reminder alarm receiver -->
         <receiver
             android:name=".notify.ReminderReceiver"
             android:exported="false" />
+
+        <!-- 全屏提醒 Activity（锁屏 / 后台时强制弹出） -->
+        <activity
+            android:name=".notify.ReminderActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.LightTodo.Reminder" />
 
         <!-- Boot receiver to reschedule alarms -->
         <receiver
@@ -74,14 +96,24 @@
                 android:value="quick_add_persistent_shortcut" />
         </service>
 
-        <!-- Widget provider -->
+        <!-- Widget provider (MIUI: 独立进程 :widgetProvider) -->
         <receiver
             android:name=".widget.TodoWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_label"
+            android:process=":widgetProvider">
+            <meta-data
+                android:name="miuiWidget"
+                android:value="true" />
+            <meta-data
+                android:name="miuiWidgetRefresh"
+                android:value="exposure" />
+            <meta-data
+                android:name="miuiWidgetRefreshMinInterval"
+                android:value="20000" />
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.zahri.lighttodo.WIDGET_TOGGLE_DONE" />
-                <action android:name="com.zahri.lighttodo.WIDGET_ITEM_CLICK" />
+                <action android:name="miui.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.zahri.lighttodo.WIDGET_REFRESH" />
             </intent-filter>
             <meta-data
@@ -92,7 +124,18 @@
         <service
             android:name=".widget.TodoWidgetService"
             android:exported="false"
-            android:permission="android.permission.BIND_REMOTEVIEWS" />
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:process=":widgetProvider" />
+
+        <!-- 主进程：处理小部件 [ ] 勾选 / 行点击。
+             不能放在 :widgetProvider，因为那个进程不能写数据库 / 拉起 App。 -->
+        <receiver
+            android:name=".widget.WidgetActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.zahri.lighttodo.WIDGET_TOGGLE_DONE" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

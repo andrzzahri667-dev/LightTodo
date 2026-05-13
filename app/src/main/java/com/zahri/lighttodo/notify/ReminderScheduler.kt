@@ -13,18 +13,22 @@ object ReminderScheduler {
 
     fun schedule(context: Context, todo: TodoEntity) {
         val triggerAt = todo.remindAtMillis ?: return
+        scheduleAt(context, todo.id, triggerAt)
+    }
+
+    fun scheduleAt(context: Context, todoId: Long, triggerAtMillis: Long) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
-        val pi = pendingIntentFor(context, todo.id)
+        val pi = pendingIntentFor(context, todoId)
 
         val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
         try {
             if (canExact) {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
             } else {
-                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
             }
         } catch (_: SecurityException) {
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
         }
     }
 
@@ -39,7 +43,6 @@ object ReminderScheduler {
     private fun pendingIntentFor(context: Context, id: Long): PendingIntent {
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra(EXTRA_TODO_ID, id)
-            // unique action so different ids produce different filter equality
             action = "com.zahri.lighttodo.REMIND_$id"
         }
         return PendingIntent.getBroadcast(
