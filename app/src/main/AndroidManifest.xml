@@ -74,12 +74,15 @@
                 android:value="quick_add_persistent_shortcut" />
         </service>
 
-        <!-- Widget provider -->
+        <!-- Widget provider (MIUI adapted) -->
         <receiver
             android:name=".widget.TodoWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_title"
+            android:process=":widgetProvider">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="miui.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.zahri.lighttodo.WIDGET_TOGGLE_DONE" />
                 <action android:name="com.zahri.lighttodo.WIDGET_ITEM_CLICK" />
                 <action android:name="com.zahri.lighttodo.WIDGET_REFRESH" />
@@ -87,12 +90,27 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info" />
+            <meta-data
+                android:name="miuiWidget"
+                android:value="true" />
+            <meta-data
+                android:name="miuiWidgetRefresh"
+                android:value="exposure" />
+            <meta-data
+                android:name="miuiWidgetRefreshMinInterval"
+                android:value="30000" />
         </receiver>
 
         <service
             android:name=".widget.TodoWidgetService"
             android:exported="false"
+            android:process=":widgetProvider"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- MIUI Widget 版本号 -->
+        <meta-data
+            android:name="miuiWidgetVersion"
+            android:value="1" />
 
     </application>
 
