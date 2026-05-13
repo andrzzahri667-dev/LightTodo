@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.widget
 
-import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -10,14 +9,11 @@ import android.text.style.StrikethroughSpan
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.zahri.lighttodo.App
-import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.home.dateLabel
 import com.zahri.lighttodo.ui.home.displayTitle
 import com.zahri.lighttodo.ui.home.isOverdueDate
-import com.zahri.lighttodo.util.DateUtils
-import java.time.LocalDate
 
 class TodoWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory =
@@ -31,11 +27,8 @@ class TodoListFactory(private val context: Context) : RemoteViewsService.RemoteV
     override fun onCreate() {}
 
     override fun onDataSetChanged() {
-        // Today + overdue, undone
         val app = context.applicationContext as App
-        val endOfTodayMillis = DateUtils.endOfDayMillis(LocalDate.now())
-        // limit to a small number since 2x2 cannot scroll (per user's spec)
-        items = app.db.todoDao().listDueByDaySync(endOfTodayMillis, limit = 6)
+        items = app.db.todoDao().listAllUndoneSync(limit = 6)
     }
 
     override fun onDestroy() { items = emptyList() }

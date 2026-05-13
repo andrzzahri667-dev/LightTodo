@@ -21,6 +21,10 @@ interface TodoDao {
     @Query("SELECT * FROM todo WHERE done = 0 AND dateMillis <= :endOfDayMillis ORDER BY dateMillis ASC, createdAtMillis ASC LIMIT :limit")
     fun listDueByDaySync(endOfDayMillis: Long, limit: Int): List<TodoEntity>
 
+    /** Widget：所有未完成任务，按时间排序（过期排前面） */
+    @Query("SELECT * FROM todo WHERE done = 0 ORDER BY dateMillis ASC, createdAtMillis ASC LIMIT :limit")
+    fun listAllUndoneSync(limit: Int): List<TodoEntity>
+
     @Query("SELECT * FROM todo WHERE id = :id")
     suspend fun findById(id: Long): TodoEntity?
 
