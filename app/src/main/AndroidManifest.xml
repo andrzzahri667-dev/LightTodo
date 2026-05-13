@@ -128,14 +128,14 @@
             android:process=":widgetProvider" />
 
         <!-- 主进程：处理小部件 [ ] 勾选 / 行点击。
-             不能放在 :widgetProvider，因为那个进程不能写数据库 / 拉起 App。 -->
-        <receiver
-            android:name=".widget.WidgetActionReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.zahri.lighttodo.WIDGET_TOGGLE_DONE" />
-            </intent-filter>
-        </receiver>
+             用 Activity 中转（MIUI 规范 6.1：禁止 Receiver→startActivity 链路）
+             Theme.NoDisplay + finish() 让用户感受不到这个 Activity 的存在 -->
+        <activity
+            android:name=".widget.WidgetClickActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
 
     </application>
 

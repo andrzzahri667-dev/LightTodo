@@ -18,14 +18,15 @@ import com.zahri.lighttodo.R
  * MIUI 适配要点：
  *  - 运行在 :widgetProvider 独立进程
  *  - 根布局 id = @android:id/background，背景非透明
- *  - meta-data: miuiWidget=true, miuiWidgetRefresh=exposure
- *  - 处理 miui.appwidget.action.APPWIDGET_UPDATE（曝光刷新）
- *  - 不在 widget 进程里写数据库（避免多进程并发），勾选完成的动作交给主进程的 receiver
+ *  - meta-data: miuiWidget=true, miuiWidgetRefresh=exposure, miuiWidgetVersion
+ *  - 处理 miui.appwidget.action.APPWIDGET_UPDATE（曝光刷新 + 数据清除时刷新）
+ *  - 点击通过 Activity 中转（WidgetClickActivity）而非 Receiver，符合规范 6.1
+ *  - 不在 widget 进程里写数据库（避免多进程并发，且 widget 进程不能拉起其他进程）
  *
  * 行为：
- *  - 整块（除 [ ] 勾选框外）点击 → 打开 App
+ *  - 整块（除 [ ]）点击 → 打开 App
  *  - 每行：橙色圆点 + 标题 + 日期/时间 + [ ]
- *  - [ ] 点击 → 触发 com.zahri.lighttodo.WIDGET_TOGGLE_DONE 广播（由主进程接收）
+ *  - [ ] 点击 → WidgetClickActivity 后台标记完成
  */
 class TodoWidgetProvider : AppWidgetProvider() {
 
@@ -65,7 +66,6 @@ class TodoWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_TOGGLE_DONE = "com.zahri.lighttodo.WIDGET_TOGGLE_DONE"
         const val ACTION_REFRESH = "com.zahri.lighttodo.WIDGET_REFRESH"
         const val ACTION_MIUI_APPWIDGET_UPDATE = "miui.appwidget.action.APPWIDGET_UPDATE"
         const val EXTRA_TODO_ID = "todo_id"
@@ -93,13 +93,13 @@ class TodoWidgetProvider : AppWidgetProvider() {
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
             views.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
-            // 行内点击模板：[ ] 触发主进程的 ToggleDoneReceiver；行其他位置打开 App
-            val templateIntent = Intent(ACTION_TOGGLE_DONE).apply {
-                // 显式发到主进程的 receiver（避免命中本 provider 在 :widgetProvider 进程）
-                setClassName(context, "com.zahri.lighttodo.widget.WidgetActionReceiver")
-                data = Uri.parse("widget://action/$widgetId")
+            // 行内点击模板：通过中转 Activity（主进程）分发
+            //   MIUI 规范 6.1：使用 Activity 中转，而非 PendingIntent → Receiver → startActivity
+            val templateIntent = Intent(context, WidgetClickActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                data = Uri.parse("widget://click/$widgetId")
             }
-            val templatePi = PendingIntent.getBroadcast(
+            val templatePi = PendingIntent.getActivity(
                 context, widgetId, templateIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )
@@ -107,6 +107,14 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
             mgr.updateAppWidget(widgetId, views)
             mgr.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_list)
+
+            // MIUI 排序提示：用 notice 状态码（待办视为通知类）
+            try {
+                val opts = mgr.getAppWidgetOptions(widgetId) ?: Bundle()
+                opts.putString("miuiWidgetEventCode", "notice1")
+                opts.putString("miuiWidgetTimestamp", System.currentTimeMillis().toString())
+                mgr.updateAppWidgetOptions(widgetId, opts)
+            } catch (_: Throwable) { /* not running on MIUI; ignore */ }
         }
 
         fun notifyAllWidgetsDataChanged(context: Context) {
