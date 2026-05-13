@@ -7,11 +7,12 @@
     android:paddingTop="4dp"
     android:paddingBottom="4dp">
 
-    <View
+    <ImageView
         android:layout_width="6dp"
         android:layout_height="6dp"
         android:layout_marginEnd="8dp"
-        android:background="@drawable/widget_dot" />
+        android:background="@drawable/widget_dot"
+        android:contentDescription="dot" />
 
     <LinearLayout
         android:layout_width="0dp"
