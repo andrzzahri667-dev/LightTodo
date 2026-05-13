@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">轻待办</string>
+
+    <!-- Home -->
+    <string name="home_title">今日安排</string>
+    <string name="home_uncategorized">未分类</string>
+    <string name="home_done_section">已完成</string>
+    <string name="home_empty">暂无待办</string>
+    <string name="home_from_calendar">来自日历</string>
+
+    <!-- Edit -->
+    <string name="edit_title_new">新建</string>
+    <string name="edit_title_edit">编辑</string>
+    <string name="edit_field_title">标题（可空）</string>
+    <string name="edit_field_note">备注</string>
+    <string name="edit_field_date">日期</string>
+    <string name="edit_field_deadline">截止时间</string>
+    <string name="edit_field_deadline_none">全天</string>
+    <string name="edit_field_remind_default">默认提醒</string>
+    <string name="edit_field_remind_custom_hours">提前 %1$d 小时</string>
+    <string name="edit_field_tag">标签</string>
+    <string name="edit_save">保存</string>
+    <string name="edit_delete">删除</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_default_remind_time">默认提醒时间</string>
+    <string name="settings_default_hours_before">截止前提醒小时数</string>
+    <string name="settings_calendar_sync">同步小米日历（只读）</string>
+    <string name="settings_calendar_account">小米账户名称</string>
+    <string name="settings_quick_add_notif">通知栏常驻快速添加</string>
+    <string name="settings_export">导出 JSON</string>
+    <string name="settings_import">导入 JSON</string>
+    <string name="settings_clear_done">清空已完成</string>
+
+    <!-- Notifications -->
+    <string name="notif_channel_reminder">任务提醒</string>
+    <string name="notif_channel_quick_add">快速添加</string>
+    <string name="notif_quick_add_title">快速添加待办</string>
+    <string name="notif_quick_add_text">点这里随手记一条</string>
+
+    <!-- Widget -->
+    <string name="widget_title">今日安排</string>
+    <string name="widget_empty">今天没有待办</string>
+</resources>

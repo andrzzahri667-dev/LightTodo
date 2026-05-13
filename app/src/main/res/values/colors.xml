@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand -->
+    <color name="brand_orange">#FFB75A</color>
+    <color name="overdue_red">#F26A6A</color>
+
+    <!-- Light -->
+    <color name="bg_light">#FFF8F4F0</color>
+    <color name="surface_light">#FFFFFFFF</color>
+    <color name="on_surface_light">#FF1A1A1A</color>
+    <color name="on_surface_variant_light">#FF666666</color>
+
+    <!-- Dark -->
+    <color name="bg_dark">#FF111315</color>
+    <color name="surface_dark">#FF1E2226</color>
+    <color name="surface_variant_dark">#FF2A2F34</color>
+    <color name="on_surface_dark">#FFEDEDED</color>
+    <color name="on_surface_variant_dark">#FFB6B6B6</color>
+
+    <!-- Widget -->
+    <color name="widget_bg">#CC1E2226</color>
+    <color name="widget_text_primary">#FFEDEDED</color>
+    <color name="widget_text_secondary">#FFB6B6B6</color>
+    <color name="widget_overdue">#FFF26A6A</color>
+    <color name="widget_dot">#FFFFB75A</color>
+
+    <color name="ic_launcher_background">#FF1E2226</color>
+</resources>

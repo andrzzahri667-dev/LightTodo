@@ -1,0 +1,98 @@
+package com.zahri.lighttodo.ui.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.zahri.lighttodo.App
+import com.zahri.lighttodo.data.HomeData
+import com.zahri.lighttodo.data.TagEntity
+import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.util.DateUtils
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+data class TagGroup(
+    val tagId: Long?,
+    val name: String,
+    val items: List<TodoEntity>
+)
+
+data class HomeUiState(
+    val groups: List<TagGroup>,
+    val doneItems: List<TodoEntity>,
+    val collapsedTagIds: Set<String>,
+    val doneExpanded: Boolean
+)
+
+class HomeViewModel : ViewModel() {
+
+    private val app = App.instance
+    private val repo = app.repository
+    private val prefs = app.prefs
+
+    val state: StateFlow<HomeUiState> =
+        repo.homeFlow().map { data -> data.toUiState() }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = HomeUiState(emptyList(), emptyList(), emptySet(), false)
+            )
+
+    private fun HomeData.toUiState(): HomeUiState {
+        val undone = todos.filter { !it.done }
+        val done = todos.filter { it.done }.sortedByDescending { it.doneAtMillis ?: 0L }
+
+        // Group by tag
+        val byTag: Map<Long?, List<TodoEntity>> = undone.groupBy { it.tagId }
+        val tagOrder: List<TagEntity> = tags
+        val groups = mutableListOf<TagGroup>()
+        for (t in tagOrder) {
+            val items = byTag[t.id].orEmpty().sortedBy { it.createdAtMillis }
+            if (items.isNotEmpty()) groups += TagGroup(t.id, t.name, items)
+        }
+        val uncatItems = byTag[null].orEmpty().sortedBy { it.createdAtMillis }
+        if (uncatItems.isNotEmpty()) groups += TagGroup(null, "未分类", uncatItems)
+
+        return HomeUiState(
+            groups = groups,
+            doneItems = done,
+            collapsedTagIds = prefs.collapsedTagIds,
+            doneExpanded = prefs.doneSectionExpanded
+        )
+    }
+
+    fun toggleDone(id: Long, done: Boolean) {
+        viewModelScope.launch { repo.setDone(id, done) }
+    }
+
+    fun setGroupExpanded(key: String, expanded: Boolean) {
+        viewModelScope.launch {
+            val cur = state.value.collapsedTagIds.toMutableSet()
+            if (expanded) cur -= key else cur += key
+            prefs.setCollapsedTagIds(cur)
+        }
+    }
+
+    fun setDoneExpanded(expanded: Boolean) {
+        viewModelScope.launch { prefs.setDoneSectionExpanded(expanded) }
+    }
+
+    fun delete(id: Long) {
+        viewModelScope.launch { repo.delete(id) }
+    }
+
+    companion object {
+        fun groupKey(tagId: Long?): String = if (tagId == null) "uncat" else "tag-$tagId"
+    }
+}
+
+// helper available outside
+fun TodoEntity.displayTitle(): String =
+    title?.takeIf { it.isNotBlank() }
+        ?: note?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
+        ?: "无标题"
+
+fun TodoEntity.dateLabel(): String = DateUtils.displayDate(date)
+fun TodoEntity.isOverdueDate(): Boolean = !done && DateUtils.isOverdue(date)
