@@ -100,13 +100,10 @@ object CalendarSync {
             while (it.moveToNext()) {
                 val id = it.getLong(0)
                 val acctName = it.getString(1).orEmpty()
-                val acctType = it.getString(2).orEmpty()
                 val displayName = it.getString(3).orEmpty()
 
                 // Skip Holidays / festivals
                 if (EXCLUDED_NAME_KEYWORDS.any { kw -> displayName.contains(kw, ignoreCase = true) }) continue
-                // Skip local-only "Holidays"-ish calendars
-                if (acctType.equals("LOCAL", ignoreCase = true)) continue
 
                 if (matchesAccount(acctName, userFilter)) {
                     ids += id
@@ -121,10 +118,8 @@ object CalendarSync {
         return if (f.isNotEmpty()) {
             acctName.equals(f, ignoreCase = true) || acctName.contains(f, ignoreCase = true)
         } else {
-            // Heuristic: any name containing xiaomi / mi / 小米
-            val lower = acctName.lowercase()
-            lower.contains("xiaomi") || lower.contains("小米") || lower.contains("mi.")
-                || lower == "mi" || lower.contains("@mi.com")
+            // 无过滤条件时匹配所有非节日日历
+            true
         }
     }
 
