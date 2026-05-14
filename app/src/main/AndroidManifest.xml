@@ -89,11 +89,18 @@
         </service>
 
         <!-- Widget provider (MIUI adapted) -->
+        <!--
+            Note: previously this receiver and the RemoteViewsService below ran in
+            android:process=":widgetProvider". That isolated process used a separate
+            Room/SQLite handle, which produced inconsistent reads ("widget sometimes
+            empty / sometimes loaded"). Run them in the main process so that
+            onDataSetChanged reads from the same database connection used by the rest
+            of the app.
+        -->
         <receiver
             android:name=".widget.TodoWidgetProvider"
             android:exported="true"
-            android:label="@string/widget_title"
-            android:process=":widgetProvider">
+            android:label="@string/widget_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="miui.appwidget.action.APPWIDGET_UPDATE" />
@@ -118,7 +125,6 @@
         <service
             android:name=".widget.TodoWidgetService"
             android:exported="false"
-            android:process=":widgetProvider"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
         <!-- MIUI Widget 版本号 -->
