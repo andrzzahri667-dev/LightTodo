@@ -44,15 +44,21 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <!-- Yellow strike-through line, shown only during the tap-complete animation. -->
-        <View
+        <!--
+          Yellow strike-through line, shown only during stage 2 of the tap-complete
+          animation. Note: must be ImageView (not View) because RemoteViews does not
+          support plain View elements.
+        -->
+        <ImageView
             android:id="@+id/item_strike"
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:layout_gravity="center_vertical|top"
             android:layout_marginTop="10dp"
             android:layout_marginEnd="6dp"
-            android:background="@drawable/widget_strike"
+            android:contentDescription="strike"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_strike"
             android:visibility="gone" />
     </FrameLayout>
 
