@@ -9,6 +9,8 @@ import com.zahri.lighttodo.App
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
 import com.zahri.lighttodo.widget.TodoWidgetProvider
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -30,19 +32,22 @@ object CalendarSync {
 
     private val EXCLUDED_NAME_KEYWORDS = listOf("节日", "假期", "假日", "Holidays", "节假日")
 
+    /** Serializes concurrent runOnce calls (e.g. App.onCreate + BootReceiver at boot). */
+    private val syncMutex = Mutex()
+
     /**
      * @return 同步导入的任务条数；-1 表示失败/没权限/未启用
      */
-    suspend fun runOnce(context: Context): Int {
+    suspend fun runOnce(context: Context): Int = syncMutex.withLock {
         val app = context.applicationContext as App
         val prefs = app.prefs.snapshot()
-        if (!prefs.calendarSyncEnabled) return -1
+        if (!prefs.calendarSyncEnabled) return@withLock -1
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
-            return -1
+            return@withLock -1
         }
 
         val calendarIds = pickCalendarIds(context, prefs.calendarAccountName)
-        if (calendarIds.isEmpty()) return 0
+        if (calendarIds.isEmpty()) return@withLock 0
 
         val now = LocalDate.now()
         val from = DateUtils.startOfDayMillis(now)
@@ -79,15 +84,14 @@ object CalendarSync {
         if (toInsert.isNotEmpty()) {
             app.db.todoDao().upsertAll(toInsert)
         }
-        // Remove events that disappeared
-        app.db.todoDao().deleteCalendarOrphans(seenIds)
+        // Remove events that disappeared from the system calendar
+        val orphansDeleted = app.db.todoDao().deleteCalendarOrphans(seenIds)
 
-        // Refresh widget(s) when fresh calendar data is imported so the new items
-        // show up without waiting for the next manual update.
-        if (toInsert.isNotEmpty()) {
+        // Refresh widget(s) when data changed (inserts or deletions)
+        if (toInsert.isNotEmpty() || orphansDeleted > 0) {
             TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
         }
-        return toInsert.size
+        toInsert.size
     }
 
     private fun pickCalendarIds(context: Context, userFilter: String): List<Long> {

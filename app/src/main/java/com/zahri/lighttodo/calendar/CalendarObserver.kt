@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
 import com.zahri.lighttodo.App
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -22,8 +23,8 @@ class CalendarObserver(
     private val context: Context
 ) : ContentObserver(Handler(Looper.getMainLooper())) {
 
-    private val mainHandler = Handler(Looper.getMainLooper())
-    private val debouncedRun = Runnable { triggerSync() }
+    internal val mainHandler = Handler(Looper.getMainLooper())
+    internal val debouncedRun = Runnable { triggerSync() }
 
     override fun onChange(selfChange: Boolean) {
         onChange(selfChange, null)
@@ -40,8 +41,9 @@ class CalendarObserver(
         app.appScope.launch(Dispatchers.IO) {
             try {
                 CalendarSync.runOnce(app)
-            } catch (_: Throwable) {
-                // observer 回调里不抛异常
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                // observer 回调里不抛其他异常
             }
         }
     }
@@ -64,9 +66,12 @@ class CalendarObserver(
         }
 
         fun unregister(context: Context, observer: CalendarObserver) {
+            // Cancel any pending debounced callback to avoid a stale sync
+            // firing after the user disabled calendar sync.
+            observer.mainHandler.removeCallbacks(observer.debouncedRun)
             try {
                 context.applicationContext.contentResolver.unregisterContentObserver(observer)
-            } catch (_: Throwable) {
+            } catch (_: Exception) {
                 // 没注册过 / 已注销，忽略
             }
         }
