@@ -9,6 +9,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.TypedValue
 import android.widget.RemoteViews
@@ -23,8 +25,8 @@ import kotlinx.coroutines.runBlocking
  *  - 顶部："今日安排" + 右上 > 圆形按钮（点击进 App）
  *  - 中间：未完成、且当天或已逾期的任务列表（按时间升序）。超出不滚（按用户要求）
  *  - 每行：橙色圆点 + 标题（一行省略） + 日期（红色=逾期）+ 右侧 [ ] 勾选框
- *  - 点击 [ ] 触发 ACTION_TOGGLE_DONE，标记完成 -> 删除线 -> 从列表移除
- *  - 点击文字行 -> 打开编辑页
+ *  - 点击 [ ] -> 三段式动画：黄色对勾 -> 黄色删除线 -> 持久化 done 并从列表移除
+ *  - 点击文字行 -> 打开主页
  */
 class TodoWidgetProvider : AppWidgetProvider() {
 
@@ -61,13 +63,9 @@ class TodoWidgetProvider : AppWidgetProvider() {
                 val todoId = intent.getLongExtra(EXTRA_TODO_ID, -1L)
                 val isCheck = intent.getBooleanExtra(EXTRA_IS_CHECK, false)
                 if (todoId > 0 && isCheck) {
-                    val app = context.applicationContext as App
-                    runBlocking(Dispatchers.IO) {
-                        app.repository.setDone(todoId, true)
-                    }
-                    notifyAllWidgetsDataChanged(context)
+                    startCompleteAnimation(context, todoId)
                 } else {
-                    // row tap -> open app (todoId optional — could route to edit if present)
+                    // row tap -> open app
                     val open = Intent(context, MainActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(open)
@@ -78,12 +76,52 @@ class TodoWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /**
+     * Staged tap-to-complete animation, driven by [WidgetAnimation] + posted main-thread
+     * callbacks. We can't run real animations inside RemoteViews, so we re-render the
+     * row in three discrete states with short delays between them.
+     */
+    private fun startCompleteAnimation(context: Context, todoId: Long) {
+        // If a previous animation for this id is still in flight, ignore the second tap.
+        if (WidgetAnimation.isAnimating(todoId)) return
+
+        val appCtx = context.applicationContext
+
+        // Stage 1: yellow filled checkbox + white tick.
+        WidgetAnimation.setStage(todoId, WidgetAnimation.Stage.CHECK_ONLY)
+        notifyAllWidgetsDataChanged(appCtx)
+
+        mainHandler.postDelayed({
+            // Stage 2: add the yellow strike line over the title.
+            WidgetAnimation.setStage(todoId, WidgetAnimation.Stage.STRIKE)
+            notifyAllWidgetsDataChanged(appCtx)
+        }, STAGE_2_DELAY_MS)
+
+        mainHandler.postDelayed({
+            // Stage 3: persist done=true and clear animation state. The natural
+            // refresh will drop the row from the listing.
+            val app = appCtx as App
+            runBlocking(Dispatchers.IO) {
+                app.repository.setDone(todoId, true)
+            }
+            WidgetAnimation.clear(todoId)
+            notifyAllWidgetsDataChanged(appCtx)
+        }, STAGE_3_DELAY_MS)
+    }
+
     companion object {
         const val ACTION_ITEM_CLICK = "com.zahri.lighttodo.WIDGET_ITEM_CLICK"
         const val ACTION_TOGGLE_DONE = "com.zahri.lighttodo.WIDGET_TOGGLE_DONE"
         const val ACTION_REFRESH = "com.zahri.lighttodo.WIDGET_REFRESH"
         const val EXTRA_TODO_ID = "todo_id"
         const val EXTRA_IS_CHECK = "is_check"
+
+        // Animation timings — tuned so the user can clearly perceive each stage
+        // without making the interaction feel slow.
+        private const val STAGE_2_DELAY_MS = 220L  // tick -> strike
+        private const val STAGE_3_DELAY_MS = 620L  // strike -> remove
+
+        private val mainHandler = Handler(Looper.getMainLooper())
 
         fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int, options: Bundle? = null) {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)

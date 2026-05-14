@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.zahri.lighttodo.App
@@ -37,12 +38,33 @@ class TodoListFactory(private val context: Context) : RemoteViewsService.RemoteV
     override fun getViewAt(position: Int): RemoteViews {
         val rv = RemoteViews(context.packageName, R.layout.widget_item)
         val item = items[position]
+        val animStage = WidgetAnimation.stageOf(item.id)
 
+        // Title with optional system strikethrough span (used when the item is already done).
         val titleText = SpannableString(item.displayTitle())
         if (item.done) {
-            titleText.setSpan(StrikethroughSpan(), 0, titleText.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            titleText.setSpan(
+                StrikethroughSpan(),
+                0,
+                titleText.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
         rv.setTextViewText(R.id.item_title, titleText)
+
+        // Yellow strike-line overlay: shown during animation stage 2.
+        rv.setViewVisibility(
+            R.id.item_strike,
+            if (animStage == WidgetAnimation.Stage.STRIKE) View.VISIBLE else View.GONE
+        )
+
+        // Checkbox visual: switch to the yellow filled "checked" drawable during animation.
+        val checkboxRes = if (animStage != null) {
+            R.drawable.widget_checkbox_checked
+        } else {
+            R.drawable.widget_checkbox
+        }
+        rv.setImageViewResource(R.id.item_check, checkboxRes)
 
         val deadlineSuffix = if (item.deadlineHour != null && item.deadlineMinute != null)
             " %02d:%02d".format(item.deadlineHour, item.deadlineMinute) else ""
@@ -52,20 +74,22 @@ class TodoListFactory(private val context: Context) : RemoteViewsService.RemoteV
             if (item.isOverdueDate()) Color.parseColor("#F26A6A") else Color.parseColor("#B6B6B6")
         )
 
-        // Click the row -> open MainActivity (we don't open EditActivity here to keep widget simple)
-        val rowFill = Intent().apply {
-            putExtra(TodoWidgetProvider.EXTRA_TODO_ID, item.id)
-            putExtra(TodoWidgetProvider.EXTRA_IS_CHECK, false)
-        }
-        rv.setOnClickFillInIntent(R.id.item_title, rowFill)
-        rv.setOnClickFillInIntent(R.id.item_subtitle, rowFill)
+        // Click the row -> open MainActivity (we don't open EditActivity here to keep widget simple).
+        // While animating, swallow taps so users can't double-trigger.
+        if (animStage == null) {
+            val rowFill = Intent().apply {
+                putExtra(TodoWidgetProvider.EXTRA_TODO_ID, item.id)
+                putExtra(TodoWidgetProvider.EXTRA_IS_CHECK, false)
+            }
+            rv.setOnClickFillInIntent(R.id.item_title, rowFill)
+            rv.setOnClickFillInIntent(R.id.item_subtitle, rowFill)
 
-        // Click the check -> mark done
-        val checkFill = Intent().apply {
-            putExtra(TodoWidgetProvider.EXTRA_TODO_ID, item.id)
-            putExtra(TodoWidgetProvider.EXTRA_IS_CHECK, true)
+            val checkFill = Intent().apply {
+                putExtra(TodoWidgetProvider.EXTRA_TODO_ID, item.id)
+                putExtra(TodoWidgetProvider.EXTRA_IS_CHECK, true)
+            }
+            rv.setOnClickFillInIntent(R.id.item_check, checkFill)
         }
-        rv.setOnClickFillInIntent(R.id.item_check, checkFill)
         return rv
     }
 
