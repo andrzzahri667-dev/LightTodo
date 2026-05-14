@@ -19,7 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -30,6 +33,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 /**
  * A generic vertical scroll-wheel picker.
  *
+ * The center item is highlighted with selectedColor + selectedFontSize + bold.
+ * Items above and below are dimmed and smaller.
+ *
  * @param items list of display strings
  * @param selectedIndex the currently selected index
  * @param onSelectedChanged called when user scrolls to a new item
@@ -39,7 +45,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * @param unselectedColor text color for non-selected items
  * @param selectedFontSize font size for selected item
  * @param unselectedFontSize font size for non-selected items
- * @param suffix optional suffix displayed next to the selected item (e.g. "H", "M")
+ * @param superscript optional small superscript shown after the selected value (e.g. "H", "M")
  */
 @Composable
 fun WheelPicker(
@@ -53,16 +59,16 @@ fun WheelPicker(
     unselectedColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
     selectedFontSize: TextUnit = 22.sp,
     unselectedFontSize: TextUnit = 16.sp,
-    suffix: String = ""
+    superscript: String = ""
 ) {
     val halfVisible = visibleCount / 2
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = selectedIndex
+        initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     )
 
     val totalHeight = itemHeight * visibleCount
 
-    // Detect which item is centered
+    // The centered item index (relative to items list)
     val centeredIndex by remember {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
@@ -72,7 +78,8 @@ fun WheelPicker(
                 kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
             }
             // Subtract padding items
-            (closestItem?.index ?: (selectedIndex + halfVisible)) - halfVisible
+            ((closestItem?.index ?: (selectedIndex + halfVisible)) - halfVisible)
+                .coerceIn(0, (items.size - 1).coerceAtLeast(0))
         }
     }
 
@@ -89,7 +96,7 @@ fun WheelPicker(
 
     // Scroll to selected index when it changes externally
     LaunchedEffect(selectedIndex) {
-        if (centeredIndex != selectedIndex) {
+        if (centeredIndex != selectedIndex && selectedIndex in items.indices) {
             listState.animateScrollToItem(selectedIndex)
         }
     }
@@ -118,12 +125,12 @@ fun WheelPicker(
             items(items.size) { index ->
                 val isSelected = index == centeredIndex
                 val alpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0.5f,
+                    targetValue = if (isSelected) 1f else 0.45f,
                     label = "alpha"
                 )
                 val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
                 val color = if (isSelected) selectedColor else unselectedColor
-                val weight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                val weight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
 
                 Box(
                     modifier = Modifier
@@ -132,13 +139,31 @@ fun WheelPicker(
                         .alpha(alpha),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (isSelected && suffix.isNotEmpty()) "${items[index]}$suffix" else items[index],
-                        color = color,
-                        fontSize = fontSize,
-                        fontWeight = weight,
-                        textAlign = TextAlign.Center
-                    )
+                    if (isSelected && superscript.isNotEmpty()) {
+                        Text(
+                            text = buildAnnotatedString {
+                                append(items[index])
+                                withStyle(
+                                    SpanStyle(
+                                        fontSize = fontSize.value.times(0.45f).sp,
+                                        baselineShift = BaselineShift.Superscript
+                                    )
+                                ) { append(superscript) }
+                            },
+                            color = color,
+                            fontSize = fontSize,
+                            fontWeight = weight,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Text(
+                            text = items[index],
+                            color = color,
+                            fontSize = fontSize,
+                            fontWeight = weight,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
 

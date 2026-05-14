@@ -1,39 +1,43 @@
 package com.zahri.lighttodo.ui.edit
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -46,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,12 +58,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.zahri.lighttodo.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val PrimaryBlue = Color(0xFF2196F3)
+
 @Composable
 fun EditScreen(
     editingId: Long?,
@@ -67,248 +72,485 @@ fun EditScreen(
     vm: EditViewModel = viewModel()
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    var showFromPicker by remember { mutableStateOf(false) }
+    var showToPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(editingId, initialTitle) {
         vm.load(editingId, initialTitle)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (editingId == null) "新建" else "编辑",
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    if (editingId != null) {
-                        IconButton(onClick = {
-                            vm.delete()
-                            onBack()
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "删除")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Top bar: close (X) on left, confirm (✓) on right, optional delete
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "关闭",
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+            }
+            Spacer(Modifier.weight(1f))
+            if (editingId != null && !state.readOnly) {
+                IconButton(onClick = {
+                    vm.delete()
+                    onBack()
+                }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "删除",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+            if (!state.readOnly) {
+                IconButton(onClick = {
+                    vm.save()
+                    onBack()
+                }) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "保存",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
-                value = state.title,
-                onValueChange = vm::setTitle,
-                label = { Text("标题（可空）") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.readOnly
-            )
-            OutlinedTextField(
-                value = state.note,
-                onValueChange = vm::setNote,
-                label = { Text("备注") },
-                modifier = Modifier.fillMaxWidth().height(120.dp),
-                enabled = !state.readOnly
+            // Big page title
+            Text(
+                text = if (editingId == null) "新建任务" else "编辑任务",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Normal,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)
             )
 
-            // Date row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("日期", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
-                AssistChip(
+            // ── Card 1: Title field (single row card) ───────────────
+            Card {
+                TitleField(
+                    value = state.title,
+                    onValueChange = vm::setTitle,
                     enabled = !state.readOnly,
-                    onClick = { showDatePicker = true },
-                    label = { Text("%d 年 %02d 月 %02d 日".format(state.date.year, state.date.monthValue, state.date.dayOfMonth)) }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 18.dp)
                 )
             }
 
-            // Deadline row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("截止时间", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
-                AssistChip(
-                    enabled = !state.readOnly,
-                    onClick = { showTimePicker = true },
-                    label = { Text(state.deadline?.let { "%02d:%02d".format(it.first, it.second) } ?: "全天") }
-                )
-                if (state.deadline != null && !state.readOnly) {
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = vm::clearDeadline) { Text("清除") }
+            // ── Card 2: All-day / From / To ──────────────────────────
+            Card {
+                Column {
+                    SwitchRow(
+                        label = "全天",
+                        checked = state.deadline == null,
+                        onCheckedChange = { allDay ->
+                            if (allDay) vm.clearDeadline() else vm.setDeadline(9, 0)
+                        },
+                        enabled = !state.readOnly
+                    )
+                    RowDivider()
+                    DateTimeRow(
+                        label = "开始时间",
+                        date = state.date,
+                        time = state.deadline,
+                        onClick = { if (!state.readOnly) showFromPicker = true }
+                    )
+                    RowDivider()
+                    DateTimeRow(
+                        label = "截止时间",
+                        date = state.date,
+                        time = state.deadline,
+                        onClick = { if (!state.readOnly) showToPicker = true }
+                    )
                 }
             }
 
-            // Remind row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("提醒", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
-                if (state.deadline == null) {
-                    Text("默认（${state.defaultRemindLabel}）", color = MaterialTheme.colorScheme.onSurface)
-                } else {
-                    val hours = state.customHoursBefore ?: state.defaultHoursBefore
+            // ── Card 3: Reminder ─────────────────────────────────────
+            Card {
+                ReminderRow(
+                    deadline = state.deadline,
+                    customHoursBefore = state.customHoursBefore,
+                    defaultHoursBefore = state.defaultHoursBefore,
+                    defaultRemindLabel = state.defaultRemindLabel,
+                    enabled = !state.readOnly,
+                    onDecrease = { vm.adjustHoursBefore(-1) },
+                    onIncrease = { vm.adjustHoursBefore(+1) }
+                )
+            }
+
+            // ── Card 4: Tag ──────────────────────────────────────────
+            Card {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AssistChip(
-                            enabled = !state.readOnly,
-                            onClick = { vm.adjustHoursBefore(-1) },
-                            label = { Text("-") }
+                        Text(
+                            "标签",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(Modifier.width(6.dp))
-                        Text("提前 ${hours} 小时", color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(Modifier.width(6.dp))
-                        AssistChip(
+                        Spacer(Modifier.weight(1f))
+                        BasicTextField(
+                            value = state.tagName,
+                            onValueChange = vm::setTagName,
                             enabled = !state.readOnly,
-                            onClick = { vm.adjustHoursBefore(+1) },
-                            label = { Text("+") }
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 15.sp
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            decorationBox = { inner ->
+                                if (state.tagName.isEmpty()) {
+                                    Text(
+                                        "可空",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        fontSize = 15.sp
+                                    )
+                                }
+                                inner()
+                            },
+                            modifier = Modifier.width(140.dp)
                         )
+                    }
+                    if (state.allTags.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(state.allTags) { t ->
+                                FilterChip(
+                                    enabled = !state.readOnly,
+                                    selected = state.tagName == t.name,
+                                    onClick = { vm.setTagName(t.name) },
+                                    label = { Text(t.name) }
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            // Tag row
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("标签", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(80.dp))
-                OutlinedTextField(
-                    value = state.tagName,
-                    onValueChange = vm::setTagName,
-                    placeholder = { Text("可空") },
-                    singleLine = true,
-                    enabled = !state.readOnly,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            if (state.allTags.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(state.allTags) { t ->
-                        FilterChip(
-                            enabled = !state.readOnly,
-                            selected = state.tagName == t.name,
-                            onClick = { vm.setTagName(t.name) },
-                            label = { Text(t.name) }
-                        )
-                    }
+            // ── Card 5: Description (Note) ───────────────────────────
+            Card {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    BasicTextField(
+                        value = state.note,
+                        onValueChange = vm::setNote,
+                        enabled = !state.readOnly,
+                        textStyle = LocalTextStyle.current.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 16.sp
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        decorationBox = { inner ->
+                            if (state.note.isEmpty()) {
+                                Text(
+                                    "描述",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    fontSize = 16.sp
+                                )
+                            }
+                            inner()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 60.dp)
+                    )
                 }
             }
 
             if (state.readOnly) {
                 Text(
                     "此任务来自系统日历，仅可勾选完成。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 )
             }
-
-            Spacer(Modifier.weight(1f))
-            if (!state.readOnly) {
-                Button(
-                    onClick = {
-                        vm.save()
-                        onBack()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.Brand, contentColor = Color.Black)
-                ) {
-                    Text("保存", fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.height(16.dp))
-            }
         }
     }
 
-    // Material3 date picker
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = state.date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-        )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val localDate = java.time.Instant.ofEpochMilli(millis)
-                            .atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                        vm.setDate(localDate.year, localDate.monthValue, localDate.dayOfMonth)
-                    }
-                    showDatePicker = false
-                }) { Text("确定") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("取消") }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-
-    // Wheel-style time picker
-    if (showTimePicker) {
-        WheelTimePickerDialog(
-            currentDate = state.date,
-            currentHour = state.deadline?.first ?: 9,
-            currentMinute = state.deadline?.second ?: 0,
+    // ── Wheel-style "From" picker (date + time merged) ─────────────
+    if (showFromPicker) {
+        WheelDateTimePickerDialog(
+            title = "开始时间",
+            initialDate = state.date,
+            initialHour = state.deadline?.first ?: 9,
+            initialMinute = state.deadline?.second ?: 0,
             onConfirm = { date, h, m ->
                 vm.setDate(date.year, date.monthValue, date.dayOfMonth)
                 vm.setDeadline(h, m)
-                showTimePicker = false
+                showFromPicker = false
             },
-            onDismiss = { showTimePicker = false }
+            onDismiss = { showFromPicker = false }
+        )
+    }
+    if (showToPicker) {
+        WheelDateTimePickerDialog(
+            title = "截止时间",
+            initialDate = state.date,
+            initialHour = state.deadline?.first ?: 10,
+            initialMinute = state.deadline?.second ?: 0,
+            onConfirm = { date, h, m ->
+                vm.setDate(date.year, date.monthValue, date.dayOfMonth)
+                vm.setDeadline(h, m)
+                showToPicker = false
+            },
+            onDismiss = { showToPicker = false }
         )
     }
 }
 
-// ──────────────────────────────────────────────────────────
-// Wheel-style Time Picker Dialog (matches Samsung Calendar style)
-// ──────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────
+// Reusable card / row components
+// ──────────────────────────────────────────────────────────────────
 
-/**
- * Generate date list: 15 days before and after the given date.
- */
-private fun generateDateList(centerDate: LocalDate): List<LocalDate> {
-    return (-15..15).map { centerDate.plusDays(it.toLong()) }
+@Composable
+private fun Card(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        content()
+    }
 }
 
-/**
- * Format date for wheel display: "周X, M月D日"
- */
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 16.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    )
+}
+
+@Composable
+private fun TitleField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        enabled = enabled,
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 16.sp
+        ),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        decorationBox = { inner ->
+            if (value.isEmpty()) {
+                Text(
+                    "请输入标题",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 16.sp
+                )
+            }
+            inner()
+        },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = PrimaryBlue,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                uncheckedBorderColor = Color.Transparent
+            )
+        )
+    }
+}
+
+@Composable
+private fun DateTimeRow(
+    label: String,
+    date: LocalDate,
+    time: Pair<Int, Int>?,
+    onClick: () -> Unit
+) {
+    val display = remember(date, time) {
+        val datePart = "%s, %d月%d日".format(
+            date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.CHINESE),
+            date.monthValue,
+            date.dayOfMonth
+        )
+        val timePart = time?.let { " %02d:%02d".format(it.first, it.second) } ?: ""
+        "$datePart$timePart"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            display,
+            fontSize = 15.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(4.dp))
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun ReminderRow(
+    deadline: Pair<Int, Int>?,
+    customHoursBefore: Int?,
+    defaultHoursBefore: Int,
+    defaultRemindLabel: String,
+    enabled: Boolean,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "提醒",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.weight(1f))
+        if (deadline == null) {
+            Text(
+                "默认（$defaultRemindLabel）",
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            val hours = customHoursBefore ?: defaultHoursBefore
+            StepperButton(text = "−", enabled = enabled, onClick = onDecrease)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "提前 $hours 小时",
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(10.dp))
+            StepperButton(text = "+", enabled = enabled, onClick = onIncrease)
+        }
+    }
+}
+
+@Composable
+private fun StepperButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Wheel-style date+time picker dialog
+// ──────────────────────────────────────────────────────────────────
+
+private fun generateDateList(centerDate: LocalDate): List<LocalDate> =
+    (-180..180).map { centerDate.plusDays(it.toLong()) }
+
 private fun formatDateForWheel(date: LocalDate): String {
     val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.CHINESE)
     return "$dayOfWeek, ${date.monthValue}月${date.dayOfMonth}日"
 }
 
 @Composable
-private fun WheelTimePickerDialog(
-    currentDate: LocalDate,
-    currentHour: Int,
-    currentMinute: Int,
+private fun WheelDateTimePickerDialog(
+    title: String,
+    initialDate: LocalDate,
+    initialHour: Int,
+    initialMinute: Int,
     onConfirm: (LocalDate, Int, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val dateList = remember(currentDate) { generateDateList(currentDate) }
+    val dateList = remember(initialDate) { generateDateList(initialDate) }
     val dateLabels = remember(dateList) { dateList.map { formatDateForWheel(it) } }
     val hourLabels = remember { (0..23).map { "%d".format(it) } }
-    val minuteLabels = remember { (0..59).map { "%d".format(it) } }
+    val minuteLabels = remember { (0..59).map { "%02d".format(it) } }
 
-    val initialDateIndex = remember(currentDate, dateList) {
-        dateList.indexOf(currentDate).coerceAtLeast(0)
+    val initialDateIndex = remember(initialDate, dateList) {
+        dateList.indexOf(initialDate).coerceAtLeast(0)
     }
 
     var selectedDateIndex by remember { mutableIntStateOf(initialDateIndex) }
-    var selectedHour by remember { mutableIntStateOf(currentHour) }
-    var selectedMinute by remember { mutableIntStateOf(currentMinute) }
+    var selectedHour by remember { mutableIntStateOf(initialHour) }
+    var selectedMinute by remember { mutableIntStateOf(initialMinute) }
 
     val selectedDate by remember {
-        derivedStateOf { dateList.getOrElse(selectedDateIndex) { currentDate } }
+        derivedStateOf { dateList.getOrElse(selectedDateIndex) { initialDate } }
     }
 
     Dialog(
@@ -317,113 +559,98 @@ private fun WheelTimePickerDialog(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .clip(RoundedCornerShape(24.dp))
+                .fillMaxWidth(0.92f)
+                .clip(RoundedCornerShape(28.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(vertical = 24.dp),
+                .padding(top = 24.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header: "From" title
             Text(
-                text = "开始时间",
-                style = MaterialTheme.typography.titleMedium,
+                text = title,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(Modifier.height(4.dp))
-            // Header: current selection summary
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = "${formatDateForWheel(selectedDate)}, %02d:%02d".format(selectedHour, selectedMinute),
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // Three-column wheel picker
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Date column
                 WheelPicker(
                     items = dateLabels,
                     selectedIndex = selectedDateIndex,
                     onSelectedChanged = { selectedDateIndex = it },
-                    modifier = Modifier.weight(1.4f),
-                    selectedColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1.6f),
                     selectedFontSize = 18.sp,
                     unselectedFontSize = 14.sp
                 )
-
-                // Hour column
                 WheelPicker(
                     items = hourLabels,
                     selectedIndex = selectedHour,
                     onSelectedChanged = { selectedHour = it },
-                    modifier = Modifier.weight(0.8f),
-                    selectedColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(0.7f),
                     selectedFontSize = 24.sp,
                     unselectedFontSize = 16.sp,
-                    suffix = "H"
+                    superscript = "H"
                 )
-
-                // Minute column
                 WheelPicker(
                     items = minuteLabels,
                     selectedIndex = selectedMinute,
                     onSelectedChanged = { selectedMinute = it },
-                    modifier = Modifier.weight(0.8f),
-                    selectedColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(0.7f),
                     selectedFontSize = 24.sp,
                     unselectedFontSize = 16.sp,
-                    suffix = "M"
+                    superscript = "M"
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // Bottom buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Cancel button
                 TextButton(
                     onClick = onDismiss,
+                    contentPadding = PaddingValues(0.dp),
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .clip(RoundedCornerShape(50))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Text(
                         "取消",
+                        fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Medium
                     )
                 }
-                // OK button
                 Button(
                     onClick = { onConfirm(selectedDate, selectedHour, selectedMinute) },
+                    shape = RoundedCornerShape(50),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryBlue,
+                        contentColor = Color.White
+                    ),
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2196F3),
-                        contentColor = Color.White
-                    )
+                        .height(48.dp)
                 ) {
-                    Text(
-                        "确定",
-                        fontWeight = FontWeight.Medium
-                    )
+                    Text("确定", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
