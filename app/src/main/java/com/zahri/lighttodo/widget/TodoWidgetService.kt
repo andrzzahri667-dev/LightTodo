@@ -28,7 +28,7 @@ class TodoListFactory(private val context: Context) : RemoteViewsService.RemoteV
 
     override fun onDataSetChanged() {
         val app = context.applicationContext as App
-        items = app.db.todoDao().listAllUndoneSync(limit = 6)
+        items = app.db.todoDao().listAllUndoneSync(limit = 3)
     }
 
     override fun onDestroy() { items = emptyList() }
