@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.ui.edit
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +49,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * @param unselectedFontSize font size for non-selected items
  * @param superscript optional small superscript shown after the selected value (e.g. "H", "M")
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WheelPicker(
     items: List<String>,
