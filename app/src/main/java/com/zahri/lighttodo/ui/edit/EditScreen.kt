@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.ui.edit
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,10 +13,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,17 +38,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.ui.theme.AppColors
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -242,77 +251,181 @@ fun EditScreen(
         }
     }
 
-    // Horizontal time slot picker
+    // Wheel-style time picker
     if (showTimePicker) {
-        TimeSlotPickerDialog(
+        WheelTimePickerDialog(
+            currentDate = state.date,
             currentHour = state.deadline?.first ?: 9,
             currentMinute = state.deadline?.second ?: 0,
-            onSelect = { h, m -> vm.setDeadline(h, m); showTimePicker = false },
+            onConfirm = { date, h, m ->
+                vm.setDate(date.year, date.monthValue, date.dayOfMonth)
+                vm.setDeadline(h, m)
+                showTimePicker = false
+            },
             onDismiss = { showTimePicker = false }
         )
     }
 }
 
-/** 06:00 ~ 23:30，每 30 分钟一档 */
-private val TIME_SLOTS: List<Pair<Int, Int>> = buildList {
-    for (h in 6..23) {
-        add(h to 0)
-        if (h < 23) add(h to 30)
-    }
+// ──────────────────────────────────────────────────────────
+// Wheel-style Time Picker Dialog (matches Samsung Calendar style)
+// ──────────────────────────────────────────────────────────
+
+/**
+ * Generate date list: 15 days before and after the given date.
+ */
+private fun generateDateList(centerDate: LocalDate): List<LocalDate> {
+    return (-15..15).map { centerDate.plusDays(it.toLong()) }
+}
+
+/**
+ * Format date for wheel display: "周X, M月D日"
+ */
+private fun formatDateForWheel(date: LocalDate): String {
+    val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.CHINESE)
+    return "$dayOfWeek, ${date.monthValue}月${date.dayOfMonth}日"
 }
 
 @Composable
-private fun TimeSlotPickerDialog(
+private fun WheelTimePickerDialog(
+    currentDate: LocalDate,
     currentHour: Int,
     currentMinute: Int,
-    onSelect: (Int, Int) -> Unit,
+    onConfirm: (LocalDate, Int, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selected by remember { mutableStateOf(currentHour to currentMinute) }
+    val dateList = remember(currentDate) { generateDateList(currentDate) }
+    val dateLabels = remember(dateList) { dateList.map { formatDateForWheel(it) } }
+    val hourLabels = remember { (0..23).map { "%d".format(it) } }
+    val minuteLabels = remember { (0..59).map { "%d".format(it) } }
 
-    AlertDialog(
+    val initialDateIndex = remember(currentDate, dateList) {
+        dateList.indexOf(currentDate).coerceAtLeast(0)
+    }
+
+    var selectedDateIndex by remember { mutableIntStateOf(initialDateIndex) }
+    var selectedHour by remember { mutableIntStateOf(currentHour) }
+    var selectedMinute by remember { mutableIntStateOf(currentMinute) }
+
+    val selectedDate by remember {
+        derivedStateOf { dateList.getOrElse(selectedDateIndex) { currentDate } }
+    }
+
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择时间", fontWeight = FontWeight.SemiBold) },
-        text = {
-            val listState = rememberLazyListState()
-            val selectedIndex by remember {
-                derivedStateOf {
-                    TIME_SLOTS.indexOfFirst { it.first == selected.first && it.second == selected.second }.coerceAtLeast(0)
-                }
-            }
-            // auto-scroll to current selection on first composition
-            LaunchedEffect(Unit) {
-                val idx = TIME_SLOTS.indexOfFirst { it.first == currentHour && it.second == currentMinute }.coerceAtLeast(0)
-                if (idx > 2) listState.scrollToItem(idx - 2)
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header: "From" title
+            Text(
+                text = "开始时间",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(4.dp))
+            // Header: current selection summary
+            Text(
+                text = "${formatDateForWheel(selectedDate)}, %02d:%02d".format(selectedHour, selectedMinute),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            // Three-column wheel picker
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Date column
+                WheelPicker(
+                    items = dateLabels,
+                    selectedIndex = selectedDateIndex,
+                    onSelectedChanged = { selectedDateIndex = it },
+                    modifier = Modifier.weight(1.4f),
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    selectedFontSize = 18.sp,
+                    unselectedFontSize = 14.sp
+                )
+
+                // Hour column
+                WheelPicker(
+                    items = hourLabels,
+                    selectedIndex = selectedHour,
+                    onSelectedChanged = { selectedHour = it },
+                    modifier = Modifier.weight(0.8f),
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    selectedFontSize = 24.sp,
+                    unselectedFontSize = 16.sp,
+                    suffix = "H"
+                )
+
+                // Minute column
+                WheelPicker(
+                    items = minuteLabels,
+                    selectedIndex = selectedMinute,
+                    onSelectedChanged = { selectedMinute = it },
+                    modifier = Modifier.weight(0.8f),
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    selectedFontSize = 24.sp,
+                    unselectedFontSize = 16.sp,
+                    suffix = "M"
+                )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                LazyRow(
-                    state = listState,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Spacer(Modifier.height(24.dp))
+
+            // Bottom buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Cancel button
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    items(TIME_SLOTS) { (h, m) ->
-                        val isSelected = h == selected.first && m == selected.second
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selected = h to m },
-                            label = { Text("%02d:%02d".format(h, m)) }
-                        )
-                    }
+                    Text(
+                        "取消",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-                // quick presets
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("上午" to 9, "中午" to 12, "下午" to 15, "晚上" to 20).forEach { (label, hour) ->
-                        TextButton(onClick = { selected = hour to 0 }) { Text(label) }
-                    }
+                // OK button
+                Button(
+                    onClick = { onConfirm(selectedDate, selectedHour, selectedMinute) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF2196F3),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        "确定",
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSelect(selected.first, selected.second) }) { Text("确定") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
         }
-    )
+    }
 }
