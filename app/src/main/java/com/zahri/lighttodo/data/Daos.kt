@@ -63,7 +63,7 @@ interface TodoDao {
     suspend fun listCalendarEventIds(): List<Long>
 
     @Query("DELETE FROM todo WHERE calendarEventId IS NOT NULL AND calendarEventId NOT IN (:keepIds)")
-    suspend fun deleteCalendarOrphans(keepIds: List<Long>): Int
+    suspend fun deleteCalendarOrphans(keepIds: List<Long>)
 
     @Transaction
     suspend fun replaceAll(tags: List<TagEntity>, todos: List<TodoEntity>) {

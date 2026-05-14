@@ -111,15 +111,7 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info" />
-            <meta-data
-                android:name="miuiWidget"
-                android:value="true" />
-            <meta-data
-                android:name="miuiWidgetRefresh"
-                android:value="exposure" />
-            <meta-data
-                android:name="miuiWidgetRefreshMinInterval"
-                android:value="30000" />
+
         </receiver>
 
         <service
@@ -127,10 +119,6 @@
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
-        <!-- MIUI Widget 版本号 -->
-        <meta-data
-            android:name="miuiWidgetVersion"
-            android:value="1" />
 
     </application>
 

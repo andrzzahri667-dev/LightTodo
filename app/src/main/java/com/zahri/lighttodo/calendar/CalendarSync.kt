@@ -85,10 +85,10 @@ object CalendarSync {
             app.db.todoDao().upsertAll(toInsert)
         }
         // Remove events that disappeared from the system calendar
-        val orphansDeleted = app.db.todoDao().deleteCalendarOrphans(seenIds)
+        app.db.todoDao().deleteCalendarOrphans(seenIds)
 
-        // Refresh widget(s) when data changed (inserts or deletions)
-        if (toInsert.isNotEmpty() || orphansDeleted > 0) {
+        // Refresh widget(s) when data changed
+        if (toInsert.isNotEmpty()) {
             TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
         }
         toInsert.size
