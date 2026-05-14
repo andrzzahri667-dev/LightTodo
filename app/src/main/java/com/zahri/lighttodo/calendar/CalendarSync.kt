@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
+import com.zahri.lighttodo.widget.TodoWidgetProvider
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -80,6 +81,12 @@ object CalendarSync {
         }
         // Remove events that disappeared
         app.db.todoDao().deleteCalendarOrphans(seenIds)
+
+        // Refresh widget(s) when fresh calendar data is imported so the new items
+        // show up without waiting for the next manual update.
+        if (toInsert.isNotEmpty()) {
+            TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
+        }
         return toInsert.size
     }
 
