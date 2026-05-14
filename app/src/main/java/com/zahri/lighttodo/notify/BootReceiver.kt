@@ -29,7 +29,8 @@ class BootReceiver : BroadcastReceiver() {
                     // here we just make sure existing events are pulled in promptly.
                     try {
                         CalendarSync.runOnce(context)
-                    } catch (_: Throwable) {
+                    } catch (_: Exception) {
+                        // runBlocking context — CancellationException not expected here
                     }
                 }
             } finally {
