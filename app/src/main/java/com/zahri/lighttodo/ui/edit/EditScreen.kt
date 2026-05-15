@@ -610,7 +610,21 @@ private fun WheelDateTimePickerDialog(
                 WheelPicker(
                     items = hourLabels,
                     selectedIndex = selectedHour,
-                    onSelectedChanged = { selectedHour = it },
+                    onSelectedChanged = { h ->
+                        if (minTotalMinutes != null) {
+                            val total = h * 60 + selectedMinute
+                            if (total <= minTotalMinutes) {
+                                // 弹到最小合法值：开始时间 +1 分钟
+                                val minValid = (minTotalMinutes + 1).coerceAtMost(23 * 60 + 59)
+                                selectedHour = minValid / 60
+                                selectedMinute = minValid % 60
+                            } else {
+                                selectedHour = h
+                            }
+                        } else {
+                            selectedHour = h
+                        }
+                    },
                     modifier = Modifier.weight(0.7f),
                     selectedFontSize = 24.sp,
                     unselectedFontSize = 16.sp,
@@ -619,7 +633,20 @@ private fun WheelDateTimePickerDialog(
                 WheelPicker(
                     items = minuteLabels,
                     selectedIndex = selectedMinute,
-                    onSelectedChanged = { selectedMinute = it },
+                    onSelectedChanged = { m ->
+                        if (minTotalMinutes != null) {
+                            val total = selectedHour * 60 + m
+                            if (total <= minTotalMinutes) {
+                                val minValid = (minTotalMinutes + 1).coerceAtMost(23 * 60 + 59)
+                                selectedHour = minValid / 60
+                                selectedMinute = minValid % 60
+                            } else {
+                                selectedMinute = m
+                            }
+                        } else {
+                            selectedMinute = m
+                        }
+                    },
                     modifier = Modifier.weight(0.7f),
                     selectedFontSize = 24.sp,
                     unselectedFontSize = 16.sp,
