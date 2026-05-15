@@ -84,12 +84,37 @@ class EditViewModel : ViewModel() {
         it.copy(date = LocalDate.of(year, month, day))
     }
 
-    fun setStartTime(hour: Int, minute: Int) = _state.update {
-        it.copy(startTime = hour to minute)
+    fun setStartTime(hour: Int, minute: Int) = _state.update { st ->
+        val newStart = hour to minute
+        val startTotal = hour * 60 + minute
+        // 若没有截止时间，或截止时间早于/等于新开始时间，自动设为开始时间 +15 分钟
+        val end = st.endTime
+        val needAdjustEnd = end == null || (end.first * 60 + end.second) <= startTotal
+        val newEnd = if (needAdjustEnd) {
+            val total = (startTotal + 15).coerceAtMost(23 * 60 + 59)
+            (total / 60) to (total % 60)
+        } else {
+            end
+        }
+        st.copy(startTime = newStart, endTime = newEnd)
     }
 
-    fun setEndTime(hour: Int, minute: Int) = _state.update {
-        it.copy(endTime = hour to minute)
+    fun setEndTime(hour: Int, minute: Int) = _state.update { st ->
+        val endTotal = hour * 60 + minute
+        // 若已有开始时间，截止不允许早于或等于开始；自动夹到 开始 +15 分钟
+        val start = st.startTime
+        val adjusted = if (start != null) {
+            val startTotal = start.first * 60 + start.second
+            if (endTotal <= startTotal) {
+                val total = (startTotal + 15).coerceAtMost(23 * 60 + 59)
+                (total / 60) to (total % 60)
+            } else {
+                hour to minute
+            }
+        } else {
+            hour to minute
+        }
+        st.copy(endTime = adjusted)
     }
 
     fun clearTimes() = _state.update {
@@ -97,7 +122,7 @@ class EditViewModel : ViewModel() {
     }
 
     fun adjustHoursBefore(delta: Int) = _state.update {
-        val cur = it.customHoursBefore ?: it.defaultHoursBefore
+        val cur = it.customHoursBefore ?: 0
         val next = (cur + delta).coerceIn(0, 72)
         it.copy(customHoursBefore = next)
     }

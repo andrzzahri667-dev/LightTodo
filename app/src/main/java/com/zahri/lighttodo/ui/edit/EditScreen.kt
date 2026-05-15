@@ -490,11 +490,12 @@ private fun ReminderRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            val hours = customHoursBefore ?: defaultHoursBefore
+            // 默认 0：到点提醒；> 0：提前 N 小时
+            val hours = customHoursBefore ?: 0
             StepperButton(text = "−", enabled = enabled, onClick = onDecrease)
             Spacer(Modifier.width(10.dp))
             Text(
-                "提前 $hours 小时",
+                if (hours == 0) "到点提醒" else "提前 $hours 小时",
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -557,10 +558,6 @@ private fun WheelDateTimePickerDialog(
     var selectedHour by remember { mutableIntStateOf(initialHour) }
     var selectedMinute by remember { mutableIntStateOf(initialMinute) }
 
-    val selectedDate by remember {
-        derivedStateOf { dateList.getOrElse(selectedDateIndex) { initialDate } }
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -580,8 +577,18 @@ private fun WheelDateTimePickerDialog(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(6.dp))
+
+            // Live indices: WheelPicker returns the currently-centered logical index
+            // synchronously, so we read those for header text + confirm action.
+            // This guarantees the header summary, the centered wheel value, and the
+            // value passed to onConfirm are always identical.
+            var liveDate by remember { mutableIntStateOf(initialDateIndex) }
+            var liveHour by remember { mutableIntStateOf(initialHour) }
+            var liveMinute by remember { mutableIntStateOf(initialMinute) }
+
+            val headerDate = dateList.getOrElse(liveDate) { initialDate }
             Text(
-                text = "${formatDateForWheel(selectedDate)}, %02d:%02d".format(selectedHour, selectedMinute),
+                text = "${formatDateForWheel(headerDate)}, %02d:%02d".format(liveHour, liveMinute),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -594,32 +601,37 @@ private fun WheelDateTimePickerDialog(
                     .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                WheelPicker(
+                val dIdx = WheelPicker(
                     items = dateLabels,
                     selectedIndex = selectedDateIndex,
-                    onSelectedChanged = { selectedDateIndex = it },
+                    onSelectedChanged = { selectedDateIndex = it; liveDate = it },
                     modifier = Modifier.weight(1.6f),
                     selectedFontSize = 18.sp,
                     unselectedFontSize = 14.sp
                 )
-                WheelPicker(
+                val hIdx = WheelPicker(
                     items = hourLabels,
                     selectedIndex = selectedHour,
-                    onSelectedChanged = { selectedHour = it },
+                    onSelectedChanged = { selectedHour = it; liveHour = it },
                     modifier = Modifier.weight(0.7f),
                     selectedFontSize = 24.sp,
                     unselectedFontSize = 16.sp,
                     superscript = "H"
                 )
-                WheelPicker(
+                val mIdx = WheelPicker(
                     items = minuteLabels,
                     selectedIndex = selectedMinute,
-                    onSelectedChanged = { selectedMinute = it },
+                    onSelectedChanged = { selectedMinute = it; liveMinute = it },
                     modifier = Modifier.weight(0.7f),
                     selectedFontSize = 24.sp,
                     unselectedFontSize = 16.sp,
                     superscript = "M"
                 )
+                // Bridge any tiny timing gap between wheel snap and onSelectedChanged
+                // by mirroring the synchronous return values into liveXxx state.
+                LaunchedEffect(dIdx) { if (dIdx != liveDate) liveDate = dIdx }
+                LaunchedEffect(hIdx) { if (hIdx != liveHour) liveHour = hIdx }
+                LaunchedEffect(mIdx) { if (mIdx != liveMinute) liveMinute = mIdx }
             }
 
             Spacer(Modifier.height(20.dp))
@@ -647,7 +659,11 @@ private fun WheelDateTimePickerDialog(
                     )
                 }
                 Button(
-                    onClick = { onConfirm(selectedDate, selectedHour, selectedMinute) },
+                    onClick = {
+                        // Use live indices: what the user sees centered IS what gets saved.
+                        val confirmDate = dateList.getOrElse(liveDate) { initialDate }
+                        onConfirm(confirmDate, liveHour, liveMinute)
+                    },
                     shape = RoundedCornerShape(50),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
