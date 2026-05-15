@@ -60,11 +60,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.theme.AppColors
+import com.zahri.lighttodo.ui.theme.AppType
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-private val PrimaryOrange = Color(0xFFFFB75A)
+private val PrimaryOrange = AppColors.Brand
 
 @Composable
 fun EditScreen(
@@ -138,8 +140,7 @@ fun EditScreen(
             // Big page title
             Text(
                 text = if (editingId == null) stringResource(R.string.edit_title_new) else stringResource(R.string.edit_title_edit),
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Normal,
+                style = AppType.largeTitle,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)
             )
@@ -164,8 +165,10 @@ fun EditScreen(
                         checked = state.startTime == null && state.endTime == null,
                         onCheckedChange = { allDay ->
                             if (allDay) vm.clearTimes() else {
-                                if (state.startTime == null) vm.setStartTime(9, 0)
-                                if (state.endTime == null) vm.setEndTime(10, 0)
+                                if (state.startTime == null) {
+                                    val now = java.time.LocalTime.now()
+                                    vm.setStartTime(now.hour, now.minute)
+                                }
                             }
                         },
                         enabled = !state.readOnly
@@ -335,7 +338,7 @@ private fun Card(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
     ) {
         content()
@@ -568,7 +571,7 @@ private fun WheelDateTimePickerDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(top = 24.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
