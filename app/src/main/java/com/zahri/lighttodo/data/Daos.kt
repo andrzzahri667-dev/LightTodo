@@ -71,6 +71,9 @@ interface TodoDao {
     @Query("SELECT calendarEventId FROM todo WHERE calendarEventId IS NOT NULL")
     suspend fun listCalendarEventIds(): List<Long>
 
+    @Query("SELECT * FROM todo WHERE calendarEventId IN (:eventIds)")
+    suspend fun findByCalendarEventIds(eventIds: List<Long>): List<TodoEntity>
+
     @Query("DELETE FROM todo WHERE calendarEventId IS NOT NULL AND calendarEventId NOT IN (:keepIds)")
     suspend fun deleteCalendarOrphans(keepIds: List<Long>)
 

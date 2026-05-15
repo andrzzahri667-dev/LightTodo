@@ -54,7 +54,7 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun syncCalendarNow(context: Context, onDone: (String) -> Unit) = viewModelScope.launch {
-        val n = CalendarSync.runOnce(context)
+        val n = CalendarSync.runOnce(context, force = true)
         onDone(if (n >= 0) context.getString(R.string.settings_sync_success, n) else context.getString(R.string.settings_sync_failed))
     }
 

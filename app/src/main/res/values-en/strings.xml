@@ -10,6 +10,8 @@
     <string name="home_no_title">Untitled</string>
     <string name="home_settings">Settings</string>
     <string name="home_add">New</string>
+    <string name="home_selected_count">%d selected</string>
+    <string name="home_delete_selected">Delete</string>
 
     <!-- Edit -->
     <string name="edit_title_new">New Task</string>

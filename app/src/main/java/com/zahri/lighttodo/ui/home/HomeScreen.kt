@@ -8,8 +8,10 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
@@ -64,16 +68,44 @@ fun HomeScreen(
     vm: HomeViewModel = viewModel()
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val selectedIds by vm.selectedIds.collectAsStateWithLifecycle()
+    val inSelection = selectedIds.isNotEmpty()
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAdd,
-                containerColor = AppColors.Brand,
-                shape = CircleShape,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
+            if (!inSelection) {
+                FloatingActionButton(
+                    onClick = onAdd,
+                    containerColor = AppColors.Brand,
+                    shape = CircleShape,
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
+                }
+            }
+        },
+        bottomBar = {
+            AnimatedVisibility(visible = inSelection, enter = fadeIn(), exit = fadeOut()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { vm.clearSelection() }) {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text(
+                        stringResource(R.string.home_selected_count, selectedIds.size),
+                        style = AppType.headline,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { vm.deleteSelected() }) {
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.home_delete_selected), tint = AppColors.Overdue)
+                    }
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -162,8 +194,14 @@ fun HomeScreen(
                             group.items.forEachIndexed { index, todo ->
                                 TodoRow(
                                     todo = todo,
+                                    selected = todo.id in selectedIds,
+                                    inSelectionMode = inSelection,
                                     onToggle = { vm.toggleDone(todo.id, true) },
-                                    onClick = { onEdit(todo.id) }
+                                    onClick = {
+                                        if (inSelection) vm.toggleSelection(todo.id)
+                                        else onEdit(todo.id)
+                                    },
+                                    onLongClick = { vm.toggleSelection(todo.id) }
                                 )
                                 if (index < group.items.lastIndex) {
                                     HorizontalDivider(
@@ -204,8 +242,14 @@ fun HomeScreen(
                             state.doneItems.forEachIndexed { index, todo ->
                                 TodoRow(
                                     todo = todo,
+                                    selected = todo.id in selectedIds,
+                                    inSelectionMode = inSelection,
                                     onToggle = { vm.toggleDone(todo.id, false) },
-                                    onClick = { onEdit(todo.id) },
+                                    onClick = {
+                                        if (inSelection) vm.toggleSelection(todo.id)
+                                        else onEdit(todo.id)
+                                    },
+                                    onLongClick = { vm.toggleSelection(todo.id) },
                                     strikeThrough = true
                                 )
                                 if (index < state.doneItems.lastIndex) {
@@ -257,11 +301,15 @@ private fun SectionHeader(title: String, count: Int, expanded: Boolean, onToggle
 }
 
 // ─── Todo Row ────────────────────────────────────────────────────
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TodoRow(
     todo: TodoEntity,
+    selected: Boolean = false,
+    inSelectionMode: Boolean = false,
     onToggle: () -> Unit,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     strikeThrough: Boolean = false
 ) {
     val titleText = todo.displayTitle(androidx.compose.ui.platform.LocalContext.current)
@@ -271,24 +319,35 @@ private fun TodoRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
+            .background(if (selected) AppColors.Brand.copy(alpha = 0.12f) else Color.Transparent)
+            .combinedClickable(onLongClick = onLongClick, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Checkbox (Fitts's Law: 24dp touch target)
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(
-                    if (todo.done) AppColors.DoneGreen
-                    else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                )
-                .clickable { onToggle() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (todo.done) {
-                Text("✓", color = Color.White, fontSize = 13.sp)
+        // Checkbox or selection indicator
+        if (inSelectionMode) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selected) Text("✓", color = Color.Black, fontSize = 13.sp)
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (todo.done) AppColors.DoneGreen
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    )
+                    .clickable { onToggle() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (todo.done) Text("✓", color = Color.White, fontSize = 13.sp)
             }
         }
 

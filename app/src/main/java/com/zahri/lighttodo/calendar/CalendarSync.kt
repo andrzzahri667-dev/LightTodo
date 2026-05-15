@@ -37,12 +37,12 @@ object CalendarSync {
     private val syncMutex = Mutex()
 
     /**
-     * @return 同步导入的任务条数；-1 表示失败/没权限/未启用
+     * @return 同步导入的任务条数；-1 表示失败/没权限
      */
-    suspend fun runOnce(context: Context): Int = syncMutex.withLock {
+    suspend fun runOnce(context: Context, force: Boolean = false): Int = syncMutex.withLock {
         val app = context.applicationContext as App
         val prefs = app.prefs.snapshot()
-        if (!prefs.calendarSyncEnabled) return@withLock -1
+        if (!force && !prefs.calendarSyncEnabled) return@withLock -1
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
             return@withLock -1
         }
@@ -56,19 +56,21 @@ object CalendarSync {
 
         val events = queryEvents(context, calendarIds, from, to)
 
-        // Insert as new entities, dedup by calendarEventId via REPLACE on UNIQUE index
-        val existing = app.db.todoDao().listCalendarEventIds().toSet()
+        // Insert new + update existing entities by calendarEventId
+        val existingEntities = app.db.todoDao().findByCalendarEventIds(events.map { it.id })
+        val existingMap = existingEntities.associateBy { it.calendarEventId }
         val now2 = System.currentTimeMillis()
 
-        val toInsert = mutableListOf<TodoEntity>()
+        val toUpsert = mutableListOf<TodoEntity>()
         val seenIds = mutableListOf<Long>()
         for (ev in events) {
             seenIds += ev.id
-            if (ev.id in existing) continue
             val (date, dateMillis) = DateUtils.dayKeyAndStartFromMillis(ev.startMillis)
             val (startH, startM) = if (ev.allDay) null to null else hourMinuteOf(ev.startMillis)
-            val (endH, endM) = if (ev.allDay || ev.endMillis == null) null to null else hourMinuteOf(ev.endMillis!!)
-            toInsert += TodoEntity(
+            val (endH, endM) = if (ev.allDay || ev.endMillis == null) null to null else hourMinuteOf(ev.endMillis)
+            val existing = existingMap[ev.id]
+            toUpsert += TodoEntity(
+                id = existing?.id ?: 0L,
                 title = ev.title.ifBlank { context.getString(R.string.calendar_no_title) },
                 note = ev.description?.takeIf { it.isNotBlank() },
                 date = date,
@@ -80,23 +82,24 @@ object CalendarSync {
                 remindStartAtMillis = null,
                 remindAtMillis = null,
                 customRemindHoursBefore = null,
-                tagId = null,
-                done = false,
-                createdAtMillis = now2,
+                tagId = existing?.tagId,
+                done = existing?.done ?: false,
+                doneAtMillis = existing?.doneAtMillis,
+                createdAtMillis = existing?.createdAtMillis ?: now2,
                 calendarEventId = ev.id
             )
         }
-        if (toInsert.isNotEmpty()) {
-            app.db.todoDao().upsertAll(toInsert)
+        if (toUpsert.isNotEmpty()) {
+            app.db.todoDao().upsertAll(toUpsert)
         }
         // Remove events that disappeared from the system calendar
         app.db.todoDao().deleteCalendarOrphans(seenIds)
 
         // Refresh widget(s) when data changed
-        if (toInsert.isNotEmpty()) {
+        if (toUpsert.isNotEmpty()) {
             TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
         }
-        toInsert.size
+        toUpsert.size
     }
 
     private fun pickCalendarIds(context: Context, userFilter: String): List<Long> {

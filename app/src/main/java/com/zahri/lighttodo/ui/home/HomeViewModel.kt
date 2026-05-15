@@ -8,8 +8,10 @@ import com.zahri.lighttodo.data.HomeData
 import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -82,6 +84,29 @@ class HomeViewModel : ViewModel() {
 
     fun delete(id: Long) {
         viewModelScope.launch { repo.delete(id) }
+    }
+
+    // ── Batch selection ──────────────────────────────────────
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+
+    val inSelectionMode: Boolean get() = _selectedIds.value.isNotEmpty()
+
+    fun toggleSelection(id: Long) {
+        _selectedIds.value = _selectedIds.value.let {
+            if (id in it) it - id else it + id
+        }
+    }
+
+    fun clearSelection() { _selectedIds.value = emptySet() }
+
+    fun deleteSelected() {
+        val ids = _selectedIds.value.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            ids.forEach { repo.delete(it) }
+            _selectedIds.value = emptySet()
+        }
     }
 
     companion object {
