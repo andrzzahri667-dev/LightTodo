@@ -8,10 +8,11 @@
     android:paddingBottom="4dp">
 
     <ImageView
+        android:id="@+id/item_dot"
         android:layout_width="6dp"
         android:layout_height="6dp"
         android:layout_marginEnd="4dp"
-        android:background="@drawable/widget_dot"
+        android:src="@drawable/widget_dot"
         android:contentDescription="dot" />
 
     <!-- Title column: title text with an optional yellow strike line overlay. -->
@@ -44,22 +45,6 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <!--
-          Yellow strike-through line, shown only during stage 2 of the tap-complete
-          animation. Note: must be ImageView (not View) because RemoteViews does not
-          support plain View elements.
-        -->
-        <ImageView
-            android:id="@+id/item_strike"
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:layout_gravity="center_vertical|top"
-            android:layout_marginTop="10dp"
-            android:layout_marginEnd="6dp"
-            android:contentDescription="strike"
-            android:scaleType="fitXY"
-            android:src="@drawable/widget_strike"
-            android:visibility="gone" />
     </FrameLayout>
 
     <ImageView

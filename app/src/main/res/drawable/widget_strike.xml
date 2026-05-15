@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Yellow horizontal strike line drawn over the title during stage 2 of the
-  widget tap-to-complete animation. Visibility is toggled via RemoteViews.
--->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="@color/widget_dot" />
-    <size android:height="2dp" />
+    <solid android:color="#BFFFCC80" />
+    <size android:height="1.5dp" />
 </shape>

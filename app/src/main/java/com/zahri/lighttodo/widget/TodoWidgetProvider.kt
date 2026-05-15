@@ -6,27 +6,38 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
+import android.graphics.Color
+import android.graphics.Paint
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.StrikethroughSpan
 import android.util.Log
 import android.util.TypedValue
+import android.view.View
 import android.widget.RemoteViews
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.home.dateLabel
+import com.zahri.lighttodo.ui.home.displayTitle
+import com.zahri.lighttodo.ui.home.isOverdueDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
 /**
  * 2x2 暗色圆角小组件。
  *  - 顶部："今日安排" + 右上 > 圆形按钮（点击进 App）
- *  - 中间：未完成、且当天或已逾期的任务列表（按时间升序）。超出不滚（按用户要求）
+ *  - 中间：未完成、且当天或已逾期的任务列表（按时间升序）。最多显示 3 条，固定行布局。
  *  - 每行：橙色圆点 + 标题（一行省略） + 日期（红色=逾期）+ 右侧 [ ] 勾选框
- *  - 点击 [ ] -> 三段式动画：黄色对勾 -> 黄色删除线 -> 持久化 done 并从列表移除
+ *  - 点击 [ ] -> 帧动画：勾选 → 文字渐隐 → 整行淡出 → 持久化 done 并移除
  *  - 点击文字行 -> 打开主页
+ *
+ * 使用固定行布局（3 个 row）替代 ListView，动画帧通过
+ * [AppWidgetManager.partiallyUpdateAppWidget] 只更新被点击的那一行，
+ * 不影响其他行，消除闪烁。
  */
 class TodoWidgetProvider : AppWidgetProvider() {
 
@@ -62,10 +73,10 @@ class TodoWidgetProvider : AppWidgetProvider() {
             ACTION_ITEM_CLICK -> {
                 val todoId = intent.getLongExtra(EXTRA_TODO_ID, -1L)
                 val isCheck = intent.getBooleanExtra(EXTRA_IS_CHECK, false)
-                if (todoId > 0 && isCheck) {
-                    startCompleteAnimation(context, todoId)
+                val rowIndex = intent.getIntExtra(EXTRA_ROW_INDEX, -1)
+                if (todoId > 0 && isCheck && rowIndex >= 0) {
+                    startCompleteAnimation(context, todoId, rowIndex)
                 } else {
-                    // row tap -> open app
                     val open = Intent(context, MainActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(open)
@@ -76,37 +87,47 @@ class TodoWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    /**
-     * Staged tap-to-complete animation, driven by [WidgetAnimation] + posted main-thread
-     * callbacks. We can't run real animations inside RemoteViews, so we re-render the
-     * row in three discrete states with short delays between them.
-     */
-    private fun startCompleteAnimation(context: Context, todoId: Long) {
-        // If a previous animation for this id is still in flight, ignore the second tap.
+    // ---- Animation ----
+
+    private fun startCompleteAnimation(context: Context, todoId: Long, rowIndex: Int) {
         if (WidgetAnimation.isAnimating(todoId)) return
 
         val appCtx = context.applicationContext
+        WidgetAnimation.start(todoId, rowIndex)
 
-        // Stage 1: yellow filled checkbox + white tick.
-        WidgetAnimation.setStage(todoId, WidgetAnimation.Stage.CHECK_ONLY)
-        notifyAllWidgetsDataChanged(appCtx)
+        // Step 1: checkbox yellow + gray strikethrough + gray text (partial update, only this row).
+        val rv = RemoteViews(appCtx.packageName, R.layout.widget_2x2)
+        val item = runBlocking(Dispatchers.IO) { (appCtx as App).db.todoDao().findByIdSync(todoId) }
+        if (item != null) {
+            val titleText = item.displayTitle()
+            val titleSpanned = SpannableString(titleText)
+            titleSpanned.setSpan(
+                StrikethroughSpan(), 0, titleSpanned.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            rv.setTextViewText(TITLE_IDS[rowIndex], titleSpanned)
 
+            // Size strike line to match measured text width
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = 14f * appCtx.resources.displayMetrics.scaledDensity
+            }
+            val textWidthDp = paint.measureText(titleText) / appCtx.resources.displayMetrics.density
+            rv.setViewLayoutWidth(STRIKE_IDS[rowIndex], textWidthDp, TypedValue.COMPLEX_UNIT_DIP)
+            rv.setViewVisibility(STRIKE_IDS[rowIndex], View.VISIBLE)
+        }
+        rv.setTextColor(TITLE_IDS[rowIndex], 0xFFE8C96A.toInt()) // pale yellow
+        rv.setImageViewResource(CHECK_IDS[rowIndex], R.drawable.widget_checkbox_checked)
+        applyPartialUpdate(appCtx, rv)
+
+        // Step 2: persist done and remove the row.
         mainHandler.postDelayed({
-            // Stage 2: add the yellow strike line over the title.
-            WidgetAnimation.setStage(todoId, WidgetAnimation.Stage.STRIKE)
-            notifyAllWidgetsDataChanged(appCtx)
-        }, STAGE_2_DELAY_MS)
-
-        mainHandler.postDelayed({
-            // Stage 3: persist done=true and clear animation state. The natural
-            // refresh will drop the row from the listing.
             val app = appCtx as App
             runBlocking(Dispatchers.IO) {
                 app.repository.setDone(todoId, true)
             }
             WidgetAnimation.clear(todoId)
             notifyAllWidgetsDataChanged(appCtx)
-        }, STAGE_3_DELAY_MS)
+        }, STRIKE_DISPLAY_MS)
     }
 
     companion object {
@@ -115,11 +136,16 @@ class TodoWidgetProvider : AppWidgetProvider() {
         const val ACTION_REFRESH = "com.zahri.lighttodo.WIDGET_REFRESH"
         const val EXTRA_TODO_ID = "todo_id"
         const val EXTRA_IS_CHECK = "is_check"
+        const val EXTRA_ROW_INDEX = "row_index"
 
-        // Animation timings — tuned so the user can clearly perceive each stage
-        // without making the interaction feel slow.
-        private const val STAGE_2_DELAY_MS = 220L  // tick -> strike
-        private const val STAGE_3_DELAY_MS = 620L  // strike -> remove
+        private const val STRIKE_DISPLAY_MS = 350L // how long the strikethrough is visible before removal
+
+        private val ROW_IDS = intArrayOf(R.id.row_0, R.id.row_1, R.id.row_2)
+        private val DOT_IDS = intArrayOf(R.id.dot_0, R.id.dot_1, R.id.dot_2)
+        private val TITLE_IDS = intArrayOf(R.id.title_0, R.id.title_1, R.id.title_2)
+        private val SUBTITLE_IDS = intArrayOf(R.id.subtitle_0, R.id.subtitle_1, R.id.subtitle_2)
+        private val CHECK_IDS = intArrayOf(R.id.check_0, R.id.check_1, R.id.check_2)
+        private val STRIKE_IDS = intArrayOf(R.id.strike_0, R.id.strike_1, R.id.strike_2)
 
         private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -127,7 +153,8 @@ class TodoWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)
 
             // Force square: use the shorter dimension
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && options != null) {
+            val sdkInt = android.os.Build.VERSION.SDK_INT
+            if (sdkInt >= android.os.Build.VERSION_CODES.S && options != null) {
                 val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
                 val maxW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
                 val minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
@@ -150,7 +177,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // open app on background tap (any area not covered by list items)
+            // Open app on background tap
             val openAppPi = PendingIntent.getActivity(
                 context, 0,
                 Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -158,26 +185,69 @@ class TodoWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(android.R.id.background, openAppPi)
 
-            // RemoteViewsService for the list
-            val serviceIntent = Intent(context, TodoWidgetService::class.java).apply {
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-                data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+            // Query data
+            val app = context.applicationContext as App
+            val items = runBlocking(Dispatchers.IO) {
+                app.db.todoDao().listAllUndoneSync(limit = 3)
             }
-            views.setRemoteAdapter(R.id.widget_list, serviceIntent)
-            views.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
-            // template for click on items
-            val templateIntent = Intent(context, TodoWidgetProvider::class.java).apply {
-                action = ACTION_ITEM_CLICK
+            // Populate rows
+            for (i in 0..2) {
+                val item = items.getOrNull(i)
+                if (item != null) {
+                    views.setViewVisibility(ROW_IDS[i], View.VISIBLE)
+                    views.setTextViewText(TITLE_IDS[i], item.displayTitle())
+                    // Explicitly reset all properties that animation may have changed,
+                    // because partiallyUpdateAppWidget diffs can survive updateAppWidget.
+                    views.setTextColor(TITLE_IDS[i], 0xFF1A1A1A.toInt())
+
+                    val subText = item.dateLabel() + deadlineSuffix(item)
+                    views.setTextViewText(SUBTITLE_IDS[i], subText)
+                    views.setTextColor(
+                        SUBTITLE_IDS[i],
+                        if (item.isOverdueDate()) Color.parseColor("#F26A6A") else Color.parseColor("#B6B6B6")
+                    )
+
+                    views.setImageViewResource(CHECK_IDS[i], R.drawable.widget_checkbox)
+                    views.setInt(CHECK_IDS[i], "setImageAlpha", 255)
+                    views.setInt(DOT_IDS[i], "setImageAlpha", 255)
+                    views.setViewVisibility(STRIKE_IDS[i], View.GONE)
+
+                    // Click: checkbox -> complete animation
+                    val checkIntent = Intent(context, TodoWidgetProvider::class.java).apply {
+                        action = ACTION_ITEM_CLICK
+                        putExtra(EXTRA_TODO_ID, item.id)
+                        putExtra(EXTRA_IS_CHECK, true)
+                        putExtra(EXTRA_ROW_INDEX, i)
+                    }
+                    val checkPi = PendingIntent.getBroadcast(
+                        context, (item.id * 10 + i).toInt(),
+                        checkIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    views.setOnClickPendingIntent(CHECK_IDS[i], checkPi)
+
+                    // Click: title/subtitle -> open app
+                    val openIntent = Intent(context, TodoWidgetProvider::class.java).apply {
+                        action = ACTION_ITEM_CLICK
+                        putExtra(EXTRA_TODO_ID, item.id)
+                        putExtra(EXTRA_IS_CHECK, false)
+                    }
+                    val openPi = PendingIntent.getBroadcast(
+                        context, (item.id * 10 + i + 100).toInt(),
+                        openIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    views.setOnClickPendingIntent(TITLE_IDS[i], openPi)
+                    views.setOnClickPendingIntent(SUBTITLE_IDS[i], openPi)
+                } else {
+                    views.setViewVisibility(ROW_IDS[i], View.GONE)
+                }
             }
-            val templatePi = PendingIntent.getBroadcast(
-                context, 0, templateIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-            views.setPendingIntentTemplate(R.id.widget_list, templatePi)
+
+            views.setViewVisibility(R.id.widget_empty, if (items.isEmpty()) View.VISIBLE else View.GONE)
 
             mgr.updateAppWidget(widgetId, views)
-            mgr.notifyAppWidgetViewDataChanged(widgetId, R.id.widget_list)
         }
 
         fun notifyAllWidgetsDataChanged(context: Context) {
@@ -185,5 +255,24 @@ class TodoWidgetProvider : AppWidgetProvider() {
             val ids = mgr.getAppWidgetIds(ComponentName(context, TodoWidgetProvider::class.java))
             for (id in ids) updateWidget(context, mgr, id)
         }
+
+        private fun applyPartialUpdate(context: Context, rv: RemoteViews) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, TodoWidgetProvider::class.java))
+            for (id in ids) {
+                mgr.partiallyUpdateAppWidget(id, rv)
+            }
+        }
+
+        fun deadlineSuffix(item: com.zahri.lighttodo.data.TodoEntity): String = when {
+            item.startHour != null && item.startMinute != null && item.deadlineHour != null && item.deadlineMinute != null ->
+                " %02d:%02d-%02d:%02d".format(item.startHour, item.startMinute, item.deadlineHour, item.deadlineMinute)
+            item.startHour != null && item.startMinute != null ->
+                " %02d:%02d".format(item.startHour, item.startMinute)
+            item.deadlineHour != null && item.deadlineMinute != null ->
+                " %02d:%02d".format(item.deadlineHour, item.deadlineMinute)
+            else -> ""
+        }
+
     }
 }
