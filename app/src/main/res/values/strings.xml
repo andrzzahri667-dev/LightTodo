@@ -48,6 +48,10 @@
     <string name="settings_export">导出 JSON</string>
     <string name="settings_import">导入 JSON</string>
     <string name="settings_clear_done">清空已完成任务</string>
+    <string name="settings_clear_done_confirm_title">确认清空</string>
+    <string name="settings_clear_done_confirm_msg">将永久删除所有已完成的任务，此操作不可撤销。</string>
+    <string name="settings_clear_done_confirm">删除</string>
+    <string name="settings_clear_done_cancel">取消</string>
     <string name="settings_no_calendar_permission">未授予日历权限，无法开启同步</string>
     <string name="settings_cleared">已清空</string>
     <string name="settings_sync_success">已同步 %1$d 条日历事件</string>

@@ -48,6 +48,10 @@
     <string name="settings_export">Export JSON</string>
     <string name="settings_import">Import JSON</string>
     <string name="settings_clear_done">Clear completed tasks</string>
+    <string name="settings_clear_done_confirm_title">Confirm</string>
+    <string name="settings_clear_done_confirm_msg">This will permanently delete all completed tasks. This cannot be undone.</string>
+    <string name="settings_clear_done_confirm">Delete</string>
+    <string name="settings_clear_done_cancel">Cancel</string>
     <string name="settings_no_calendar_permission">Calendar permission denied</string>
     <string name="settings_cleared">Cleared</string>
     <string name="settings_sync_success">Synced %1$d calendar event(s)</string>

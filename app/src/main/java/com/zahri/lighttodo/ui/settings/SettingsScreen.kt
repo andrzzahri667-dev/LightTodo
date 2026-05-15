@@ -1,12 +1,13 @@
 package com.zahri.lighttodo.ui.settings
 
 import android.app.TimePickerDialog
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,42 +17,48 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.zahri.lighttodo.R
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.theme.AppColors
+import com.zahri.lighttodo.ui.theme.AppType
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     val toast = remember { mutableStateOf<String?>(null) }
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -68,30 +75,44 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
         else toast.value = context.getString(R.string.settings_no_calendar_permission)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        // ── Navigation bar ───────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Default remind time
+            IconButton(onClick = onBack) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.settings_back),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        // ── Large title ──────────────────────────────────────────
+        Text(
+            text = stringResource(R.string.settings_title),
+            style = AppType.largeTitle,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Card 1: Reminders ────────────────────────────────────
+        SectionCard {
             SettingRow(
                 title = stringResource(R.string.settings_default_remind_time),
-                subtitle = "%02d:%02d".format(state.defaultRemindHour, state.defaultRemindMinute),
+                value = "%02d:%02d".format(state.defaultRemindHour, state.defaultRemindMinute),
                 onClick = {
                     TimePickerDialog(
                         context,
@@ -100,92 +121,227 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
                     ).show()
                 }
             )
-            HorizontalDivider()
-
+            InsetDivider()
             SettingRow(
                 title = stringResource(R.string.settings_default_hours_before),
-                subtitle = stringResource(R.string.settings_hours_unit, state.defaultHoursBefore),
                 trailing = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore - 1) }) { Text("-") }
-                        TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore + 1) }) { Text("+") }
+                        TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore - 1) }) {
+                            Text("−", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.settings_hours_unit, state.defaultHoursBefore),
+                            style = AppType.body,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore + 1) }) {
+                            Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             )
-            HorizontalDivider()
+        }
 
-            // Calendar sync
+        Spacer(Modifier.height(20.dp))
+
+        // ── Card 2: Calendar Sync ────────────────────────────────
+        SectionCard {
             SwitchRow(
                 title = stringResource(R.string.settings_calendar_sync),
                 subtitle = stringResource(R.string.settings_calendar_sync_desc),
                 checked = state.calendarSyncEnabled,
                 onCheckedChange = { enabled ->
-                    if (enabled) {
-                        readCalendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
-                    } else {
-                        vm.setCalendarSyncEnabled(false)
-                    }
+                    if (enabled) readCalendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+                    else vm.setCalendarSyncEnabled(false)
                 }
             )
-            OutlinedTextField(
-                value = state.calendarAccountName,
-                onValueChange = vm::setCalendarAccount,
-                label = { Text(stringResource(R.string.settings_calendar_account)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            TextButton(onClick = { vm.syncCalendarNow(context) { toast.value = it } }) {
-                Text(stringResource(R.string.settings_sync_now))
+            InsetDivider()
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                OutlinedTextField(
+                    value = state.calendarAccountName,
+                    onValueChange = vm::setCalendarAccount,
+                    label = { Text(stringResource(R.string.settings_calendar_account), style = AppType.footnote) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = { vm.syncCalendarNow(context) { toast.value = it } }) {
+                    Text(stringResource(R.string.settings_sync_now), color = AppColors.Brand)
+                }
             }
-            HorizontalDivider()
+        }
 
+        Spacer(Modifier.height(20.dp))
+
+        // ── Card 3: Quick Add ────────────────────────────────────
+        SectionCard {
             SwitchRow(
                 title = stringResource(R.string.settings_quick_add_notif),
                 subtitle = stringResource(R.string.settings_quick_add_desc),
                 checked = state.quickAddNotifEnabled,
                 onCheckedChange = vm::setQuickAddNotif
             )
-            HorizontalDivider()
+        }
 
-            Button(onClick = { exportLauncher.launch("lighttodo-backup.json") }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.settings_export))
-            }
-            Button(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.settings_import))
-            }
-            Button(onClick = { vm.clearDone() { toast.value = it } }, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.settings_clear_done))
-            }
+        Spacer(Modifier.height(20.dp))
 
-            Spacer(Modifier.height(24.dp))
-            toast.value?.let {
-                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // ── Card 4: Data ─────────────────────────────────────────
+        SectionCard {
+            ActionRow(
+                title = stringResource(R.string.settings_export),
+                onClick = { exportLauncher.launch("lighttodo-backup.json") }
+            )
+            InsetDivider()
+            ActionRow(
+                title = stringResource(R.string.settings_import),
+                onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
+            )
+            InsetDivider()
+            ActionRow(
+                title = stringResource(R.string.settings_clear_done),
+                onClick = { showClearConfirm = true },
+                destructive = true
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // ── Toast ────────────────────────────────────────────────
+        toast.value?.let {
+            Text(
+                it,
+                style = AppType.footnote,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+
+    // ── Clear confirmation dialog ────────────────────────────────
+    if (showClearConfirm) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showClearConfirm = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(24.dp)
+            ) {
+                Text(
+                    stringResource(R.string.settings_clear_done_confirm_title),
+                    style = AppType.title3,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.settings_clear_done_confirm_msg),
+                    style = AppType.body,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextButton(
+                        onClick = { showClearConfirm = false },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_clear_done_cancel),
+                            style = AppType.headline,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            showClearConfirm = false
+                            vm.clearDone { toast.value = it }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AppColors.Overdue)
+                    ) {
+                        Text(
+                            stringResource(R.string.settings_clear_done_confirm),
+                            style = AppType.headline,
+                            color = Color.White
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+// ─── Reusable components ─────────────────────────────────────────
+
+@Composable
+private fun SectionCard(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Column { content() }
+    }
+}
+
+@Composable
+private fun InsetDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 16.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    )
+}
+
 @Composable
 private fun SettingRow(
     title: String,
-    subtitle: String? = null,
+    value: String? = null,
     trailing: (@Composable () -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .let { if (onClick != null) it.clickable { onClick() } else it }
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, color = MaterialTheme.colorScheme.onSurface)
-            if (subtitle != null) {
-                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            title,
+            style = AppType.body,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        if (trailing != null) {
+            if (value != null) {
+                Text(value, style = AppType.body, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(4.dp))
             }
+            trailing()
+        } else if (value != null) {
+            Text(value, style = AppType.body, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.height(18.dp)
+            )
         }
-        trailing?.invoke()
     }
 }
 
@@ -197,13 +353,52 @@ private fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = MaterialTheme.colorScheme.onSurface)
-            if (subtitle != null) Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, style = AppType.body, color = MaterialTheme.colorScheme.onSurface)
+            if (subtitle != null) {
+                Text(subtitle, style = AppType.footnote, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = AppColors.DoneGreen,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = MaterialTheme.colorScheme.outline,
+                uncheckedBorderColor = Color.Transparent
+            )
+        )
+    }
+}
+
+@Composable
+private fun ActionRow(title: String, onClick: () -> Unit, destructive: Boolean = false) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title,
+            style = AppType.body,
+            color = if (destructive) AppColors.Overdue else AppColors.Brand
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.height(18.dp)
+        )
     }
 }
