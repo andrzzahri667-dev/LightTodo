@@ -35,10 +35,10 @@ class Repository(
             dateMillis = dateMillis,
             hour = input.startHour,
             minute = input.startMinute,
-            customHoursBefore = input.customHoursBefore,
+            customHoursBefore = 0, // 开始时间：准点提醒
             defaultHour = p.defaultRemindHour,
             defaultMinute = p.defaultRemindMinute,
-            defaultHoursBefore = p.defaultHoursBefore
+            defaultHoursBefore = 0
         )
         val remindEnd = computeRemindAt(
             dateMillis = dateMillis,
@@ -47,7 +47,7 @@ class Repository(
             customHoursBefore = input.customHoursBefore,
             defaultHour = p.defaultRemindHour,
             defaultMinute = p.defaultRemindMinute,
-            defaultHoursBefore = p.defaultHoursBefore
+            defaultHoursBefore = 0 // 截止时间默认准点，用户可手动设提前
         )
         val existing = input.id?.let { todoDao.findById(it) }
         val now = System.currentTimeMillis()

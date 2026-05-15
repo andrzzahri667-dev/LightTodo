@@ -84,8 +84,19 @@ class EditViewModel : ViewModel() {
         it.copy(date = LocalDate.of(year, month, day))
     }
 
-    fun setStartTime(hour: Int, minute: Int) = _state.update {
-        it.copy(startTime = hour to minute)
+    fun setStartTime(hour: Int, minute: Int) = _state.update { st ->
+        val newStart = hour to minute
+        val startTotal = hour * 60 + minute
+        // 若没有截止时间，或截止时间早于/等于新开始时间，自动设为开始时间 +15 分钟
+        val end = st.endTime
+        val needAdjustEnd = end == null || (end.first * 60 + end.second) <= startTotal
+        val newEnd = if (needAdjustEnd) {
+            val total = (startTotal + 15).coerceAtMost(23 * 60 + 59)
+            (total / 60) to (total % 60)
+        } else {
+            end
+        }
+        st.copy(startTime = newStart, endTime = newEnd)
     }
 
     fun setEndTime(hour: Int, minute: Int) = _state.update {

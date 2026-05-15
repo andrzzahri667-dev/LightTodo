@@ -309,11 +309,14 @@ fun EditScreen(
         val totalFromMin = fromH * 60 + fromM
         val toH = (totalFromMin + 15) / 60
         val toM = (totalFromMin + 15) % 60
+        // 当存在开始时间时，截止时间不允许 ≤ 开始时间（exclusive 下界）
+        val minTotalMinutes = state.startTime?.let { it.first * 60 + it.second }
         WheelDateTimePickerDialog(
             title = "截止时间",
             initialDate = state.date,
             initialHour = state.endTime?.first ?: toH,
             initialMinute = state.endTime?.second ?: toM,
+            minTotalMinutes = minTotalMinutes,
             onConfirm = { date, h, m ->
                 vm.setDate(date.year, date.monthValue, date.dayOfMonth)
                 vm.setEndTime(h, m)
@@ -541,6 +544,8 @@ private fun WheelDateTimePickerDialog(
     initialDate: LocalDate,
     initialHour: Int,
     initialMinute: Int,
+    /** 当不为 null 时，限制 hour*60+minute > minTotalMinutes（即截止时间必须严格晚于开始时间） */
+    minTotalMinutes: Int? = null,
     onConfirm: (LocalDate, Int, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -622,7 +627,20 @@ private fun WheelDateTimePickerDialog(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            // 时间合法性检测：截止时间必须严格晚于开始时间
+            val currentTotal = selectedHour * 60 + selectedMinute
+            val isTimeValid = minTotalMinutes == null || currentTotal > minTotalMinutes
+
+            if (!isTimeValid) {
+                Text(
+                    "截止时间不能早于或等于开始时间",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(Modifier.height(8.dp))
+            } else {
+                Spacer(Modifier.height(20.dp))
+            }
 
             Row(
                 modifier = Modifier
@@ -648,10 +666,11 @@ private fun WheelDateTimePickerDialog(
                 }
                 Button(
                     onClick = { onConfirm(selectedDate, selectedHour, selectedMinute) },
+                    enabled = isTimeValid,
                     shape = RoundedCornerShape(50),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryOrange,
+                        containerColor = if (isTimeValid) PrimaryOrange else PrimaryOrange.copy(alpha = 0.4f),
                         contentColor = Color.White
                     ),
                     modifier = Modifier
