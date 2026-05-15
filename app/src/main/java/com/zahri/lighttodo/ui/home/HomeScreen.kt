@@ -1,6 +1,9 @@
 package com.zahri.lighttodo.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,23 +23,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -45,7 +45,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,8 +54,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.theme.AppColors
+import com.zahri.lighttodo.ui.theme.AppType
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onAdd: () -> Unit,
@@ -67,89 +66,155 @@ fun HomeScreen(
     val state by vm.state.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.home_title), fontWeight = FontWeight.SemiBold) },
-                actions = {
-                    IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.home_settings))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd, containerColor = AppColors.Brand) {
+            FloatingActionButton(
+                onClick = onAdd,
+                containerColor = AppColors.Brand,
+                shape = CircleShape,
+                modifier = Modifier.size(56.dp)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
             }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        if (state.groups.isEmpty() && state.doneItems.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.home_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            return@Scaffold
-        }
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = padding.calculateTopPadding() + 4.dp, bottom = 96.dp)
+            contentPadding = PaddingValues(
+                top = padding.calculateTopPadding() + 16.dp,
+                bottom = 96.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ── Large title header (iOS style) ───────────────────
+            item(key = "header") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_title),
+                        style = AppType.largeTitle,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onSettings) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.home_settings),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // ── Empty state ──────────────────────────────────────
+            if (state.groups.isEmpty() && state.doneItems.isEmpty()) {
+                item(key = "empty") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("☀️", fontSize = 48.sp)
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                stringResource(R.string.home_empty),
+                                style = AppType.body,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                return@LazyColumn
+            }
+
+            // ── Todo groups ──────────────────────────────────────
             for (group in state.groups) {
                 val key = HomeViewModel.groupKey(group.tagId)
                 val expanded = key !in state.collapsedTagIds
+
                 item(key = "header-$key") {
-                    GroupHeader(
+                    SectionHeader(
                         title = group.name,
                         count = group.items.size,
                         expanded = expanded,
                         onToggle = { vm.setGroupExpanded(key, !expanded) }
                     )
                 }
+
                 item(key = "body-$key") {
                     AnimatedVisibility(
                         visible = expanded,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
+                        enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 300f)),
+                        exit = shrinkVertically(spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 300f)),
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
                     ) {
-                        Column {
-                            for (todo in group.items) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            group.items.forEachIndexed { index, todo ->
                                 TodoRow(
                                     todo = todo,
                                     onToggle = { vm.toggleDone(todo.id, true) },
                                     onClick = { onEdit(todo.id) }
                                 )
+                                if (index < group.items.lastIndex) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 52.dp),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
+            // ── Done section ─────────────────────────────────────
             if (state.doneItems.isNotEmpty()) {
                 item(key = "done-header") {
-                    GroupHeader(
+                    SectionHeader(
                         title = stringResource(R.string.home_done_section),
                         count = state.doneItems.size,
                         expanded = state.doneExpanded,
                         onToggle = { vm.setDoneExpanded(!state.doneExpanded) }
                     )
                 }
+
                 item(key = "done-body") {
                     AnimatedVisibility(
                         visible = state.doneExpanded,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
+                        enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 300f)),
+                        exit = shrinkVertically(spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 300f)),
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp))
                     ) {
-                        Column {
-                            for (todo in state.doneItems) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            state.doneItems.forEachIndexed { index, todo ->
                                 TodoRow(
                                     todo = todo,
                                     onToggle = { vm.toggleDone(todo.id, false) },
                                     onClick = { onEdit(todo.id) },
                                     strikeThrough = true
                                 )
+                                if (index < state.doneItems.lastIndex) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = 52.dp),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                    )
+                                }
                             }
                         }
                     }
@@ -159,36 +224,39 @@ fun HomeScreen(
     }
 }
 
+// ─── Section Header ──────────────────────────────────────────────
 @Composable
-private fun GroupHeader(title: String, count: Int, expanded: Boolean, onToggle: () -> Unit) {
+private fun SectionHeader(title: String, count: Int, expanded: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .clickable { onToggle() }
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        Text(
+            text = title,
+            style = AppType.headline,
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.width(6.dp))
         Text(
-            text = title,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
             text = "$count",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp
+            style = AppType.footnote,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
         )
     }
 }
 
+// ─── Todo Row ────────────────────────────────────────────────────
 @Composable
 private fun TodoRow(
     todo: TodoEntity,
@@ -196,78 +264,75 @@ private fun TodoRow(
     onClick: () -> Unit,
     strikeThrough: Boolean = false
 ) {
-    val titleText = todo.displayTitle()
+    val titleText = todo.displayTitle(androidx.compose.ui.platform.LocalContext.current)
     val isOverdue = todo.isOverdueDate()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() }
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Orange dot
+        // Checkbox (Fitts's Law: 24dp touch target)
         Box(
-            Modifier
-                .size(6.dp)
+            modifier = Modifier
+                .size(24.dp)
                 .clip(CircleShape)
-                .background(AppColors.Brand)
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = titleText,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                textDecoration = if (strikeThrough || todo.done) TextDecoration.LineThrough else TextDecoration.None,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val deadlineSuffix = when {
-                    todo.startHour != null && todo.startMinute != null && todo.deadlineHour != null && todo.deadlineMinute != null ->
-                        " %02d:%02d-%02d:%02d".format(todo.startHour, todo.startMinute, todo.deadlineHour, todo.deadlineMinute)
-                    todo.startHour != null && todo.startMinute != null ->
-                        " %02d:%02d".format(todo.startHour, todo.startMinute)
-                    todo.deadlineHour != null && todo.deadlineMinute != null ->
-                        " %02d:%02d".format(todo.deadlineHour, todo.deadlineMinute)
-                    else -> ""
-                }
-                Text(
-                    text = todo.dateLabel() + deadlineSuffix,
-                    color = if (isOverdue) AppColors.Overdue else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
+                .background(
+                    if (todo.done) AppColors.DoneGreen
+                    else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                 )
-                if (todo.calendarEventId != null) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        painter = painterResource(R.drawable.ic_calendar_sync),
-                        contentDescription = "calendar",
-                        modifier = Modifier.size(11.dp),
-                        tint = Color.Unspecified
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        // Checkbox
-        Box(
-            Modifier
-                .size(22.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .clickable { onToggle() }
-                .background(if (todo.done) AppColors.Brand else Color.Transparent),
+                .clickable { onToggle() },
             contentAlignment = Alignment.Center
         ) {
             if (todo.done) {
-                Text("✓", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            } else {
-                androidx.compose.foundation.Canvas(Modifier.size(20.dp)) {
-                    drawRoundRect(
-                        color = Color(0x80FFFFFF),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(12f, 12f),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3f)
+                Text("✓", color = Color.White, fontSize = 13.sp)
+            }
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        // Content
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = titleText,
+                style = AppType.body,
+                color = if (strikeThrough) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onSurface,
+                textDecoration = if (strikeThrough) TextDecoration.LineThrough else TextDecoration.None,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            // Subtitle: time + calendar icon
+            val timeSuffix = when {
+                todo.startHour != null && todo.deadlineHour != null ->
+                    "%02d:%02d – %02d:%02d".format(todo.startHour, todo.startMinute, todo.deadlineHour, todo.deadlineMinute)
+                todo.startHour != null ->
+                    "%02d:%02d".format(todo.startHour, todo.startMinute)
+                todo.deadlineHour != null ->
+                    "%02d:%02d".format(todo.deadlineHour, todo.deadlineMinute)
+                else -> null
+            }
+            val subtitle = buildString {
+                append(todo.dateLabel())
+                if (timeSuffix != null) { append("  "); append(timeSuffix) }
+            }
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = subtitle,
+                    style = AppType.caption1,
+                    color = if (isOverdue) AppColors.Overdue else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (todo.calendarEventId != null) {
+                    Spacer(Modifier.width(6.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_calendar_sync),
+                        contentDescription = null,
+                        modifier = Modifier.size(11.dp),
+                        tint = Color.Unspecified
                     )
                 }
             }
