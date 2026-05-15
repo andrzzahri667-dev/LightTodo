@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.ui.edit
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
@@ -18,7 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -147,10 +148,11 @@ fun WheelPicker(
                 } else absIndex
 
                 val isSelected = absIndex == centeredAbsIndex
-                val alpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0.4f,
-                    label = "alpha"
-                )
+                val targetAlpha = if (isSelected) 1f else 0.4f
+                val alphaAnim = remember { Animatable(targetAlpha) }
+                LaunchedEffect(targetAlpha) {
+                    alphaAnim.animateTo(targetAlpha, tween(durationMillis = 150))
+                }
                 val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
                 val color = if (isSelected) selectedColor else unselectedColor
                 val weight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -159,7 +161,7 @@ fun WheelPicker(
                     modifier = Modifier
                         .height(itemHeight)
                         .fillMaxWidth()
-                        .alpha(alpha),
+                        .graphicsLayer { alpha = alphaAnim.value },
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected && superscript.isNotEmpty()) {

@@ -21,9 +21,18 @@ interface TodoDao {
     @Query("SELECT * FROM todo WHERE done = 0 AND dateMillis <= :endOfDayMillis ORDER BY dateMillis ASC, createdAtMillis ASC LIMIT :limit")
     fun listDueByDaySync(endOfDayMillis: Long, limit: Int): List<TodoEntity>
 
-    /** Widget：所有未完成任务，按时间排序（过期排前面） */
-    @Query("SELECT * FROM todo WHERE done = 0 ORDER BY dateMillis ASC, createdAtMillis ASC LIMIT :limit")
-    fun listAllUndoneSync(limit: Int): List<TodoEntity>
+    /** Widget：所有未完成任务，过期优先（越过期越前），未来任务按时间近→远 */
+    @Query("""
+        SELECT * FROM todo WHERE done = 0
+        ORDER BY (
+            CASE WHEN startHour IS NOT NULL AND startMinute IS NOT NULL
+                THEN dateMillis + startHour * 3600000 + startMinute * 60000
+                ELSE dateMillis
+            END - :nowMillis
+        ) ASC
+        LIMIT :limit
+    """)
+    fun listAllUndoneSync(nowMillis: Long, limit: Int): List<TodoEntity>
 
     @Query("SELECT * FROM todo WHERE id = :id")
     suspend fun findById(id: Long): TodoEntity?

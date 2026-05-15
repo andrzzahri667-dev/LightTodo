@@ -188,7 +188,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
             // Query data
             val app = context.applicationContext as App
             val items = runBlocking(Dispatchers.IO) {
-                app.db.todoDao().listAllUndoneSync(limit = 3)
+                app.db.todoDao().listAllUndoneSync(nowMillis = System.currentTimeMillis(), limit = 3)
             }
 
             // Populate rows
@@ -201,7 +201,8 @@ class TodoWidgetProvider : AppWidgetProvider() {
                     // because partiallyUpdateAppWidget diffs can survive updateAppWidget.
                     views.setTextColor(TITLE_IDS[i], 0xFF1A1A1A.toInt())
 
-                    val subText = item.dateLabel() + deadlineSuffix(item)
+                    val datePart = if (com.zahri.lighttodo.util.DateUtils.isToday(item.date)) "" else item.dateLabel()
+                    val subText = datePart + deadlineSuffix(item)
                     views.setTextViewText(SUBTITLE_IDS[i], subText)
                     views.setTextColor(
                         SUBTITLE_IDS[i],

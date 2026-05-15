@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.theme.AppColors
 
@@ -238,7 +240,12 @@ private fun TodoRow(
                 )
                 if (todo.calendarEventId != null) {
                     Spacer(Modifier.width(8.dp))
-                    Text("📅", fontSize = 11.sp)
+                    Icon(
+                        painter = painterResource(R.drawable.ic_calendar_sync),
+                        contentDescription = "calendar",
+                        modifier = Modifier.size(11.dp),
+                        tint = Color.Unspecified
+                    )
                 }
             }
         }
