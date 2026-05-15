@@ -31,23 +31,26 @@ class Repository(
         val p = prefs.flow.first()
         val tagId = resolveTagId(input.tagName)
         val (date, dateMillis) = DateUtils.dayKeyAndStart(input.year, input.month, input.day)
+        // 开始时间提醒：恰在开始时刻触发（不应用"提前 N 小时"）
         val remindStart = computeRemindAt(
             dateMillis = dateMillis,
             hour = input.startHour,
             minute = input.startMinute,
-            customHoursBefore = input.customHoursBefore,
+            hoursBefore = 0,
             defaultHour = p.defaultRemindHour,
             defaultMinute = p.defaultRemindMinute,
-            defaultHoursBefore = p.defaultHoursBefore
+            allDayFallback = false
         )
+        // 截止时间提醒：默认在截止时刻触发；若用户设了 customHoursBefore（>0）则提前
+        val endHoursBefore = input.customHoursBefore ?: 0
         val remindEnd = computeRemindAt(
             dateMillis = dateMillis,
             hour = input.deadlineHour,
             minute = input.deadlineMinute,
-            customHoursBefore = input.customHoursBefore,
+            hoursBefore = endHoursBefore,
             defaultHour = p.defaultRemindHour,
             defaultMinute = p.defaultRemindMinute,
-            defaultHoursBefore = p.defaultHoursBefore
+            allDayFallback = true
         )
         val existing = input.id?.let { todoDao.findById(it) }
         val now = System.currentTimeMillis()
@@ -132,25 +135,23 @@ class Repository(
 
     /**
      * 计算提醒时间戳：
-     *  - 有截止时刻：deadline - hoursBefore
-     *  - 全天：当天默认时刻（如 09:00）
-     *  - 用户没设自定义 hoursBefore，则使用全局默认
+     *  - 有具体时刻：trigger = (date + hour:minute) - hoursBefore
+     *  - 全天：仅当 allDayFallback=true 时使用当天默认时刻（如 09:00）；否则返回 null
      */
     private fun computeRemindAt(
         dateMillis: Long,
         hour: Int?,
         minute: Int?,
-        customHoursBefore: Int?,
+        hoursBefore: Int,
         defaultHour: Int,
         defaultMinute: Int,
-        defaultHoursBefore: Int
+        allDayFallback: Boolean
     ): Long? {
         if (hour != null && minute != null) {
-            val deadline = dateMillis + hour * 3_600_000L + minute * 60_000L
-            val hoursBefore = customHoursBefore ?: defaultHoursBefore
-            return deadline - hoursBefore * 3_600_000L
+            val target = dateMillis + hour * 3_600_000L + minute * 60_000L
+            return target - hoursBefore * 3_600_000L
         }
-        // all-day
+        if (!allDayFallback) return null
         return dateMillis + defaultHour * 3_600_000L + defaultMinute * 60_000L
     }
 }
