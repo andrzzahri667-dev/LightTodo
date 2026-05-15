@@ -222,8 +222,15 @@ private fun TodoRow(
             )
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val deadlineSuffix = if (todo.deadlineHour != null && todo.deadlineMinute != null)
-                    " %02d:%02d".format(todo.deadlineHour, todo.deadlineMinute) else ""
+                val deadlineSuffix = when {
+                    todo.startHour != null && todo.startMinute != null && todo.deadlineHour != null && todo.deadlineMinute != null ->
+                        " %02d:%02d-%02d:%02d".format(todo.startHour, todo.startMinute, todo.deadlineHour, todo.deadlineMinute)
+                    todo.startHour != null && todo.startMinute != null ->
+                        " %02d:%02d".format(todo.startHour, todo.startMinute)
+                    todo.deadlineHour != null && todo.deadlineMinute != null ->
+                        " %02d:%02d".format(todo.deadlineHour, todo.deadlineMinute)
+                    else -> ""
+                }
                 Text(
                     text = todo.dateLabel() + deadlineSuffix,
                     color = if (isOverdue) AppColors.Overdue else MaterialTheme.colorScheme.onSurfaceVariant,

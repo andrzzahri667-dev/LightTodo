@@ -93,15 +93,19 @@ class SettingsViewModel : ViewModel() {
 
 private fun TodoEntity.toBackup() = BackupTodo(
     id = id, title = title, note = note, date = date, dateMillis = dateMillis,
+    startHour = startHour, startMinute = startMinute,
     deadlineHour = deadlineHour, deadlineMinute = deadlineMinute,
-    remindAtMillis = remindAtMillis, customRemindHoursBefore = customRemindHoursBefore,
+    remindStartAtMillis = remindStartAtMillis, remindAtMillis = remindAtMillis,
+    customRemindHoursBefore = customRemindHoursBefore,
     tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis
 )
 
 private fun BackupTodo.toEntity() = TodoEntity(
     id = id, title = title, note = note, date = date, dateMillis = dateMillis,
+    startHour = startHour, startMinute = startMinute,
     deadlineHour = deadlineHour, deadlineMinute = deadlineMinute,
-    remindAtMillis = remindAtMillis, customRemindHoursBefore = customRemindHoursBefore,
+    remindStartAtMillis = remindStartAtMillis, remindAtMillis = remindAtMillis,
+    customRemindHoursBefore = customRemindHoursBefore,
     tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis,
     calendarEventId = null
 )

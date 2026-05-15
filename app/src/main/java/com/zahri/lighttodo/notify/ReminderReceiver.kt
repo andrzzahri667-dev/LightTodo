@@ -19,6 +19,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val id = ReminderScheduler.extractTodoId(intent) ?: return
+        val isStart = ReminderScheduler.isStartReminder(intent)
         val pending = goAsync()
         runBlocking(Dispatchers.IO) {
             try {
@@ -45,7 +46,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 val notif = NotificationCompat.Builder(context, NotificationChannels.REMINDER_ID)
                     .setSmallIcon(android.R.drawable.ic_popup_reminder)
                     .setContentTitle(todo.displayTitle())
-                    .setContentText(buildSubtitle(todo))
+                    .setContentText(buildSubtitle(todo, isStart))
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_ALARM)
                     .setAutoCancel(true)
@@ -53,16 +54,19 @@ class ReminderReceiver : BroadcastReceiver() {
                     .setFullScreenIntent(fullScreenPi, true)
                     .build()
                 val nm = context.getSystemService(NotificationManager::class.java)
-                nm?.notify(id.toInt(), notif)
+                val notifId = if (isStart) (id * 10).toInt() else (id * 10 + 1).toInt()
+                nm?.notify(notifId, notif)
             } finally {
                 pending.finish()
             }
         }
     }
 
-    private fun buildSubtitle(t: com.zahri.lighttodo.data.TodoEntity): String {
+    private fun buildSubtitle(t: com.zahri.lighttodo.data.TodoEntity, isStart: Boolean): String {
         val parts = mutableListOf<String>()
-        if (t.deadlineHour != null && t.deadlineMinute != null) {
+        if (isStart && t.startHour != null && t.startMinute != null) {
+            parts += "开始 %02d:%02d".format(t.startHour, t.startMinute)
+        } else if (!isStart && t.deadlineHour != null && t.deadlineMinute != null) {
             parts += "截止 %02d:%02d".format(t.deadlineHour, t.deadlineMinute)
         }
         if (!t.note.isNullOrBlank()) {
