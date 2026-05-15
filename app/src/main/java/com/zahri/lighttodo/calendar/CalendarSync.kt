@@ -65,15 +65,19 @@ object CalendarSync {
             seenIds += ev.id
             if (ev.id in existing) continue
             val (date, dateMillis) = DateUtils.dayKeyAndStartFromMillis(ev.startMillis)
-            val (h, m) = if (ev.allDay) null to null else hourMinuteOf(ev.startMillis)
+            val (startH, startM) = if (ev.allDay) null to null else hourMinuteOf(ev.startMillis)
+            val (endH, endM) = if (ev.allDay || ev.endMillis == null) null to null else hourMinuteOf(ev.endMillis!!)
             toInsert += TodoEntity(
                 title = ev.title.ifBlank { "（无标题事件）" },
                 note = ev.description?.takeIf { it.isNotBlank() },
                 date = date,
                 dateMillis = dateMillis,
-                deadlineHour = h,
-                deadlineMinute = m,
-                remindAtMillis = null, // do not interfere with system calendar reminders
+                startHour = startH,
+                startMinute = startM,
+                deadlineHour = endH ?: startH,
+                deadlineMinute = endM ?: startM,
+                remindStartAtMillis = null,
+                remindAtMillis = null,
                 customRemindHoursBefore = null,
                 tagId = null,
                 done = false,
@@ -153,7 +157,8 @@ object CalendarSync {
                 CalendarContract.Events.TITLE,
                 CalendarContract.Events.DESCRIPTION,
                 CalendarContract.Events.DTSTART,
-                CalendarContract.Events.ALL_DAY
+                CalendarContract.Events.ALL_DAY,
+                CalendarContract.Events.DTEND
             ),
             sel, args, "${CalendarContract.Events.DTSTART} ASC"
         ) ?: return emptyList()
@@ -166,7 +171,8 @@ object CalendarSync {
                     title = it.getString(1).orEmpty(),
                     description = it.getString(2),
                     startMillis = it.getLong(3),
-                    allDay = it.getInt(4) == 1
+                    allDay = it.getInt(4) == 1,
+                    endMillis = if (it.isNull(5)) null else it.getLong(5)
                 )
             }
         }
@@ -183,6 +189,7 @@ object CalendarSync {
         val title: String,
         val description: String?,
         val startMillis: Long,
+        val endMillis: Long?,
         val allDay: Boolean
     )
 }

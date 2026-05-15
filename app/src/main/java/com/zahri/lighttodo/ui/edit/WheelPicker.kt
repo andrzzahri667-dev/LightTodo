@@ -22,10 +22,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -33,21 +33,15 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
- * A generic vertical scroll-wheel picker.
+ * A vertical scroll-wheel picker with circular/infinite scrolling.
  *
- * The center item is highlighted with selectedColor + selectedFontSize + bold.
- * Items above and below are dimmed and smaller.
+ * Returns the current logical index synchronously so callers can read it in click handlers.
  *
  * @param items list of display strings
- * @param selectedIndex the currently selected index
- * @param onSelectedChanged called when user scrolls to a new item
- * @param itemHeight height of each item row
- * @param visibleCount number of visible rows (should be odd, e.g. 3 or 5)
- * @param selectedColor text color for the selected item
- * @param unselectedColor text color for non-selected items
- * @param selectedFontSize font size for selected item
- * @param unselectedFontSize font size for non-selected items
- * @param superscript optional small superscript shown after the selected value (e.g. "H", "M")
+ * @param selectedIndex initial / externally-controlled index
+ * @param onSelectedChanged called when the centered item changes
+ * @param loopThreshold items.size <= this → enable circular looping
+ * @param loopRepetitions how many times to repeat the list (odd, large)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -62,17 +56,28 @@ fun WheelPicker(
     unselectedColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
     selectedFontSize: TextUnit = 22.sp,
     unselectedFontSize: TextUnit = 16.sp,
-    superscript: String = ""
-) {
+    superscript: String = "",
+    loopThreshold: Int = 60,
+    loopRepetitions: Int = 501
+): Int {
     val halfVisible = visibleCount / 2
+    val looping = items.size in 2..loopThreshold
+    val totalItems = if (looping) items.size * loopRepetitions else items.size
+
+    val mappedInitial = if (looping) {
+        selectedIndex + items.size * (loopRepetitions / 2)
+    } else {
+        selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+    }
+
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        initialFirstVisibleItemIndex = mappedInitial
     )
 
     val totalHeight = itemHeight * visibleCount
 
-    // The centered item index (relative to items list)
-    val centeredIndex by remember {
+    // Absolute centered index in the expanded list
+    val centeredAbsIndex by remember {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val viewportCenter = layoutInfo.viewportStartOffset +
@@ -80,15 +85,22 @@ fun WheelPicker(
             val closestItem = layoutInfo.visibleItemsInfo.minByOrNull {
                 kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
             }
-            // Subtract padding items
-            ((closestItem?.index ?: (selectedIndex + halfVisible)) - halfVisible)
-                .coerceIn(0, (items.size - 1).coerceAtLeast(0))
+            ((closestItem?.index ?: (mappedInitial + halfVisible)) - halfVisible)
+                .let { if (looping) it.coerceIn(0, totalItems - 1) else it.coerceIn(0, (items.size - 1).coerceAtLeast(0)) }
         }
     }
 
-    // Notify parent when centered index changes
+    // Map absolute → logical index — MUST be derivedStateOf so snapshotFlow can observe it
+    val logicalIndex by remember {
+        derivedStateOf {
+            val abs = centeredAbsIndex
+            if (looping) ((abs % items.size) + items.size) % items.size else abs
+        }
+    }
+
+    // Notify parent
     LaunchedEffect(Unit) {
-        snapshotFlow { centeredIndex }
+        snapshotFlow { logicalIndex }
             .distinctUntilChanged()
             .collect { idx ->
                 if (idx in items.indices) {
@@ -97,12 +109,22 @@ fun WheelPicker(
             }
     }
 
-    // Scroll to selected index when it changes externally
+    // External scroll with spring animation
     LaunchedEffect(selectedIndex) {
-        if (centeredIndex != selectedIndex && selectedIndex in items.indices) {
-            listState.animateScrollToItem(selectedIndex)
+        if (logicalIndex != selectedIndex && selectedIndex in items.indices) {
+            val target = if (looping) {
+                val currentAbs = centeredAbsIndex
+                val currentLoop = currentAbs / items.size
+                val targetBase = selectedIndex + items.size * currentLoop
+                listOf(targetBase, targetBase - items.size, targetBase + items.size)
+                    .minByOrNull { kotlin.math.abs(it - currentAbs) }
+                    ?: targetBase
+            } else selectedIndex
+            listState.animateScrollToItem(target)
         }
     }
+
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
     Box(
         modifier = modifier.height(totalHeight),
@@ -113,22 +135,20 @@ fun WheelPicker(
             modifier = Modifier
                 .height(totalHeight)
                 .fillMaxWidth(),
-            flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+            flingBehavior = flingBehavior
         ) {
-            // Top padding items
             items(halfVisible) {
-                Box(
-                    modifier = Modifier
-                        .height(itemHeight)
-                        .fillMaxWidth()
-                )
+                Box(Modifier.height(itemHeight).fillMaxWidth())
             }
 
-            // Actual items
-            items(items.size) { index ->
-                val isSelected = index == centeredIndex
+            items(totalItems) { absIndex ->
+                val logicalIdx = if (looping) {
+                    ((absIndex % items.size) + items.size) % items.size
+                } else absIndex
+
+                val isSelected = absIndex == centeredAbsIndex
                 val alpha by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0.45f,
+                    targetValue = if (isSelected) 1f else 0.4f,
                     label = "alpha"
                 )
                 val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
@@ -145,7 +165,7 @@ fun WheelPicker(
                     if (isSelected && superscript.isNotEmpty()) {
                         Text(
                             text = buildAnnotatedString {
-                                append(items[index])
+                                append(items[logicalIdx])
                                 withStyle(
                                     SpanStyle(
                                         fontSize = fontSize.value.times(0.45f).sp,
@@ -160,7 +180,7 @@ fun WheelPicker(
                         )
                     } else {
                         Text(
-                            text = items[index],
+                            text = items[logicalIdx],
                             color = color,
                             fontSize = fontSize,
                             fontWeight = weight,
@@ -170,14 +190,12 @@ fun WheelPicker(
                 }
             }
 
-            // Bottom padding items
             items(halfVisible) {
-                Box(
-                    modifier = Modifier
-                        .height(itemHeight)
-                        .fillMaxWidth()
-                )
+                Box(Modifier.height(itemHeight).fillMaxWidth())
             }
         }
     }
+
+    // Return current logical index for synchronous reads
+    return logicalIndex
 }

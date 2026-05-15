@@ -18,8 +18,10 @@ data class EditUiState(
     val title: String = "",
     val note: String = "",
     val date: LocalDate = LocalDate.now(),
-    /** Pair(hour, minute) or null = all-day */
-    val deadline: Pair<Int, Int>? = null,
+    /** 开始时间 Pair(hour, minute) or null */
+    val startTime: Pair<Int, Int>? = null,
+    /** 截止时间 Pair(hour, minute) or null */
+    val endTime: Pair<Int, Int>? = null,
     val customHoursBefore: Int? = null,
     val defaultHoursBefore: Int = 2,
     val defaultRemindLabel: String = "09:00",
@@ -51,7 +53,9 @@ class EditViewModel : ViewModel() {
                     title = t.title.orEmpty(),
                     note = t.note.orEmpty(),
                     date = LocalDate.of(t.date / 10000, (t.date / 100) % 100, t.date % 100),
-                    deadline = if (t.deadlineHour != null && t.deadlineMinute != null)
+                    startTime = if (t.startHour != null && t.startMinute != null)
+                        t.startHour to t.startMinute else null,
+                    endTime = if (t.deadlineHour != null && t.deadlineMinute != null)
                         t.deadlineHour to t.deadlineMinute else null,
                     customHoursBefore = t.customRemindHoursBefore,
                     defaultHoursBefore = p.defaultHoursBefore,
@@ -80,12 +84,16 @@ class EditViewModel : ViewModel() {
         it.copy(date = LocalDate.of(year, month, day))
     }
 
-    fun setDeadline(hour: Int, minute: Int) = _state.update {
-        it.copy(deadline = hour to minute)
+    fun setStartTime(hour: Int, minute: Int) = _state.update {
+        it.copy(startTime = hour to minute)
     }
 
-    fun clearDeadline() = _state.update {
-        it.copy(deadline = null, customHoursBefore = null)
+    fun setEndTime(hour: Int, minute: Int) = _state.update {
+        it.copy(endTime = hour to minute)
+    }
+
+    fun clearTimes() = _state.update {
+        it.copy(startTime = null, endTime = null, customHoursBefore = null)
     }
 
     fun adjustHoursBefore(delta: Int) = _state.update {
@@ -106,8 +114,10 @@ class EditViewModel : ViewModel() {
                     year = s.date.year,
                     month = s.date.monthValue,
                     day = s.date.dayOfMonth,
-                    deadlineHour = s.deadline?.first,
-                    deadlineMinute = s.deadline?.second,
+                    startHour = s.startTime?.first,
+                    startMinute = s.startTime?.second,
+                    deadlineHour = s.endTime?.first,
+                    deadlineMinute = s.endTime?.second,
                     customHoursBefore = s.customHoursBefore,
                     tagName = s.tagName
                 )

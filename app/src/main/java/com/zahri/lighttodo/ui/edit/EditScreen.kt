@@ -62,7 +62,7 @@ import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-private val PrimaryBlue = Color(0xFF2196F3)
+private val PrimaryOrange = Color(0xFFFFB75A)
 
 @Composable
 fun EditScreen(
@@ -159,9 +159,12 @@ fun EditScreen(
                 Column {
                     SwitchRow(
                         label = "全天",
-                        checked = state.deadline == null,
+                        checked = state.startTime == null && state.endTime == null,
                         onCheckedChange = { allDay ->
-                            if (allDay) vm.clearDeadline() else vm.setDeadline(9, 0)
+                            if (allDay) vm.clearTimes() else {
+                                if (state.startTime == null) vm.setStartTime(9, 0)
+                                if (state.endTime == null) vm.setEndTime(10, 0)
+                            }
                         },
                         enabled = !state.readOnly
                     )
@@ -169,14 +172,14 @@ fun EditScreen(
                     DateTimeRow(
                         label = "开始时间",
                         date = state.date,
-                        time = state.deadline,
+                        time = state.startTime,
                         onClick = { if (!state.readOnly) showFromPicker = true }
                     )
                     RowDivider()
                     DateTimeRow(
                         label = "截止时间",
                         date = state.date,
-                        time = state.deadline,
+                        time = state.endTime,
                         onClick = { if (!state.readOnly) showToPicker = true }
                     )
                 }
@@ -185,7 +188,7 @@ fun EditScreen(
             // ── Card 3: Reminder ─────────────────────────────────────
             Card {
                 ReminderRow(
-                    deadline = state.deadline,
+                    hasTime = state.startTime != null || state.endTime != null,
                     customHoursBefore = state.customHoursBefore,
                     defaultHoursBefore = state.defaultHoursBefore,
                     defaultRemindLabel = state.defaultRemindLabel,
@@ -290,25 +293,30 @@ fun EditScreen(
         WheelDateTimePickerDialog(
             title = "开始时间",
             initialDate = state.date,
-            initialHour = state.deadline?.first ?: 9,
-            initialMinute = state.deadline?.second ?: 0,
+            initialHour = state.startTime?.first ?: 9,
+            initialMinute = state.startTime?.second ?: 0,
             onConfirm = { date, h, m ->
                 vm.setDate(date.year, date.monthValue, date.dayOfMonth)
-                vm.setDeadline(h, m)
+                vm.setStartTime(h, m)
                 showFromPicker = false
             },
             onDismiss = { showFromPicker = false }
         )
     }
     if (showToPicker) {
+        val fromH = state.startTime?.first ?: 9
+        val fromM = state.startTime?.second ?: 0
+        val totalFromMin = fromH * 60 + fromM
+        val toH = (totalFromMin + 15) / 60
+        val toM = (totalFromMin + 15) % 60
         WheelDateTimePickerDialog(
             title = "截止时间",
             initialDate = state.date,
-            initialHour = state.deadline?.first ?: 10,
-            initialMinute = state.deadline?.second ?: 0,
+            initialHour = state.endTime?.first ?: toH,
+            initialMinute = state.endTime?.second ?: toM,
             onConfirm = { date, h, m ->
                 vm.setDate(date.year, date.monthValue, date.dayOfMonth)
-                vm.setDeadline(h, m)
+                vm.setEndTime(h, m)
                 showToPicker = false
             },
             onDismiss = { showToPicker = false }
@@ -398,7 +406,7 @@ private fun SwitchRow(
             enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = PrimaryBlue,
+                checkedTrackColor = PrimaryOrange,
                 uncheckedThumbColor = Color.White,
                 uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
                 uncheckedBorderColor = Color.Transparent
@@ -454,7 +462,7 @@ private fun DateTimeRow(
 
 @Composable
 private fun ReminderRow(
-    deadline: Pair<Int, Int>?,
+    hasTime: Boolean,
     customHoursBefore: Int?,
     defaultHoursBefore: Int,
     defaultRemindLabel: String,
@@ -475,7 +483,7 @@ private fun ReminderRow(
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.weight(1f))
-        if (deadline == null) {
+        if (!hasTime) {
             Text(
                 "默认（$defaultRemindLabel）",
                 fontSize = 15.sp,
@@ -643,7 +651,7 @@ private fun WheelDateTimePickerDialog(
                     shape = RoundedCornerShape(50),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryBlue,
+                        containerColor = PrimaryOrange,
                         contentColor = Color.White
                     ),
                     modifier = Modifier

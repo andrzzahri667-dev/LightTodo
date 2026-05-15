@@ -39,10 +39,15 @@ data class TodoEntity(
     val date: Int,
     /** 当天本地 0:00 的毫秒时间戳，用于排序和比较 */
     val dateMillis: Long,
-    /** 截止时刻；null 表示全天 */
+    /** 开始时刻；null 表示全天或未设 */
+    val startHour: Int? = null,
+    val startMinute: Int? = null,
+    /** 截止时刻；null 表示全天或未设 */
     val deadlineHour: Int? = null,
     val deadlineMinute: Int? = null,
-    /** 提醒时间戳，已根据规则计算好 */
+    /** 开始时间提醒时间戳 */
+    val remindStartAtMillis: Long? = null,
+    /** 截止时间提醒时间戳 */
     val remindAtMillis: Long? = null,
     /** 是否使用了"提前 N 小时"自定义提醒。null = 使用全局默认 */
     val customRemindHoursBefore: Int? = null,
@@ -83,8 +88,11 @@ data class BackupTodo(
     val note: String?,
     val date: Int,
     val dateMillis: Long,
+    val startHour: Int? = null,
+    val startMinute: Int? = null,
     val deadlineHour: Int?,
     val deadlineMinute: Int?,
+    val remindStartAtMillis: Long? = null,
     val remindAtMillis: Long?,
     val customRemindHoursBefore: Int?,
     val tagId: Long?,

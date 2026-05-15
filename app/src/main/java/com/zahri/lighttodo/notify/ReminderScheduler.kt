@@ -10,11 +10,12 @@ import com.zahri.lighttodo.data.TodoEntity
 object ReminderScheduler {
 
     private const val EXTRA_TODO_ID = "todo_id"
+    const val EXTRA_IS_START = "is_start"
 
-    fun schedule(context: Context, todo: TodoEntity) {
-        val triggerAt = todo.remindAtMillis ?: return
+    fun schedule(context: Context, todo: TodoEntity, isStart: Boolean) {
+        val triggerAt = if (isStart) todo.remindStartAtMillis ?: return else todo.remindAtMillis ?: return
         val am = context.getSystemService(AlarmManager::class.java) ?: return
-        val pi = pendingIntentFor(context, todo.id)
+        val pi = pendingIntentFor(context, todo.id, isStart)
 
         val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
         try {
@@ -30,20 +31,25 @@ object ReminderScheduler {
 
     fun cancel(context: Context, id: Long) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
-        am.cancel(pendingIntentFor(context, id))
+        am.cancel(pendingIntentFor(context, id, isStart = true))
+        am.cancel(pendingIntentFor(context, id, isStart = false))
     }
 
     fun extractTodoId(intent: Intent): Long? =
         intent.getLongExtra(EXTRA_TODO_ID, -1L).takeIf { it > 0 }
 
-    private fun pendingIntentFor(context: Context, id: Long): PendingIntent {
+    fun isStartReminder(intent: Intent): Boolean =
+        intent.getBooleanExtra(EXTRA_IS_START, false)
+
+    private fun pendingIntentFor(context: Context, id: Long, isStart: Boolean): PendingIntent {
+        val requestCode = if (isStart) (id * 10).toInt() else (id * 10 + 1).toInt()
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra(EXTRA_TODO_ID, id)
-            // unique action so different ids produce different filter equality
-            action = "com.zahri.lighttodo.REMIND_$id"
+            putExtra(EXTRA_IS_START, isStart)
+            action = "com.zahri.lighttodo.REMIND_${id}_${if (isStart) "start" else "end"}"
         }
         return PendingIntent.getBroadcast(
-            context, id.toInt(), intent,
+            context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }

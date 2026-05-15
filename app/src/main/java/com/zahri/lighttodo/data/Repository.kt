@@ -31,10 +31,19 @@ class Repository(
         val p = prefs.flow.first()
         val tagId = resolveTagId(input.tagName)
         val (date, dateMillis) = DateUtils.dayKeyAndStart(input.year, input.month, input.day)
-        val remindAt = computeRemindAt(
+        val remindStart = computeRemindAt(
             dateMillis = dateMillis,
-            deadlineHour = input.deadlineHour,
-            deadlineMinute = input.deadlineMinute,
+            hour = input.startHour,
+            minute = input.startMinute,
+            customHoursBefore = input.customHoursBefore,
+            defaultHour = p.defaultRemindHour,
+            defaultMinute = p.defaultRemindMinute,
+            defaultHoursBefore = p.defaultHoursBefore
+        )
+        val remindEnd = computeRemindAt(
+            dateMillis = dateMillis,
+            hour = input.deadlineHour,
+            minute = input.deadlineMinute,
             customHoursBefore = input.customHoursBefore,
             defaultHour = p.defaultRemindHour,
             defaultMinute = p.defaultRemindMinute,
@@ -48,9 +57,12 @@ class Repository(
             note = input.note?.takeIf { it.isNotBlank() },
             date = date,
             dateMillis = dateMillis,
+            startHour = input.startHour,
+            startMinute = input.startMinute,
             deadlineHour = input.deadlineHour,
             deadlineMinute = input.deadlineMinute,
-            remindAtMillis = remindAt,
+            remindStartAtMillis = remindStart,
+            remindAtMillis = remindEnd,
             customRemindHoursBefore = input.customHoursBefore,
             tagId = tagId,
             done = existing?.done ?: false,
@@ -59,11 +71,14 @@ class Repository(
             calendarEventId = existing?.calendarEventId
         )
         val id = todoDao.upsert(entity)
-        // After insert, we need the actual id to schedule alarm
         val saved = entity.copy(id = if (input.id != null) input.id else id)
         ReminderScheduler.cancel(context, saved.id)
-        if (!saved.done && saved.remindAtMillis != null && saved.remindAtMillis > now) {
-            ReminderScheduler.schedule(context, saved)
+        if (!saved.done) {
+            val t = saved
+            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
+                ReminderScheduler.schedule(context, t, isStart = true)
+            if (t.remindAtMillis != null && t.remindAtMillis > now)
+                ReminderScheduler.schedule(context, t, isStart = false)
         }
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
         return saved.id
@@ -74,8 +89,12 @@ class Repository(
         if (done) ReminderScheduler.cancel(context, id)
         else {
             val t = todoDao.findById(id)
-            if (t?.remindAtMillis != null && t.remindAtMillis > System.currentTimeMillis()) {
-                ReminderScheduler.schedule(context, t)
+            if (t != null) {
+                val now = System.currentTimeMillis()
+                if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
+                    ReminderScheduler.schedule(context, t, isStart = true)
+                if (t.remindAtMillis != null && t.remindAtMillis > now)
+                    ReminderScheduler.schedule(context, t, isStart = false)
             }
         }
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
@@ -96,9 +115,10 @@ class Repository(
         val list = todoDao.listWithReminders()
         val now = System.currentTimeMillis()
         list.forEach { t ->
-            if (t.remindAtMillis != null && t.remindAtMillis > now) {
-                ReminderScheduler.schedule(context, t)
-            }
+            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
+                ReminderScheduler.schedule(context, t, isStart = true)
+            if (t.remindAtMillis != null && t.remindAtMillis > now)
+                ReminderScheduler.schedule(context, t, isStart = false)
         }
     }
 
@@ -118,15 +138,15 @@ class Repository(
      */
     private fun computeRemindAt(
         dateMillis: Long,
-        deadlineHour: Int?,
-        deadlineMinute: Int?,
+        hour: Int?,
+        minute: Int?,
         customHoursBefore: Int?,
         defaultHour: Int,
         defaultMinute: Int,
         defaultHoursBefore: Int
     ): Long? {
-        if (deadlineHour != null && deadlineMinute != null) {
-            val deadline = dateMillis + deadlineHour * 3_600_000L + deadlineMinute * 60_000L
+        if (hour != null && minute != null) {
+            val deadline = dateMillis + hour * 3_600_000L + minute * 60_000L
             val hoursBefore = customHoursBefore ?: defaultHoursBefore
             return deadline - hoursBefore * 3_600_000L
         }
@@ -148,6 +168,8 @@ data class TodoInput(
     val year: Int,
     val month: Int, // 1-12
     val day: Int,   // 1-31
+    val startHour: Int? = null,
+    val startMinute: Int? = null,
     val deadlineHour: Int? = null,
     val deadlineMinute: Int? = null,
     val customHoursBefore: Int? = null,
