@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Widget (dark mode) -->
-    <color name="widget_bg">#CC1E2226</color>
-    <color name="widget_text_primary">#FFEDEDED</color>
-    <color name="widget_text_secondary">#FFB6B6B6</color>
+    <color name="widget_bg">#CC1C1C1E</color>
+    <color name="widget_text_primary">#FFFFFFFF</color>
+    <color name="widget_text_secondary">#FF8E8E93</color>
     <color name="widget_checkbox_stroke">#80FFFFFF</color>
 </resources>
