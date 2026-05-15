@@ -27,14 +27,218 @@
             android:textSize="15sp"
             android:textStyle="bold" />
 
-        <ListView
-            android:id="@+id/widget_list"
+        <!-- Row 0 -->
+        <LinearLayout
+            android:id="@+id/row_0"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:divider="@null"
-            android:dividerHeight="0dp"
-            android:scrollbars="none" />
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/dot_0"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/widget_dot"
+                android:contentDescription="dot" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/title_0"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_primary"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/subtitle_0"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/strike_0"
+                    android:layout_width="match_parent"
+                    android:layout_height="1.5dp"
+                    android:layout_gravity="center_vertical|top"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="strike"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_strike"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/check_0"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="完成"
+                android:padding="2dp"
+                android:src="@drawable/widget_checkbox" />
+        </LinearLayout>
+
+        <!-- Row 1 -->
+        <LinearLayout
+            android:id="@+id/row_1"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/dot_1"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/widget_dot"
+                android:contentDescription="dot" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/title_1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_primary"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/subtitle_1"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/strike_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="1.5dp"
+                    android:layout_gravity="center_vertical|top"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="strike"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_strike"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/check_1"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="完成"
+                android:padding="2dp"
+                android:src="@drawable/widget_checkbox" />
+        </LinearLayout>
+
+        <!-- Row 2 -->
+        <LinearLayout
+            android:id="@+id/row_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/dot_2"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/widget_dot"
+                android:contentDescription="dot" />
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/title_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_primary"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/subtitle_2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/strike_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="1.5dp"
+                    android:layout_gravity="center_vertical|top"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="strike"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/widget_strike"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/check_2"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="完成"
+                android:padding="2dp"
+                android:src="@drawable/widget_checkbox" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/widget_empty"
