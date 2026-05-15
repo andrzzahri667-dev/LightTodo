@@ -8,6 +8,7 @@ import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.displayTitle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -45,8 +46,8 @@ class ReminderReceiver : BroadcastReceiver() {
 
                 val notif = NotificationCompat.Builder(context, NotificationChannels.REMINDER_ID)
                     .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                    .setContentTitle(todo.displayTitle())
-                    .setContentText(buildSubtitle(todo, isStart))
+                    .setContentTitle(todo.displayTitle(context))
+                    .setContentText(buildSubtitle(context, todo, isStart))
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_ALARM)
                     .setAutoCancel(true)
@@ -62,12 +63,12 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun buildSubtitle(t: com.zahri.lighttodo.data.TodoEntity, isStart: Boolean): String {
+    private fun buildSubtitle(context: Context, t: com.zahri.lighttodo.data.TodoEntity, isStart: Boolean): String {
         val parts = mutableListOf<String>()
         if (isStart && t.startHour != null && t.startMinute != null) {
-            parts += "开始 %02d:%02d".format(t.startHour, t.startMinute)
+            parts += context.getString(R.string.notif_start_time, t.startHour, t.startMinute)
         } else if (!isStart && t.deadlineHour != null && t.deadlineMinute != null) {
-            parts += "截止 %02d:%02d".format(t.deadlineHour, t.deadlineMinute)
+            parts += context.getString(R.string.notif_end_time, t.deadlineHour, t.deadlineMinute)
         }
         if (!t.note.isNullOrBlank()) {
             parts += t.note.lineSequence().firstOrNull().orEmpty()

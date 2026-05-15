@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.zahri.lighttodo.App
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoInput
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
@@ -102,24 +104,24 @@ private fun QuickAddDialog(onSave: (String) -> Unit, onCancel: () -> Unit) {
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("快速添加", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.quick_add_title), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("写点什么…") },
+                    placeholder = { Text(stringResource(R.string.quick_add_hint)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focus)
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onCancel) { Text("取消") }
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.quick_add_cancel)) }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSave(text) },
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.Brand, contentColor = Color.Black)
-                    ) { Text("保存") }
+                    ) { Text(stringResource(R.string.quick_add_save)) }
                 }
             }
         }

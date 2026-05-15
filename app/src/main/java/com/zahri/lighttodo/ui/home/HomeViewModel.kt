@@ -3,6 +3,7 @@ package com.zahri.lighttodo.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.HomeData
 import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoEntity
@@ -53,7 +54,7 @@ class HomeViewModel : ViewModel() {
             if (items.isNotEmpty()) groups += TagGroup(t.id, t.name, items)
         }
         val uncatItems = byTag[null].orEmpty().sortedBy { it.createdAtMillis }
-        if (uncatItems.isNotEmpty()) groups += TagGroup(null, "未分类", uncatItems)
+        if (uncatItems.isNotEmpty()) groups += TagGroup(null, app.getString(R.string.home_uncategorized), uncatItems)
 
         return HomeUiState(
             groups = groups,
@@ -93,6 +94,11 @@ fun TodoEntity.displayTitle(): String =
     title?.takeIf { it.isNotBlank() }
         ?: note?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
         ?: "无标题"
+
+fun TodoEntity.displayTitle(context: android.content.Context): String =
+    title?.takeIf { it.isNotBlank() }
+        ?: note?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
+        ?: context.getString(R.string.home_no_title)
 
 fun TodoEntity.dateLabel(): String = DateUtils.displayDate(date)
 fun TodoEntity.isOverdueDate(): Boolean = !done && DateUtils.isOverdue(date)

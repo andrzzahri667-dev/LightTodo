@@ -99,7 +99,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
         val rv = RemoteViews(appCtx.packageName, R.layout.widget_2x2)
         val item = runBlocking(Dispatchers.IO) { (appCtx as App).db.todoDao().findByIdSync(todoId) }
         if (item != null) {
-            val titleText = item.displayTitle()
+            val titleText = item.displayTitle(appCtx)
             val titleSpanned = SpannableString(titleText)
             titleSpanned.setSpan(
                 StrikethroughSpan(), 0, titleSpanned.length,
@@ -196,7 +196,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
                 val item = items.getOrNull(i)
                 if (item != null) {
                     views.setViewVisibility(ROW_IDS[i], View.VISIBLE)
-                    views.setTextViewText(TITLE_IDS[i], item.displayTitle())
+                    views.setTextViewText(TITLE_IDS[i], item.displayTitle(context))
                     // Explicitly reset all properties that animation may have changed,
                     // because partiallyUpdateAppWidget diffs can survive updateAppWidget.
                     views.setTextColor(TITLE_IDS[i], 0xFF1A1A1A.toInt())

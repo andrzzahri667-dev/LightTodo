@@ -39,9 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.zahri.lighttodo.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,16 +65,16 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) vm.setCalendarSyncEnabled(true)
-        else toast.value = "未授予日历权限，无法开启同步"
+        else toast.value = context.getString(R.string.settings_no_calendar_permission)
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("设置", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.settings_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -88,7 +90,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
         ) {
             // Default remind time
             SettingRow(
-                title = "默认提醒时间（无截止时间的任务）",
+                title = stringResource(R.string.settings_default_remind_time),
                 subtitle = "%02d:%02d".format(state.defaultRemindHour, state.defaultRemindMinute),
                 onClick = {
                     TimePickerDialog(
@@ -101,8 +103,8 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
             HorizontalDivider()
 
             SettingRow(
-                title = "默认提前小时数（有截止时间的任务）",
-                subtitle = "${state.defaultHoursBefore} 小时",
+                title = stringResource(R.string.settings_default_hours_before),
+                subtitle = stringResource(R.string.settings_hours_unit, state.defaultHoursBefore),
                 trailing = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore - 1) }) { Text("-") }
@@ -114,8 +116,8 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
 
             // Calendar sync
             SwitchRow(
-                title = "同步小米日历（只读）",
-                subtitle = "拉取本机系统日历，过滤节日和假期",
+                title = stringResource(R.string.settings_calendar_sync),
+                subtitle = stringResource(R.string.settings_calendar_sync_desc),
                 checked = state.calendarSyncEnabled,
                 onCheckedChange = { enabled ->
                     if (enabled) {
@@ -128,31 +130,31 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
             OutlinedTextField(
                 value = state.calendarAccountName,
                 onValueChange = vm::setCalendarAccount,
-                label = { Text("账户筛选（留空则匹配 xiaomi 关键字）") },
+                label = { Text(stringResource(R.string.settings_calendar_account)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
             TextButton(onClick = { vm.syncCalendarNow(context) { toast.value = it } }) {
-                Text("立即同步一次")
+                Text(stringResource(R.string.settings_sync_now))
             }
             HorizontalDivider()
 
             SwitchRow(
-                title = "通知栏常驻快速添加",
-                subtitle = "下拉通知栏即可一键写入待办",
+                title = stringResource(R.string.settings_quick_add_notif),
+                subtitle = stringResource(R.string.settings_quick_add_desc),
                 checked = state.quickAddNotifEnabled,
                 onCheckedChange = vm::setQuickAddNotif
             )
             HorizontalDivider()
 
             Button(onClick = { exportLauncher.launch("lighttodo-backup.json") }, modifier = Modifier.fillMaxWidth()) {
-                Text("导出 JSON")
+                Text(stringResource(R.string.settings_export))
             }
             Button(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }, modifier = Modifier.fillMaxWidth()) {
-                Text("导入 JSON")
+                Text(stringResource(R.string.settings_import))
             }
             Button(onClick = { vm.clearDone() { toast.value = it } }, modifier = Modifier.fillMaxWidth()) {
-                Text("清空已完成任务")
+                Text(stringResource(R.string.settings_clear_done))
             }
 
             Spacer(Modifier.height(24.dp))

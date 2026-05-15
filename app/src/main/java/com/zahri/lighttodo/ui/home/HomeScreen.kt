@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,10 +69,10 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("今日安排", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.home_title), fontWeight = FontWeight.SemiBold) },
                 actions = {
                     IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "设置")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.home_settings))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -81,14 +82,14 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd, containerColor = AppColors.Brand) {
-                Icon(Icons.Default.Add, contentDescription = "新建", tint = Color.Black)
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
             }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (state.groups.isEmpty() && state.doneItems.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("暂无待办", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.home_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -129,7 +130,7 @@ fun HomeScreen(
             if (state.doneItems.isNotEmpty()) {
                 item(key = "done-header") {
                     GroupHeader(
-                        title = "已完成",
+                        title = stringResource(R.string.home_done_section),
                         count = state.doneItems.size,
                         expanded = state.doneExpanded,
                         onToggle = { vm.setDoneExpanded(!state.doneExpanded) }

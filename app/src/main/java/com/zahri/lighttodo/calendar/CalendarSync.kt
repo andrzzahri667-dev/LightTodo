@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import com.zahri.lighttodo.App
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
 import com.zahri.lighttodo.widget.TodoWidgetProvider
@@ -68,7 +69,7 @@ object CalendarSync {
             val (startH, startM) = if (ev.allDay) null to null else hourMinuteOf(ev.startMillis)
             val (endH, endM) = if (ev.allDay || ev.endMillis == null) null to null else hourMinuteOf(ev.endMillis!!)
             toInsert += TodoEntity(
-                title = ev.title.ifBlank { "（无标题事件）" },
+                title = ev.title.ifBlank { context.getString(R.string.calendar_no_title) },
                 note = ev.description?.takeIf { it.isNotBlank() },
                 date = date,
                 dateMillis = dateMillis,

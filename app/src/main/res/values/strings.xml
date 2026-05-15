@@ -7,40 +7,88 @@
     <string name="home_uncategorized">未分类</string>
     <string name="home_done_section">已完成</string>
     <string name="home_empty">暂无待办</string>
-    <string name="home_from_calendar">来自日历</string>
+    <string name="home_no_title">无标题</string>
+    <string name="home_settings">设置</string>
+    <string name="home_add">新建</string>
 
     <!-- Edit -->
-    <string name="edit_title_new">新建</string>
-    <string name="edit_title_edit">编辑</string>
-    <string name="edit_field_title">标题（可空）</string>
-    <string name="edit_field_note">备注</string>
-    <string name="edit_field_date">日期</string>
-    <string name="edit_field_deadline">截止时间</string>
-    <string name="edit_field_deadline_none">全天</string>
-    <string name="edit_field_remind_default">默认提醒</string>
-    <string name="edit_field_remind_custom_hours">提前 %1$d 小时</string>
-    <string name="edit_field_tag">标签</string>
-    <string name="edit_save">保存</string>
+    <string name="edit_title_new">新建任务</string>
+    <string name="edit_title_edit">编辑任务</string>
+    <string name="edit_close">关闭</string>
     <string name="edit_delete">删除</string>
+    <string name="edit_save">保存</string>
+    <string name="edit_title_hint">请输入标题</string>
+    <string name="edit_all_day">全天</string>
+    <string name="edit_start_time">开始时间</string>
+    <string name="edit_end_time">截止时间</string>
+    <string name="edit_tag">标签</string>
+    <string name="edit_tag_hint">可空</string>
+    <string name="edit_note_hint">描述</string>
+    <string name="edit_read_only">此任务来自系统日历，仅可勾选完成。</string>
+    <string name="edit_reminder">提醒</string>
+    <string name="edit_remind_default">默认（%s）</string>
+    <string name="edit_remind_on_time">到点提醒</string>
+    <string name="edit_remind_hours_before">提前 %1$d 小时</string>
+    <string name="edit_picker_cancel">取消</string>
+    <string name="edit_picker_confirm">确定</string>
+    <string name="edit_date_format">%1$s, %2$d月%3$d日</string>
 
     <!-- Settings -->
     <string name="settings_title">设置</string>
-    <string name="settings_default_remind_time">默认提醒时间</string>
-    <string name="settings_default_hours_before">截止前提醒小时数</string>
+    <string name="settings_back">返回</string>
+    <string name="settings_default_remind_time">默认提醒时间（无截止时间的任务）</string>
+    <string name="settings_default_hours_before">默认提前小时数（有截止时间的任务）</string>
+    <string name="settings_hours_unit">%1$d 小时</string>
     <string name="settings_calendar_sync">同步小米日历（只读）</string>
-    <string name="settings_calendar_account">小米账户名称</string>
+    <string name="settings_calendar_sync_desc">拉取本机系统日历，过滤节日和假期</string>
+    <string name="settings_calendar_account">账户筛选（留空则匹配 xiaomi 关键字）</string>
+    <string name="settings_sync_now">立即同步一次</string>
     <string name="settings_quick_add_notif">通知栏常驻快速添加</string>
+    <string name="settings_quick_add_desc">下拉通知栏即可一键写入待办</string>
     <string name="settings_export">导出 JSON</string>
     <string name="settings_import">导入 JSON</string>
-    <string name="settings_clear_done">清空已完成</string>
+    <string name="settings_clear_done">清空已完成任务</string>
+    <string name="settings_no_calendar_permission">未授予日历权限，无法开启同步</string>
+    <string name="settings_cleared">已清空</string>
+    <string name="settings_sync_success">已同步 %1$d 条日历事件</string>
+    <string name="settings_sync_failed">同步失败：缺少权限或未启用</string>
+    <string name="settings_export_success">导出成功，共 %1$d 条</string>
+    <string name="settings_export_failed">导出失败：%1$s</string>
+    <string name="settings_import_success">导入成功，共 %1$d 条</string>
+    <string name="settings_import_failed">导入失败：%1$s</string>
+    <string name="settings_cannot_read">无法读取</string>
 
     <!-- Notifications -->
     <string name="notif_channel_reminder">任务提醒</string>
+    <string name="notif_channel_reminder_desc">到点提醒</string>
     <string name="notif_channel_quick_add">快速添加</string>
+    <string name="notif_channel_quick_add_desc">通知栏常驻入口</string>
     <string name="notif_quick_add_title">快速添加待办</string>
     <string name="notif_quick_add_text">点这里随手记一条</string>
+    <string name="notif_reminder_title">待办提醒</string>
+    <string name="notif_task_reminder">任务提醒</string>
+    <string name="notif_start_time">开始 %1$02d:%2$02d</string>
+    <string name="notif_end_time">截止 %1$02d:%2$02d</string>
+
+    <!-- Reminder Activity -->
+    <string name="reminder_complete">完成</string>
+    <string name="reminder_view">查看</string>
+
+    <!-- Quick Add -->
+    <string name="quick_add_title">快速添加</string>
+    <string name="quick_add_hint">写点什么…</string>
+    <string name="quick_add_cancel">取消</string>
+    <string name="quick_add_save">保存</string>
 
     <!-- Widget -->
     <string name="widget_title">今日安排</string>
     <string name="widget_empty">今天没有待办</string>
+    <string name="widget_check_done">完成</string>
+
+    <!-- Calendar Sync -->
+    <string name="calendar_no_title">（无标题事件）</string>
+
+    <!-- Date -->
+    <string name="date_format_same_year">MM月dd日</string>
+    <string name="date_format_diff_year">yyyy年MM月dd日</string>
 </resources>

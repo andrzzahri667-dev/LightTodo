@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.zahri.lighttodo.R
 
 /**
  * 一个低优先级的常驻前台服务，挂一条"+ 快速添加"通知。
@@ -29,8 +30,8 @@ class QuickAddService : Service() {
         )
         return NotificationCompat.Builder(this, NotificationChannels.QUICK_ADD_ID)
             .setSmallIcon(android.R.drawable.ic_input_add)
-            .setContentTitle("快速添加待办")
-            .setContentText("点这里随手记一条")
+            .setContentTitle(getString(R.string.notif_quick_add_title))
+            .setContentText(getString(R.string.notif_quick_add_text))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)

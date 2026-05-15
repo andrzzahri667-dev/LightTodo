@@ -19,7 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.graphicsLayer
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -161,7 +161,7 @@ fun WheelPicker(
                     modifier = Modifier
                         .height(itemHeight)
                         .fillMaxWidth()
-                        .graphicsLayer { alpha = alphaAnim.value },
+                        .alpha(alphaAnim.value),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected && superscript.isNotEmpty()) {

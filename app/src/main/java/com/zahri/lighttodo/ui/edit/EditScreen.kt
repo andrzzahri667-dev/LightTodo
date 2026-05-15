@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +59,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zahri.lighttodo.R
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -94,7 +96,7 @@ fun EditScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "关闭",
+                    contentDescription = stringResource(R.string.edit_close),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -106,7 +108,7 @@ fun EditScreen(
                 }) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "删除",
+                        contentDescription = stringResource(R.string.edit_delete),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -118,7 +120,7 @@ fun EditScreen(
                 }) {
                     Icon(
                         Icons.Default.Check,
-                        contentDescription = "保存",
+                        contentDescription = stringResource(R.string.edit_save),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -135,7 +137,7 @@ fun EditScreen(
         ) {
             // Big page title
             Text(
-                text = if (editingId == null) "新建任务" else "编辑任务",
+                text = if (editingId == null) stringResource(R.string.edit_title_new) else stringResource(R.string.edit_title_edit),
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Normal,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -158,7 +160,7 @@ fun EditScreen(
             Card {
                 Column {
                     SwitchRow(
-                        label = "全天",
+                        label = stringResource(R.string.edit_all_day),
                         checked = state.startTime == null && state.endTime == null,
                         onCheckedChange = { allDay ->
                             if (allDay) vm.clearTimes() else {
@@ -170,14 +172,14 @@ fun EditScreen(
                     )
                     RowDivider()
                     DateTimeRow(
-                        label = "开始时间",
+                        label = stringResource(R.string.edit_start_time),
                         date = state.date,
                         time = state.startTime,
                         onClick = { if (!state.readOnly) showFromPicker = true }
                     )
                     RowDivider()
                     DateTimeRow(
-                        label = "截止时间",
+                        label = stringResource(R.string.edit_end_time),
                         date = state.date,
                         time = state.endTime,
                         onClick = { if (!state.readOnly) showToPicker = true }
@@ -203,7 +205,7 @@ fun EditScreen(
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "标签",
+                            stringResource(R.string.edit_tag),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
@@ -222,7 +224,7 @@ fun EditScreen(
                             decorationBox = { inner ->
                                 if (state.tagName.isEmpty()) {
                                     Text(
-                                        "可空",
+                                        stringResource(R.string.edit_tag_hint),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                         fontSize = 15.sp
                                     )
@@ -263,7 +265,7 @@ fun EditScreen(
                         decorationBox = { inner ->
                             if (state.note.isEmpty()) {
                                 Text(
-                                    "描述",
+                                    stringResource(R.string.edit_note_hint),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     fontSize = 16.sp
                                 )
@@ -279,7 +281,7 @@ fun EditScreen(
 
             if (state.readOnly) {
                 Text(
-                    "此任务来自系统日历，仅可勾选完成。",
+                    stringResource(R.string.edit_read_only),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -291,7 +293,7 @@ fun EditScreen(
     // ── Wheel-style "From" picker (date + time merged) ─────────────
     if (showFromPicker) {
         WheelDateTimePickerDialog(
-            title = "开始时间",
+            title = stringResource(R.string.edit_start_time),
             initialDate = state.date,
             initialHour = state.startTime?.first ?: 9,
             initialMinute = state.startTime?.second ?: 0,
@@ -310,7 +312,7 @@ fun EditScreen(
         val toH = (totalFromMin + 15) / 60
         val toM = (totalFromMin + 15) % 60
         WheelDateTimePickerDialog(
-            title = "截止时间",
+            title = stringResource(R.string.edit_end_time),
             initialDate = state.date,
             initialHour = state.endTime?.first ?: toH,
             initialMinute = state.endTime?.second ?: toM,
@@ -369,7 +371,7 @@ private fun TitleField(
         decorationBox = { inner ->
             if (value.isEmpty()) {
                 Text(
-                    "请输入标题",
+                    stringResource(R.string.edit_title_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     fontSize = 16.sp
                 )
@@ -422,9 +424,10 @@ private fun DateTimeRow(
     time: Pair<Int, Int>?,
     onClick: () -> Unit
 ) {
-    val display = remember(date, time) {
-        val datePart = "%s, %d月%d日".format(
-            date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.CHINESE),
+    val fmt = stringResource(R.string.edit_date_format)
+    val display = remember(date, time, fmt) {
+        val datePart = fmt.format(
+            date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
             date.monthValue,
             date.dayOfMonth
         )
@@ -477,7 +480,7 @@ private fun ReminderRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "提醒",
+            stringResource(R.string.edit_reminder),
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
@@ -485,7 +488,7 @@ private fun ReminderRow(
         Spacer(Modifier.weight(1f))
         if (!hasTime) {
             Text(
-                "默认（$defaultRemindLabel）",
+                stringResource(R.string.edit_remind_default, defaultRemindLabel),
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -495,7 +498,7 @@ private fun ReminderRow(
             StepperButton(text = "−", enabled = enabled, onClick = onDecrease)
             Spacer(Modifier.width(10.dp))
             Text(
-                if (hours == 0) "到点提醒" else "提前 $hours 小时",
+                if (hours == 0) stringResource(R.string.edit_remind_on_time) else stringResource(R.string.edit_remind_hours_before, hours),
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -532,8 +535,8 @@ private fun generateDateList(centerDate: LocalDate): List<LocalDate> =
     (-180..180).map { centerDate.plusDays(it.toLong()) }
 
 private fun formatDateForWheel(date: LocalDate): String {
-    val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.CHINESE)
-    return "$dayOfWeek, ${date.monthValue}月${date.dayOfMonth}日"
+    val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    return "$dayOfWeek, ${date.monthValue}/${date.dayOfMonth}"
 }
 
 @Composable
@@ -652,7 +655,7 @@ private fun WheelDateTimePickerDialog(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Text(
-                        "取消",
+                        stringResource(R.string.edit_picker_cancel),
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Medium
@@ -674,7 +677,7 @@ private fun WheelDateTimePickerDialog(
                         .weight(1f)
                         .height(48.dp)
                 ) {
-                    Text("确定", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.edit_picker_confirm), fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }

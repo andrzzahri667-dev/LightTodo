@@ -27,12 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.displayTitle
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
@@ -59,11 +61,11 @@ class ReminderActivity : ComponentActivity() {
         if (todoId <= 0) { finish(); return }
 
         val app = applicationContext as App
-        var todoTitle = "待办提醒"
+        var todoTitle = getString(R.string.notif_reminder_title)
         var todoNote = ""
         lifecycleScope.launch(Dispatchers.IO) {
             val todo = app.db.todoDao().findByIdSync(todoId) ?: return@launch
-            todoTitle = todo.displayTitle()
+            todoTitle = todo.displayTitle(applicationContext)
             todoNote = todo.note?.lineSequence()?.firstOrNull().orEmpty()
         }.invokeOnCompletion {
             setContent {
@@ -87,7 +89,7 @@ class ReminderActivity : ComponentActivity() {
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
-                                    "任务提醒",
+                                    stringResource(R.string.notif_task_reminder),
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 18.sp,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -121,7 +123,7 @@ class ReminderActivity : ComponentActivity() {
                                             containerColor = AppColors.Brand,
                                             contentColor = Color.Black
                                         )
-                                    ) { Text("完成") }
+                                    ) { Text(stringResource(R.string.reminder_complete)) }
                                     Spacer(Modifier.width(8.dp))
                                     Button(
                                         onClick = {
@@ -137,7 +139,7 @@ class ReminderActivity : ComponentActivity() {
                                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                             contentColor = MaterialTheme.colorScheme.onSurface
                                         )
-                                    ) { Text("查看") }
+                                    ) { Text(stringResource(R.string.reminder_view)) }
                                 }
                             }
                         }

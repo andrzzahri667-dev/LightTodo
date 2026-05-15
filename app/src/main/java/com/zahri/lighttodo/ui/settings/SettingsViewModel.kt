@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.calendar.CalendarSync
 import com.zahri.lighttodo.data.BackupBundle
 import com.zahri.lighttodo.data.BackupTag
@@ -49,12 +50,12 @@ class SettingsViewModel : ViewModel() {
 
     fun clearDone(onDone: (String) -> Unit) = viewModelScope.launch {
         repo.clearDone()
-        onDone("已清空")
+        onDone(app.getString(R.string.settings_cleared))
     }
 
     fun syncCalendarNow(context: Context, onDone: (String) -> Unit) = viewModelScope.launch {
         val n = CalendarSync.runOnce(context)
-        onDone(if (n >= 0) "已同步 $n 条日历事件" else "同步失败：缺少权限或未启用")
+        onDone(if (n >= 0) context.getString(R.string.settings_sync_success, n) else context.getString(R.string.settings_sync_failed))
     }
 
     fun exportTo(context: Context, uri: Uri, onDone: (String) -> Unit) = viewModelScope.launch {
@@ -71,23 +72,23 @@ class SettingsViewModel : ViewModel() {
             context.contentResolver.openOutputStream(uri, "wt")?.use { os ->
                 os.write(text.toByteArray(Charsets.UTF_8))
             }
-            onDone("导出成功，共 ${todos.size} 条")
-        }.onFailure { onDone("导出失败：${it.message}") }
+            onDone(context.getString(R.string.settings_export_success, todos.size))
+        }.onFailure { onDone(context.getString(R.string.settings_export_failed, it.message)) }
     }
 
     fun importFrom(context: Context, uri: Uri, onDone: (String) -> Unit) = viewModelScope.launch {
         runCatching {
             val text = context.contentResolver.openInputStream(uri)?.use {
                 it.readBytes().toString(Charsets.UTF_8)
-            } ?: error("无法读取")
+            } ?: error(context.getString(R.string.settings_cannot_read))
             val bundle = Json { ignoreUnknownKeys = true }.decodeFromString(BackupBundle.serializer(), text)
             db.tagDao().deleteAll()
             db.todoDao().deleteAll()
             db.tagDao().upsertAll(bundle.tags.map { TagEntity(it.id, it.name, it.sortOrder) })
             db.todoDao().upsertAll(bundle.todos.map { it.toEntity() })
             repo.rescheduleAllAlarms()
-            onDone("导入成功，共 ${bundle.todos.size} 条")
-        }.onFailure { onDone("导入失败：${it.message}") }
+            onDone(context.getString(R.string.settings_import_success, bundle.todos.size))
+        }.onFailure { onDone(context.getString(R.string.settings_import_failed, it.message)) }
     }
 }
 
