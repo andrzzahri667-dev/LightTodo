@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -197,14 +198,22 @@ fun HomeScreen(
                     stringResource(R.string.tab_todos)
                 )
                 tabLabels.forEachIndexed { index, label ->
+                    val tabInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                     Text(
                         text = label,
-                        style = if (currentPage == index) AppType.largeTitle else AppType.headline,
+                        style = AppType.title2.copy(
+                            fontWeight = if (currentPage == index) FontWeight.Bold else FontWeight.Normal
+                        ),
                         color = if (currentPage == index) MaterialTheme.colorScheme.onBackground
                         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .clickable { scope.launch { pagerState.animateScrollToPage(index) } }
+                            .clickable(
+                                interactionSource = tabInteraction,
+                                indication = null
+                            ) {
+                                scope.launch { pagerState.animateScrollToPage(index) }
+                            }
                             .padding(horizontal = 4.dp)
                     )
                     if (index < tabLabels.lastIndex) Spacer(Modifier.width(12.dp))

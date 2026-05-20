@@ -9,6 +9,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -111,33 +117,56 @@ object Routes {
 private fun AppNavHost(nav: NavHostController) {
     // Gentle non-linear curve: slow ease-out with longer duration
     val iosEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
+    val noteEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
     val duration = 400
     NavHost(
         navController = nav,
         startDestination = Routes.Home,
         enterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Start,
-                tween(duration, easing = iosEasing)
-            )
+            if (targetState.destination.route == Routes.NoteEditWithId) {
+                fadeIn(tween(180, easing = noteEasing)) +
+                    slideInVertically(tween(320, easing = noteEasing)) { it / 12 } +
+                    scaleIn(tween(320, easing = noteEasing), initialScale = 0.985f)
+            } else {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(duration, easing = iosEasing)
+                )
+            }
         },
         exitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Start,
-                tween(duration, easing = iosEasing)
-            )
+            if (targetState.destination.route == Routes.NoteEditWithId) {
+                fadeOut(tween(120, easing = noteEasing)) +
+                    scaleOut(tween(160, easing = noteEasing), targetScale = 0.995f)
+            } else {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(duration, easing = iosEasing)
+                )
+            }
         },
         popEnterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.End,
-                tween(duration, easing = iosEasing)
-            )
+            if (initialState.destination.route == Routes.NoteEditWithId) {
+                fadeIn(tween(160, easing = noteEasing)) +
+                    scaleIn(tween(220, easing = noteEasing), initialScale = 0.995f)
+            } else {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(duration, easing = iosEasing)
+                )
+            }
         },
         popExitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.End,
-                tween(duration, easing = iosEasing)
-            )
+            if (initialState.destination.route == Routes.NoteEditWithId) {
+                fadeOut(tween(150, easing = noteEasing)) +
+                    slideOutVertically(tween(240, easing = noteEasing)) { it / 10 } +
+                    scaleOut(tween(220, easing = noteEasing), targetScale = 0.985f)
+            } else {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(duration, easing = iosEasing)
+                )
+            }
         }
     ) {
         composable(Routes.Home) {
