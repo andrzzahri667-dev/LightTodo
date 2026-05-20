@@ -49,7 +49,9 @@ class App : Application() {
     }
 
     private fun watchQuickAddPref() {
-        appScope.launch {
+        // DataStore 是 IO 操作,QuickAddService.start/stop 内部走 Intent 调度,
+        // 任意线程都安全,直接放在 IO 池上.
+        appScope.launch(Dispatchers.IO) {
             prefs.flow.collectLatest { snap ->
                 if (snap.quickAddNotifEnabled) QuickAddService.start(this@App)
                 else QuickAddService.stop(this@App)
@@ -58,7 +60,9 @@ class App : Application() {
     }
 
     private fun watchCalendarSync() {
-        appScope.launch(Dispatchers.Main.immediate) {
+        // collect prefs(IO) → 操作 ContentResolver 注册/注销 observer(线程无关) →
+        // 启动 IO 子任务跑 CalendarSync.runOnce. 整体放 IO 池,不需要 Main.immediate.
+        appScope.launch(Dispatchers.IO) {
             prefs.flow
                 .map { it.calendarSyncEnabled }
                 .distinctUntilChanged()
