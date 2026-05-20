@@ -24,6 +24,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
+import com.zahri.lighttodo.ui.note.NoteEditScreen
 import com.zahri.lighttodo.ui.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 
@@ -100,7 +101,10 @@ object Routes {
     const val Edit = "edit"
     const val EditWithId = "edit?id={id}"
     const val Settings = "settings"
+    const val NoteEdit = "note_edit"
+    const val NoteEditWithId = "note_edit?id={id}"
     fun edit(id: Long? = null) = if (id == null) "edit" else "edit?id=$id"
+    fun noteEdit(id: Long? = null) = if (id == null) "note_edit" else "note_edit?id=$id"
 }
 
 @androidx.compose.runtime.Composable
@@ -140,6 +144,7 @@ private fun AppNavHost(nav: NavHostController) {
             HomeScreen(
                 onAdd = { nav.navigate(Routes.edit()) },
                 onEdit = { id -> nav.navigate(Routes.edit(id)) },
+                onNoteEdit = { id -> nav.navigate(Routes.noteEdit(id)) },
                 onSettings = { nav.navigate(Routes.Settings) }
             )
         }
@@ -152,6 +157,13 @@ private fun AppNavHost(nav: NavHostController) {
         }
         composable(Routes.Settings) {
             SettingsScreen(onBack = { nav.popBackStack() })
+        }
+        composable(
+            Routes.NoteEditWithId,
+            arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null })
+        ) { entry ->
+            val id = entry.arguments?.getString("id")?.toLongOrNull()
+            NoteEditScreen(editingId = id, onBack = { nav.popBackStack() })
         }
     }
 }
