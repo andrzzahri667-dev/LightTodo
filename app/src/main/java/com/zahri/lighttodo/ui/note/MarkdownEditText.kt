@@ -9,7 +9,9 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.widget.EditText
 
 /**
@@ -19,9 +21,16 @@ import android.widget.EditText
 class MarkdownEditText(context: Context) : EditText(context) {
 
     var contentUpdateCallback: ((String) -> Unit)? = null
+    var audioClickCallback: ((String) -> Unit)? = null
+    var imageClickCallback: ((String) -> Unit)? = null
+    var attachmentLongClickCallback: ((NoteAttachmentMarkdown.Attachment) -> Unit)? = null
+    var selectionChangedCallback: ((Int) -> Unit)? = null
 
     private var isApplyingSpans = false
     private var pendingNewlineIndex: Int? = null
+    private var pressedAttachment: NoteAttachmentMarkdown.Attachment? = null
+    private var longPressTriggered = false
+    private var longPressRunnable: Runnable? = null
     private val taskToggleTouchWidthPx = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,
         64f,
@@ -59,7 +68,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 isApplyingSpans = true
                 try {
                     applyPendingListContinuation(s)
-                    MarkdownSpanApplier.apply(s, selectionStart.takeIf { it >= 0 })
+                    MarkdownSpanApplier.apply(s, selectionStart.takeIf { it >= 0 }, context)
                     contentUpdateCallback?.invoke(s.toString())
                 } finally {
                     isApplyingSpans = false
@@ -71,15 +80,50 @@ class MarkdownEditText(context: Context) : EditText(context) {
     override fun onSelectionChanged(selStart: Int, selEnd: Int) {
         super.onSelectionChanged(selStart, selEnd)
         if (isApplyingSpans) return
+        selectionChangedCallback?.invoke(selStart.coerceAtLeast(0))
         isApplyingSpans = true
         try {
-            MarkdownSpanApplier.apply(editableText, selStart.takeIf { it >= 0 })
+            MarkdownSpanApplier.apply(editableText, selStart.takeIf { it >= 0 }, context)
         } finally {
             isApplyingSpans = false
         }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                findAttachmentAt(event)?.let { attachment ->
+                    pressedAttachment = attachment
+                    longPressTriggered = false
+                    val runnable = Runnable {
+                        longPressTriggered = true
+                        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        attachmentLongClickCallback?.invoke(attachment)
+                    }
+                    longPressRunnable = runnable
+                    postDelayed(runnable, ViewConfiguration.getLongPressTimeout().toLong())
+                    return true
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                cancelAttachmentLongPress()
+                val attachment = pressedAttachment
+                pressedAttachment = null
+                if (attachment != null) {
+                    if (!longPressTriggered) {
+                        when (attachment.kind) {
+                            NoteAttachmentMarkdown.Kind.Image -> imageClickCallback?.invoke(attachment.ref)
+                            NoteAttachmentMarkdown.Kind.Audio -> audioClickCallback?.invoke(attachment.ref)
+                        }
+                    }
+                    return true
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                cancelAttachmentLongPress()
+                pressedAttachment = null
+            }
+        }
         if (event.action == MotionEvent.ACTION_UP && event.x <= taskToggleTouchWidthPx) {
             val layout = layout
             if (layout != null) {
@@ -99,7 +143,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 val toggled = MarkdownTextTransforms.toggleTaskListLine(line)
                 if (toggled != null) {
                     editableText.replace(lineStart, lineEnd, toggled)
-                    MarkdownSpanApplier.apply(editableText, selectionStart.takeIf { it >= 0 })
+                    MarkdownSpanApplier.apply(editableText, selectionStart.takeIf { it >= 0 }, context)
                     return true
                 }
             }
@@ -133,11 +177,31 @@ class MarkdownEditText(context: Context) : EditText(context) {
         try {
             val sel = selectionStart.coerceAtMost(text.length).coerceAtLeast(0)
             setText(text)
-            MarkdownSpanApplier.apply(editableText, sel)
+            MarkdownSpanApplier.apply(editableText, sel, context)
             setSelection(sel)
         } finally {
             isApplyingSpans = false
         }
+    }
+
+    fun insertAttachmentMarkdown(markdown: String) {
+        val start = selectionStart.coerceAtLeast(0)
+        val end = selectionEnd.coerceAtLeast(0)
+        val from = minOf(start, end)
+        val to = maxOf(start, end)
+        val before = editableText.substring(0, from)
+        val after = editableText.substring(to, editableText.length)
+        val prefix = if (before.isEmpty() || before.endsWith('\n')) "" else "\n"
+        val suffix = if (after.isEmpty() || after.startsWith('\n')) "\n" else "\n"
+        val inserted = "$prefix$markdown$suffix"
+        editableText.replace(from, to, inserted)
+        setSelection((from + inserted.length).coerceIn(0, editableText.length))
+    }
+
+    fun removeAttachment(ref: String) {
+        val next = NoteAttachmentMarkdown.removeAttachment(editableText.toString(), ref)
+        editableText.replace(0, editableText.length, next)
+        setSelection(selectionStart.coerceIn(0, editableText.length))
     }
 
     private fun applyPendingListContinuation(s: Editable) {
@@ -147,5 +211,29 @@ class MarkdownEditText(context: Context) : EditText(context) {
         s.replace(edit.start, edit.end, edit.replacement)
         val cursor = edit.cursorAfter.coerceIn(0, s.length)
         setSelection(cursor)
+    }
+
+    private fun findAttachmentAt(event: MotionEvent): NoteAttachmentMarkdown.Attachment? {
+        findSpanAt(event, MarkdownAudioSpan::class.java)?.let { return it.attachment }
+        findSpanAt(event, MarkdownImageSpan::class.java)?.let { return it.attachment }
+        return null
+    }
+
+    private fun <T> findSpanAt(event: MotionEvent, type: Class<T>): T? {
+        val layout = layout ?: return null
+        val vertical = (event.y + scrollY - totalPaddingTop).toInt()
+        val lineIndex = layout.getLineForVertical(vertical)
+        val offset = layout.getOffsetForHorizontal(lineIndex, event.x)
+        val spans = editableText.getSpans(0, editableText.length, type)
+        return spans.firstOrNull { span ->
+            val start = editableText.getSpanStart(span as Any)
+            val end = editableText.getSpanEnd(span as Any)
+            offset in start..end
+        }
+    }
+
+    private fun cancelAttachmentLongPress() {
+        longPressRunnable?.let { removeCallbacks(it) }
+        longPressRunnable = null
     }
 }

@@ -8,6 +8,8 @@ import com.zahri.lighttodo.data.HomeData
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.ui.note.NoteAttachmentMarkdown
+import com.zahri.lighttodo.ui.note.NoteAttachmentStore
 import com.zahri.lighttodo.util.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -64,7 +66,14 @@ class HomeViewModel : ViewModel() {
         val ids = _noteSelectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
+            app.db.noteDao().findByIds(ids).forEach { note ->
+                NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(note.content))
+            }
             app.db.noteDao().deleteByIds(ids)
+            val refs = app.db.noteDao().listAll()
+                .flatMap { NoteAttachmentMarkdown.refsIn(it.content) }
+                .toSet()
+            NoteAttachmentStore.deleteUnreferenced(app, refs)
             _noteSelectedIds.value = emptySet()
         }
     }

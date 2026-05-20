@@ -19,3 +19,8 @@ gen/
 out/
 release/
 .kotlin/
+
+xiaomi_notes_decompiled/
+xiaomi_notes_extracted/
+tmp/
+docs/plans/

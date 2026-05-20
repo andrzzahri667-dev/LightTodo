@@ -136,6 +136,9 @@ interface NoteDao {
     @Query("SELECT * FROM note WHERE id = :id")
     suspend fun findById(id: Long): NoteEntity?
 
+    @Query("SELECT * FROM note WHERE id IN (:ids)")
+    suspend fun findByIds(ids: List<Long>): List<NoteEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(note: NoteEntity): Long
 

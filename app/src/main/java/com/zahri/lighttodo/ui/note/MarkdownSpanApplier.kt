@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.ui.note
 
+import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
 import android.text.Editable
@@ -37,6 +38,9 @@ object MarkdownSpanApplier {
      */
     fun stripMarkdown(markdown: String): String {
         return markdown.lineSequence().mapNotNull { line ->
+            NoteAttachmentMarkdown.parseLine(line)?.let { attachment ->
+                return@mapNotNull NoteAttachmentMarkdown.previewLabel(attachment)
+            }
             val trimmed = line.trimStart()
             when {
                 trimmed.startsWith("```") -> null
@@ -77,7 +81,7 @@ object MarkdownSpanApplier {
         UnderlineSpan::class.java
     )
 
-    fun apply(editable: Editable, activeOffset: Int? = null) {
+    fun apply(editable: Editable, activeOffset: Int? = null, context: Context? = null) {
         // 1. Remove all managed spans
         for (type in MANAGED_SPANS) {
             val spans = editable.getSpans(0, editable.length, type)
@@ -115,6 +119,19 @@ object MarkdownSpanApplier {
                 }
                 lineStart = lineEnd + 1
                 continue
+            }
+
+            if (context != null) {
+                val attachment = NoteAttachmentMarkdown.parseLine(line)
+                if (attachment != null) {
+                    val span = when (attachment.kind) {
+                        NoteAttachmentMarkdown.Kind.Image -> MarkdownImageSpan(context, attachment)
+                        NoteAttachmentMarkdown.Kind.Audio -> MarkdownAudioSpan(context, attachment)
+                    }
+                    editable.setSpan(span, lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    lineStart = lineEnd + 1
+                    continue
+                }
             }
 
             if (lineIsActive) {

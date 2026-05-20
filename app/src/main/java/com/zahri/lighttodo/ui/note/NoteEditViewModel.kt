@@ -91,6 +91,8 @@ class NoteEditViewModel : ViewModel() {
                 )
                 val newId = noteDao.upsert(entity)
                 if (noteId == null) noteId = newId
+                NoteAttachmentStore.deleteRemovedRefs(app, lastSavedContent, c)
+                cleanupUnreferencedAttachments()
                 lastSavedTitle = t
                 lastSavedContent = c
                 _updatedAt.value = now
@@ -101,8 +103,18 @@ class NoteEditViewModel : ViewModel() {
     fun delete(onDone: () -> Unit) {
         val id = noteId ?: run { onDone(); return }
         viewModelScope.launch {
+            val content = noteDao.findById(id)?.content ?: _content.value
+            NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(content))
             noteDao.delete(id)
+            cleanupUnreferencedAttachments()
             onDone()
         }
+    }
+
+    private suspend fun cleanupUnreferencedAttachments() {
+        val refs = noteDao.listAll()
+            .flatMap { NoteAttachmentMarkdown.refsIn(it.content) }
+            .toSet()
+        NoteAttachmentStore.deleteUnreferenced(app, refs)
     }
 }

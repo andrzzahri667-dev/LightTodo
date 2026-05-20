@@ -21,6 +21,9 @@
     <!-- Full-screen reminder -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
+    <!-- Note audio recording -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Foreground service for the persistent quick-add notification -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -42,6 +45,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.LightTodo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -73,6 +77,16 @@
         <receiver
             android:name=".notify.ReminderReceiver"
             android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Boot receiver to reschedule alarms -->
         <receiver

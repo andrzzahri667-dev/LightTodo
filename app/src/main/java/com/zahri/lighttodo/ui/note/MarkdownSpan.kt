@@ -1,9 +1,14 @@
 package com.zahri.lighttodo.ui.note
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.text.TextPaint
 import android.text.style.CharacterStyle
@@ -11,7 +16,9 @@ import android.text.style.LeadingMarginSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
+import android.util.LruCache
 import androidx.annotation.ColorInt
+import kotlin.math.roundToInt
 
 /** Marker interface for all markdown-related spans. Enables bulk removal. */
 interface MarkdownSpan
@@ -269,4 +276,204 @@ class MarkdownLinkUrlSpan : ReplacementSpan(), MarkdownSpan {
         bottom: Int,
         paint: Paint
     ) = Unit
+}
+
+class MarkdownImageSpan(
+    private val context: Context,
+    val attachment: NoteAttachmentMarkdown.Attachment
+) : ReplacementSpan(), MarkdownSpan {
+    private val density = context.resources.displayMetrics.density
+    private val maxBoxWidthPx = minOf(
+        context.resources.displayMetrics.widthPixels - (56f * density).roundToInt(),
+        (360f * density).roundToInt()
+    ).coerceAtLeast((180f * density).roundToInt())
+    private val maxBoxHeightPx = (300f * density).roundToInt()
+    private val fallbackWidthPx = (180f * density).roundToInt()
+    private val fallbackHeightPx = (120f * density).roundToInt()
+    private val radiusPx = 10f * density
+    private val verticalPaddingPx = (2f * density).roundToInt()
+
+    override fun getSize(
+        paint: Paint,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        fm: Paint.FontMetricsInt?
+    ): Int {
+        val size = displaySize()
+        fm?.let {
+            it.ascent = -(size.second + verticalPaddingPx)
+            it.descent = verticalPaddingPx
+            it.top = it.ascent
+            it.bottom = it.descent
+        }
+        return size.first
+    }
+
+    override fun draw(
+        canvas: Canvas,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        x: Float,
+        top: Int,
+        y: Int,
+        bottom: Int,
+        paint: Paint
+    ) {
+        val size = displaySize()
+        val rect = RectF(
+            x,
+            (bottom - size.second - verticalPaddingPx).toFloat(),
+            x + size.first,
+            (bottom - verticalPaddingPx).toFloat()
+        )
+        val oldStyle = paint.style
+        val oldColor = paint.color
+        paint.style = Paint.Style.FILL
+        paint.color = Color.parseColor("#F1F1F3")
+        canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
+
+        val bitmap = MarkdownBitmapCache.get(context, attachment.ref, size.first)
+        if (bitmap != null) {
+            val src = Rect(0, 0, bitmap.width, bitmap.height)
+            val path = Path().apply { addRoundRect(rect, radiusPx, radiusPx, Path.Direction.CW) }
+            canvas.save()
+            canvas.clipPath(path)
+            canvas.drawBitmap(bitmap, src, rect, paint)
+            canvas.restore()
+        } else {
+            paint.color = Color.parseColor("#8E8E93")
+            paint.textSize = 14f * density
+            val label = "Image"
+            canvas.drawText(label, rect.left + 16f * density, rect.centerY() - (paint.ascent() + paint.descent()) / 2f, paint)
+        }
+        paint.style = oldStyle
+        paint.color = oldColor
+    }
+
+    private fun displaySize(): Pair<Int, Int> {
+        val sourceSize = MarkdownBitmapCache.size(context, attachment.ref) ?: return fallbackWidthPx to fallbackHeightPx
+        val sourceWidth = sourceSize.first.coerceAtLeast(1)
+        val sourceHeight = sourceSize.second.coerceAtLeast(1)
+        var targetWidth = maxBoxWidthPx
+        var targetHeight = (targetWidth * (sourceHeight.toFloat() / sourceWidth.toFloat())).roundToInt()
+        if (targetHeight > maxBoxHeightPx) {
+            targetHeight = maxBoxHeightPx
+            targetWidth = (targetHeight * (sourceWidth.toFloat() / sourceHeight.toFloat())).roundToInt()
+        }
+        return targetWidth.coerceAtLeast(1) to targetHeight.coerceAtLeast(1)
+    }
+}
+
+class MarkdownAudioSpan(
+    private val context: Context,
+    val attachment: NoteAttachmentMarkdown.Attachment
+) : ReplacementSpan(), MarkdownSpan {
+    private val density = context.resources.displayMetrics.density
+    private val widthPx = (220f * density).roundToInt()
+    private val heightPx = (54f * density).roundToInt()
+
+    override fun getSize(
+        paint: Paint,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        fm: Paint.FontMetricsInt?
+    ): Int {
+        fm?.let {
+            val padding = (8f * density).roundToInt()
+            it.ascent = -heightPx - padding
+            it.descent = padding
+            it.top = it.ascent
+            it.bottom = it.descent
+        }
+        return widthPx
+    }
+
+    override fun draw(
+        canvas: Canvas,
+        text: CharSequence?,
+        start: Int,
+        end: Int,
+        x: Float,
+        top: Int,
+        y: Int,
+        bottom: Int,
+        paint: Paint
+    ) {
+        val padding = 8f * density
+        val rect = RectF(x, bottom - heightPx - padding, x + widthPx, bottom - padding)
+        val oldStyle = paint.style
+        val oldColor = paint.color
+        val oldStroke = paint.strokeWidth
+        paint.style = Paint.Style.FILL
+        paint.color = Color.parseColor("#FFF1DA")
+        canvas.drawRoundRect(rect, heightPx / 2f, heightPx / 2f, paint)
+
+        val cx = rect.left + 28f * density
+        val cy = rect.centerY()
+        paint.color = Color.parseColor("#FF9F0A")
+        val triangle = Path().apply {
+            moveTo(cx - 5f * density, cy - 9f * density)
+            lineTo(cx - 5f * density, cy + 9f * density)
+            lineTo(cx + 10f * density, cy)
+            close()
+        }
+        canvas.drawPath(triangle, paint)
+
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f * density
+        paint.color = Color.parseColor("#FFB340")
+        var waveX = rect.left + 58f * density
+        val waveHeights = intArrayOf(10, 18, 14, 24, 12, 20, 10)
+        for (waveHeight in waveHeights) {
+            val h = waveHeight * density
+            canvas.drawLine(waveX, cy - h / 2f, waveX, cy + h / 2f, paint)
+            waveX += 8f * density
+        }
+
+        paint.style = Paint.Style.FILL
+        paint.color = Color.parseColor("#5C4A26")
+        paint.textSize = 15f * density
+        canvas.drawText(attachment.label, rect.right - 56f * density, cy - (paint.ascent() + paint.descent()) / 2f, paint)
+
+        paint.style = oldStyle
+        paint.color = oldColor
+        paint.strokeWidth = oldStroke
+    }
+}
+
+private object MarkdownBitmapCache {
+    private val bitmapCache = LruCache<String, Bitmap>(8)
+    private val sizeCache = LruCache<String, Pair<Int, Int>>(32)
+
+    fun size(context: Context, ref: String): Pair<Int, Int>? {
+        sizeCache.get(ref)?.let { return it }
+        val file = NoteAttachmentStore.resolve(context, ref) ?: return null
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, opts)
+        val size = opts.outWidth.takeIf { it > 0 }?.let { it to opts.outHeight } ?: return null
+        sizeCache.put(ref, size)
+        return size
+    }
+
+    fun get(context: Context, ref: String, targetWidth: Int): Bitmap? {
+        bitmapCache.get(ref)?.let { return it }
+        val file = NoteAttachmentStore.resolve(context, ref) ?: return null
+        val size = size(context, ref) ?: return null
+        val sample = calculateInSampleSize(size.first, targetWidth)
+        val bitmap = BitmapFactory.decodeFile(
+            file.absolutePath,
+            BitmapFactory.Options().apply { inSampleSize = sample }
+        ) ?: return null
+        bitmapCache.put(ref, bitmap)
+        return bitmap
+    }
+
+    private fun calculateInSampleSize(width: Int, targetWidth: Int): Int {
+        var sample = 1
+        while (width / sample > targetWidth * 2) sample *= 2
+        return sample
+    }
 }

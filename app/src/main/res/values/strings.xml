@@ -118,4 +118,15 @@
     <string name="note_meta">%1$s\u00A0\u00A0\u00A0|\u00A0\u00A0\u00A0%2$d 字符</string>
     <string name="note_selected_count">已选 %d 项</string>
     <string name="note_delete_selected">删除</string>
+    <string name="note_insert_image">插入图片</string>
+    <string name="note_take_photo">拍照</string>
+    <string name="note_record_audio">录音</string>
+    <string name="note_stop_recording">停止录音</string>
+    <string name="note_recording">正在录音</string>
+    <string name="note_delete_attachment">删除附件</string>
+    <string name="note_delete_attachment_msg">将从笔记中移除这个附件，并删除本地文件。</string>
+    <string name="note_image_missing">图片无法显示</string>
+    <string name="note_record_failed">录音失败</string>
+    <string name="note_audio_play_failed">播放失败</string>
+    <string name="note_audio_permission_denied">未授予录音权限</string>
 </resources>
