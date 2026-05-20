@@ -46,11 +46,23 @@ object DateUtils {
         return if (d.year == LocalDate.now(zone).year) d.format(mdFmt) else d.format(ymdFmt)
     }
 
+    /** dayKey 为 null（无日期任务）时返回空串 */
+    fun displayDateOrEmpty(dayKey: Int?): String =
+        if (dayKey == null) "" else displayDate(dayKey)
+
     fun isOverdue(dayKey: Int): Boolean {
         return fromDayKey(dayKey).isBefore(LocalDate.now(zone))
     }
 
+    /** dayKey 为 null（无日期任务）时永远不算过期 */
+    fun isOverdueOrFalse(dayKey: Int?): Boolean =
+        dayKey != null && isOverdue(dayKey)
+
     fun isToday(dayKey: Int): Boolean = dayKey == todayDayKey()
+
+    /** dayKey 为 null（无日期任务）时返回 false */
+    fun isTodayOrFalse(dayKey: Int?): Boolean =
+        dayKey != null && isToday(dayKey)
 
     fun formatTime(hour: Int, minute: Int): String =
         "%02d:%02d".format(hour, minute)

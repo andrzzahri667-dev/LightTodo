@@ -20,6 +20,7 @@
     <string name="edit_delete">Delete</string>
     <string name="edit_save">Save</string>
     <string name="edit_title_hint">Enter title</string>
+    <string name="edit_set_date">Set date</string>
     <string name="edit_all_day">All day</string>
     <string name="edit_start_time">Start</string>
     <string name="edit_end_time">Due</string>
@@ -39,6 +40,7 @@
     <string name="settings_title">Settings</string>
     <string name="settings_back">Back</string>
     <string name="settings_default_remind_time">Default reminder time (tasks without deadline)</string>
+    <string name="settings_default_remind_time_short">Default reminder time</string>
     <string name="settings_default_hours_before">Hours before deadline</string>
     <string name="settings_hours_unit">%1$d hour(s)</string>
     <string name="settings_calendar_sync">Sync system calendar (read-only)</string>
@@ -97,4 +99,22 @@
     <!-- Date -->
     <string name="date_format_same_year">MM/dd</string>
     <string name="date_format_diff_year">yyyy/MM/dd</string>
+    <string name="date_picker_year_month">%1$d/%2$d</string>
+    <string name="date_picker_year_month_day">%1$d/%2$d/%3$d</string>
+
+    <!-- Pager / Tabs -->
+    <string name="tab_notes">Notes</string>
+    <string name="tab_todos">Todos</string>
+
+    <!-- Note -->
+    <string name="note_empty">No notes yet</string>
+    <string name="note_no_title">Untitled</string>
+    <string name="note_title_hint">Title</string>
+    <string name="note_content_hint">Start writing…</string>
+    <string name="note_delete">Delete</string>
+    <string name="note_back">Back</string>
+    <string name="note_created_at">Created %1$s</string>
+    <string name="note_updated_at">Updated %1$s</string>
+    <string name="note_selected_count">%d selected</string>
+    <string name="note_delete_selected">Delete</string>
 </resources>

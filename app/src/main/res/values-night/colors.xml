@@ -4,5 +4,6 @@
     <color name="widget_bg">#CC1C1C1E</color>
     <color name="widget_text_primary">#FFFFFFFF</color>
     <color name="widget_text_secondary">#FF8E8E93</color>
+    <color name="widget_overdue">#FFFF453A</color>
     <color name="widget_checkbox_stroke">#80FFFFFF</color>
 </resources>

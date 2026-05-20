@@ -14,6 +14,8 @@ import kotlinx.serialization.Serializable
  *  - 标题可空。空时列表上回退使用 note 首行 / "无标题"
  *  - 日期使用 yyyyMMdd 整数 (date) + dateMillis（当天 0 点的本地时间戳）双存：
  *    date 用于按日分组，dateMillis 用于排序、过期判断
+ *  - date / dateMillis 同时可空（且必须同时为 null 或同时非 null）。
+ *    null 表示"无日期任务"——既无开始也无截止，不参与按日期排序与过期判断。
  *  - 截止时间分为两个字段：dateMillis (天) + deadlineHour/deadlineMinute (可空，全天则为 null)
  *  - remindAtMillis 提前算出，AlarmManager 直接用
  *  - tagId 单标签，可空（=未分类）
@@ -35,10 +37,10 @@ data class TodoEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String? = null,
     val note: String? = null,
-    /** yyyyMMdd e.g. 20260427 */
-    val date: Int,
-    /** 当天本地 0:00 的毫秒时间戳，用于排序和比较 */
-    val dateMillis: Long,
+    /** yyyyMMdd e.g. 20260427；null 表示无日期任务 */
+    val date: Int? = null,
+    /** 当天本地 0:00 的毫秒时间戳，用于排序和比较；null 表示无日期任务 */
+    val dateMillis: Long? = null,
     /** 开始时刻；null 表示全天或未设 */
     val startHour: Int? = null,
     val startMinute: Int? = null,
@@ -69,13 +71,43 @@ data class TagEntity(
     @ColumnInfo(defaultValue = "0") val sortOrder: Int = 0
 )
 
+/**
+ * 一条笔记。
+ *
+ * 设计要点：
+ *  - content 存 Markdown 原文
+ *  - tagId 预留标签接口，当前 UI 不暴露分类功能
+ *  - 排序按 updatedAtMillis DESC（最近编辑在最前）
+ */
+@Entity(
+    tableName = "note",
+    foreignKeys = [
+        ForeignKey(
+            entity = TagEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [Index("tagId"), Index("updatedAtMillis")]
+)
+data class NoteEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String? = null,
+    val content: String = "",
+    val tagId: Long? = null,
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val updatedAtMillis: Long = System.currentTimeMillis()
+)
+
 /* ---------- DTO for export/import (kotlinx.serialization) ---------- */
 
 @Serializable
 data class BackupBundle(
-    val version: Int = 1,
+    val version: Int = 2,
     val tags: List<BackupTag>,
-    val todos: List<BackupTodo>
+    val todos: List<BackupTodo>,
+    val notes: List<BackupNote> = emptyList()
 )
 
 @Serializable
@@ -86,8 +118,8 @@ data class BackupTodo(
     val id: Long,
     val title: String?,
     val note: String?,
-    val date: Int,
-    val dateMillis: Long,
+    val date: Int? = null,
+    val dateMillis: Long? = null,
     val startHour: Int? = null,
     val startMinute: Int? = null,
     val deadlineHour: Int?,
@@ -99,4 +131,14 @@ data class BackupTodo(
     val done: Boolean,
     val doneAtMillis: Long?,
     val createdAtMillis: Long
+)
+
+@Serializable
+data class BackupNote(
+    val id: Long,
+    val title: String?,
+    val content: String,
+    val tagId: Long? = null,
+    val createdAtMillis: Long,
+    val updatedAtMillis: Long
 )

@@ -199,14 +199,18 @@ class TodoWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(TITLE_IDS[i], item.displayTitle(context))
                     // Explicitly reset all properties that animation may have changed,
                     // because partiallyUpdateAppWidget diffs can survive updateAppWidget.
-                    views.setTextColor(TITLE_IDS[i], 0xFF1A1A1A.toInt())
+                    views.setTextColor(TITLE_IDS[i], context.getColor(R.color.widget_text_primary))
 
-                    val datePart = if (com.zahri.lighttodo.util.DateUtils.isToday(item.date)) "" else item.dateLabel()
+                    val datePart = if (com.zahri.lighttodo.util.DateUtils.isTodayOrFalse(item.date)) "" else item.dateLabel()
                     val subText = datePart + deadlineSuffix(item)
                     views.setTextViewText(SUBTITLE_IDS[i], subText)
+                    views.setViewVisibility(
+                        SUBTITLE_IDS[i],
+                        if (subText.isEmpty()) View.GONE else View.VISIBLE
+                    )
                     views.setTextColor(
                         SUBTITLE_IDS[i],
-                        if (item.isOverdueDate()) Color.parseColor("#F26A6A") else Color.parseColor("#B6B6B6")
+                        if (item.isOverdueDate()) context.getColor(R.color.widget_overdue) else context.getColor(R.color.widget_text_secondary)
                     )
 
                     views.setImageViewResource(CHECK_IDS[i], R.drawable.widget_checkbox)

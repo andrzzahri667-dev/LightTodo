@@ -30,28 +30,61 @@ class Repository(
     suspend fun saveTodo(input: TodoInput): Long {
         val p = prefs.flow.first()
         val tagId = resolveTagId(input.tagName)
-        val (date, dateMillis) = DateUtils.dayKeyAndStart(input.year, input.month, input.day)
-        // 开始时间提醒：恰在开始时刻触发（不应用"提前 N 小时"）
-        val remindStart = computeRemindAt(
-            dateMillis = dateMillis,
-            hour = input.startHour,
-            minute = input.startMinute,
-            hoursBefore = 0,
-            defaultHour = p.defaultRemindHour,
-            defaultMinute = p.defaultRemindMinute,
-            allDayFallback = false
-        )
-        // 截止时间提醒：默认在截止时刻触发；若用户设了 customHoursBefore（>0）则提前
-        val endHoursBefore = input.customHoursBefore ?: 0
-        val remindEnd = computeRemindAt(
-            dateMillis = dateMillis,
-            hour = input.deadlineHour,
-            minute = input.deadlineMinute,
-            hoursBefore = endHoursBefore,
-            defaultHour = p.defaultRemindHour,
-            defaultMinute = p.defaultRemindMinute,
-            allDayFallback = true
-        )
+
+        // 日期：年月日要么同时给出（有日期任务），要么同时为 null（无日期任务）。
+        val hasDate = input.year != null && input.month != null && input.day != null
+        val (date, dateMillis) = if (hasDate) {
+            DateUtils.dayKeyAndStart(input.year!!, input.month!!, input.day!!)
+        } else {
+            null to null
+        }
+
+        // 无日期任务：清空所有时间相关字段与提醒；
+        // 有日期任务：保留时间，并按规则计算提醒时间戳。
+        val startHour: Int?
+        val startMinute: Int?
+        val deadlineHour: Int?
+        val deadlineMinute: Int?
+        val customHoursBefore: Int?
+        val remindStart: Long?
+        val remindEnd: Long?
+        if (hasDate) {
+            startHour = input.startHour
+            startMinute = input.startMinute
+            deadlineHour = input.deadlineHour
+            deadlineMinute = input.deadlineMinute
+            customHoursBefore = input.customHoursBefore
+            // 开始时间提醒：恰在开始时刻触发（不应用"提前 N 小时"）
+            remindStart = computeRemindAt(
+                dateMillis = dateMillis!!,
+                hour = input.startHour,
+                minute = input.startMinute,
+                hoursBefore = 0,
+                defaultHour = p.defaultRemindHour,
+                defaultMinute = p.defaultRemindMinute,
+                allDayFallback = false
+            )
+            // 截止时间提醒：默认在截止时刻触发；若用户设了 customHoursBefore（>0）则提前
+            val endHoursBefore = input.customHoursBefore ?: 0
+            remindEnd = computeRemindAt(
+                dateMillis = dateMillis,
+                hour = input.deadlineHour,
+                minute = input.deadlineMinute,
+                hoursBefore = endHoursBefore,
+                defaultHour = p.defaultRemindHour,
+                defaultMinute = p.defaultRemindMinute,
+                allDayFallback = true
+            )
+        } else {
+            startHour = null
+            startMinute = null
+            deadlineHour = null
+            deadlineMinute = null
+            customHoursBefore = null
+            remindStart = null
+            remindEnd = null
+        }
+
         val existing = input.id?.let { todoDao.findById(it) }
         val now = System.currentTimeMillis()
         val entity = TodoEntity(
@@ -60,13 +93,13 @@ class Repository(
             note = input.note?.takeIf { it.isNotBlank() },
             date = date,
             dateMillis = dateMillis,
-            startHour = input.startHour,
-            startMinute = input.startMinute,
-            deadlineHour = input.deadlineHour,
-            deadlineMinute = input.deadlineMinute,
+            startHour = startHour,
+            startMinute = startMinute,
+            deadlineHour = deadlineHour,
+            deadlineMinute = deadlineMinute,
             remindStartAtMillis = remindStart,
             remindAtMillis = remindEnd,
-            customRemindHoursBefore = input.customHoursBefore,
+            customRemindHoursBefore = customHoursBefore,
             tagId = tagId,
             done = existing?.done ?: false,
             doneAtMillis = existing?.doneAtMillis,
@@ -166,9 +199,10 @@ data class TodoInput(
     val id: Long? = null,
     val title: String?,
     val note: String?,
-    val year: Int,
-    val month: Int, // 1-12
-    val day: Int,   // 1-31
+    /** year/month/day 三者要么同时非空（有日期任务），要么同时为 null（无日期任务） */
+    val year: Int? = null,
+    val month: Int? = null, // 1-12
+    val day: Int? = null,   // 1-31
     val startHour: Int? = null,
     val startMinute: Int? = null,
     val deadlineHour: Int? = null,

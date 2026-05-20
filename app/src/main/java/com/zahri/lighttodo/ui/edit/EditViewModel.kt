@@ -17,7 +17,8 @@ data class EditUiState(
     val id: Long? = null,
     val title: String = "",
     val note: String = "",
-    val date: LocalDate = LocalDate.now(),
+    /** null 表示"无日期任务"——既无开始也无截止 */
+    val date: LocalDate? = null,
     /** 开始时间 Pair(hour, minute) or null */
     val startTime: Pair<Int, Int>? = null,
     /** 截止时间 Pair(hour, minute) or null */
@@ -52,7 +53,9 @@ class EditViewModel : ViewModel() {
                     id = t.id,
                     title = t.title.orEmpty(),
                     note = t.note.orEmpty(),
-                    date = LocalDate.of(t.date / 10000, (t.date / 100) % 100, t.date % 100),
+                    date = t.date?.let {
+                        LocalDate.of(it / 10000, (it / 100) % 100, it % 100)
+                    },
                     startTime = if (t.startHour != null && t.startMinute != null)
                         t.startHour to t.startMinute else null,
                     endTime = if (t.deadlineHour != null && t.deadlineMinute != null)
@@ -68,6 +71,8 @@ class EditViewModel : ViewModel() {
                 _state.value = EditUiState(
                     id = null,
                     title = initialTitle.orEmpty(),
+                    // 新建任务默认带日期=今天，与历史行为一致；用户可通过"设置日期"开关切到无日期。
+                    date = LocalDate.now(),
                     defaultHoursBefore = p.defaultHoursBefore,
                     defaultRemindLabel = label,
                     allTags = tags
@@ -79,6 +84,20 @@ class EditViewModel : ViewModel() {
     fun setTitle(v: String) = _state.update { it.copy(title = v) }
     fun setNote(v: String) = _state.update { it.copy(note = v) }
     fun setTagName(v: String) = _state.update { it.copy(tagName = v) }
+
+    /**
+     * 启用/关闭日期。
+     *  - 启用：若当前没日期，默认填今天；保留现有时间字段（一般也无）
+     *  - 关闭：清空日期、时间和自定义提醒。变成"无日期任务"
+     */
+    fun setDateEnabled(enabled: Boolean) = _state.update { st ->
+        if (enabled) {
+            if (st.date != null) st
+            else st.copy(date = LocalDate.now())
+        } else {
+            st.copy(date = null, startTime = null, endTime = null, customHoursBefore = null)
+        }
+    }
 
     fun setDate(year: Int, month: Int, day: Int) = _state.update {
         it.copy(date = LocalDate.of(year, month, day))
@@ -136,9 +155,9 @@ class EditViewModel : ViewModel() {
                     id = s.id,
                     title = s.title,
                     note = s.note,
-                    year = s.date.year,
-                    month = s.date.monthValue,
-                    day = s.date.dayOfMonth,
+                    year = s.date?.year,
+                    month = s.date?.monthValue,
+                    day = s.date?.dayOfMonth,
                     startHour = s.startTime?.first,
                     startMinute = s.startTime?.second,
                     deadlineHour = s.endTime?.first,

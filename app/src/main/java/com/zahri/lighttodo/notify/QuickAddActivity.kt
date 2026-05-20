@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,40 +35,54 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoInput
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 /**
  * 半透明对话框风格的 Activity。从通知或小组件 + 按钮拉起。
- * 一行输入 → 默认日期=今天 → 保存。
+ * 一行输入 → 默认创建无日期任务（"先记下来，有空再处理"）→ 保存。
+ *
+ * 键盘自动弹起策略（从弱到强叠加）：
+ *  - Window 设 SOFT_INPUT_STATE_ALWAYS_VISIBLE
+ *  - WindowInsetsControllerCompat.show(IME)
+ *  - LaunchedEffect 中 delay 一帧再 requestFocus + keyboardController.show()
  */
 class QuickAddActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        // 1) 提示窗口管理器永远显示软键盘
+        window.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                    or android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
+        // 2) 显式让 IME 立即出来
+        WindowCompat.getInsetsController(window, window.decorView)
+            ?.show(WindowInsetsCompat.Type.ime())
+
         setContent {
             LightTodoTheme {
                 QuickAddDialog(
                     onSave = { text ->
                         if (text.isNotBlank()) {
-                            val today = LocalDate.now()
                             lifecycleScope.launch {
                                 App.instance.repository.saveTodo(
                                     TodoInput(
                                         title = text,
-                                        note = null,
-                                        year = today.year,
-                                        month = today.monthValue,
-                                        day = today.dayOfMonth
+                                        note = null
+                                        // year/month/day 全部 null = 无日期任务
                                     )
                                 )
                                 finish()
@@ -86,13 +100,22 @@ class QuickAddActivity : ComponentActivity() {
 private fun QuickAddDialog(onSave: (String) -> Unit, onCancel: () -> Unit) {
     var text by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // 等 Window 拿到焦点 + 输入框真正附着后再请求焦点，避免冷启动时被吞
+    LaunchedEffect(Unit) {
+        delay(150)
+        focus.requestFocus()
+        keyboard?.show()
+    }
 
     Box(
         Modifier
             .fillMaxSize()
             .background(Color(0x80000000))
-            .clickable(onClick = onCancel),
+            // 用 pointerInput 检测点击空白处，避免 clickable 引入 focusable 抢走 TextField 焦点
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { onCancel() })
+            },
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
@@ -100,7 +123,10 @@ private fun QuickAddDialog(onSave: (String) -> Unit, onCancel: () -> Unit) {
                 .fillMaxWidth()
                 .padding(16.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .clickable(enabled = false) {},
+                // 同样用 pointerInput 拦截穿透，不引入 focusable
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {})
+                },
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(Modifier.padding(16.dp)) {
@@ -110,6 +136,7 @@ private fun QuickAddDialog(onSave: (String) -> Unit, onCancel: () -> Unit) {
                     value = text,
                     onValueChange = { text = it },
                     placeholder = { Text(stringResource(R.string.quick_add_hint)) },
+                    singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focus)

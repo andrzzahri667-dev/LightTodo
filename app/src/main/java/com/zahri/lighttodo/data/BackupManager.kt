@@ -28,15 +28,20 @@ class BackupManager(
 
     fun startAutoBackup() {
         scope.launch(Dispatchers.IO) {
-            combine(db.todoDao().observeAll(), db.tagDao().observeAll()) { todos, tags -> todos to tags }
-                .collectLatest { (todos, tags) ->
-                    if (todos.isEmpty() && tags.isEmpty()) return@collectLatest
+            combine(
+                db.todoDao().observeAll(),
+                db.tagDao().observeAll(),
+                db.noteDao().observeAll()
+            ) { todos, tags, notes -> Triple(todos, tags, notes) }
+                .collectLatest { (todos, tags, notes) ->
+                    if (todos.isEmpty() && tags.isEmpty() && notes.isEmpty()) return@collectLatest
                     delay(3000)
                     runCatching {
                         val bundle = BackupBundle(
-                            version = 1,
+                            version = 2,
                             tags = tags.map { BackupTag(it.id, it.name, it.sortOrder) },
-                            todos = todos.map { it.toBackupTodo() }
+                            todos = todos.map { it.toBackupTodo() },
+                            notes = notes.map { it.toBackupNote() }
                         )
                         val json = Json { prettyPrint = true; encodeDefaults = true }
                         writeBackupFile(json.encodeToString(bundle))
@@ -47,13 +52,20 @@ class BackupManager(
 
     fun restoreIfEmpty() {
         scope.launch(Dispatchers.IO) {
-            if (db.todoDao().listAll().isNotEmpty()) return@launch
+            // 只有 todos 和 notes 都为空时才认为"数据库为空，需要恢复"。
+            // 这样删除单一类型（比如清空所有笔记）不会触发备份恢复把它们再写回来。
+            val todosEmpty = db.todoDao().listAll().isEmpty()
+            val notesEmpty = db.noteDao().listAll().isEmpty()
+            if (!todosEmpty || !notesEmpty) return@launch
             val text = readBackupFile() ?: return@launch
             runCatching {
                 val bundle = Json { ignoreUnknownKeys = true }
                     .decodeFromString(BackupBundle.serializer(), text)
                 db.tagDao().upsertAll(bundle.tags.map { TagEntity(it.id, it.name, it.sortOrder) })
                 db.todoDao().upsertAll(bundle.todos.map { it.toEntity() })
+                if (bundle.notes.isNotEmpty()) {
+                    db.noteDao().upsertAll(bundle.notes.map { it.toEntity() })
+                }
                 repository.rescheduleAllAlarms()
             }
         }
@@ -120,4 +132,14 @@ private fun BackupTodo.toEntity() = TodoEntity(
     customRemindHoursBefore = customRemindHoursBefore,
     tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis,
     calendarEventId = null
+)
+
+private fun NoteEntity.toBackupNote() = BackupNote(
+    id = id, title = title, content = content,
+    tagId = tagId, createdAtMillis = createdAtMillis, updatedAtMillis = updatedAtMillis
+)
+
+private fun BackupNote.toEntity() = NoteEntity(
+    id = id, title = title, content = content,
+    tagId = tagId, createdAtMillis = createdAtMillis, updatedAtMillis = updatedAtMillis
 )

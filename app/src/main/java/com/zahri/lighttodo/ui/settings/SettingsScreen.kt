@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.ui.settings
 
-import android.app.TimePickerDialog
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -59,6 +58,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val toast = remember { mutableStateOf<String?>(null) }
     var showClearConfirm by remember { mutableStateOf(false) }
+    var showRemindTimePicker by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -113,13 +113,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
             SettingRow(
                 title = stringResource(R.string.settings_default_remind_time),
                 value = "%02d:%02d".format(state.defaultRemindHour, state.defaultRemindMinute),
-                onClick = {
-                    TimePickerDialog(
-                        context,
-                        { _, h, m -> vm.setDefaultRemind(h, m) },
-                        state.defaultRemindHour, state.defaultRemindMinute, true
-                    ).show()
-                }
+                onClick = { showRemindTimePicker = true }
             )
             InsetDivider()
             SettingRow(
@@ -218,6 +212,20 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
             )
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    // ── Default reminder time picker ─────────────────────────────
+    if (showRemindTimePicker) {
+        com.zahri.lighttodo.ui.edit.WheelTimePickerDialog(
+            title = stringResource(R.string.settings_default_remind_time_short),
+            initialHour = state.defaultRemindHour,
+            initialMinute = state.defaultRemindMinute,
+            onConfirm = { h, m ->
+                vm.setDefaultRemind(h, m)
+                showRemindTimePicker = false
+            },
+            onDismiss = { showRemindTimePicker = false }
+        )
     }
 
     // ── Clear confirmation dialog ────────────────────────────────

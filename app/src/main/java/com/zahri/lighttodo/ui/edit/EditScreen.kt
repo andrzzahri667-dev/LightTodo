@@ -119,6 +119,7 @@ fun EditScreen(
             }
 
             // Card 2: All-day / From / To
+            val dateEnabled = state.date != null
             EditCard {
                 Column {
                     EditSwitchRow(
@@ -132,21 +133,23 @@ fun EditScreen(
                                 }
                             }
                         },
-                        enabled = !state.readOnly
+                        enabled = !state.readOnly && dateEnabled
                     )
                     EditRowDivider()
                     EditDateTimeRow(
                         label = stringResource(R.string.edit_start_time),
                         date = state.date,
                         time = state.startTime,
-                        onClick = { if (!state.readOnly) showFromPicker = true }
+                        enabled = !state.readOnly && dateEnabled,
+                        onClick = { if (!state.readOnly && dateEnabled) showFromPicker = true }
                     )
                     EditRowDivider()
                     EditDateTimeRow(
                         label = stringResource(R.string.edit_end_time),
                         date = state.date,
                         time = state.endTime,
-                        onClick = { if (!state.readOnly) showToPicker = true }
+                        enabled = !state.readOnly && dateEnabled,
+                        onClick = { if (!state.readOnly && dateEnabled) showToPicker = true }
                     )
                 }
             }
@@ -157,9 +160,19 @@ fun EditScreen(
                     hasTime = state.startTime != null || state.endTime != null,
                     customHoursBefore = state.customHoursBefore,
                     defaultRemindLabel = state.defaultRemindLabel,
-                    enabled = !state.readOnly,
+                    enabled = !state.readOnly && dateEnabled,
                     onDecrease = { vm.adjustHoursBefore(-1) },
                     onIncrease = { vm.adjustHoursBefore(+1) }
+                )
+            }
+
+            // Card 4: Set-date toggle (controls cards above)
+            EditCard {
+                EditSwitchRow(
+                    label = stringResource(R.string.edit_set_date),
+                    checked = dateEnabled,
+                    onCheckedChange = { vm.setDateEnabled(it) },
+                    enabled = !state.readOnly
                 )
             }
 
@@ -228,35 +241,61 @@ fun EditScreen(
     }
 
     // Picker dialogs
-    if (showFromPicker) {
-        WheelDateTimePickerDialog(
-            title = stringResource(R.string.edit_start_time),
-            initialDate = state.date,
-            initialHour = state.startTime?.first ?: 9,
-            initialMinute = state.startTime?.second ?: 0,
-            onConfirm = { date, h, m ->
-                vm.setDate(date.year, date.monthValue, date.dayOfMonth)
-                vm.setStartTime(h, m)
-                showFromPicker = false
-            },
-            onDismiss = { showFromPicker = false }
-        )
+    if (showFromPicker && state.date != null) {
+        val isAllDay = state.startTime == null && state.endTime == null
+        if (isAllDay) {
+            WheelDatePickerDialog(
+                title = stringResource(R.string.edit_start_time),
+                initialDate = state.date!!,
+                onConfirm = { date ->
+                    vm.setDate(date.year, date.monthValue, date.dayOfMonth)
+                    showFromPicker = false
+                },
+                onDismiss = { showFromPicker = false }
+            )
+        } else {
+            WheelDateTimePickerDialog(
+                title = stringResource(R.string.edit_start_time),
+                initialDate = state.date!!,
+                initialHour = state.startTime?.first ?: 9,
+                initialMinute = state.startTime?.second ?: 0,
+                onConfirm = { date, h, m ->
+                    vm.setDate(date.year, date.monthValue, date.dayOfMonth)
+                    vm.setStartTime(h, m)
+                    showFromPicker = false
+                },
+                onDismiss = { showFromPicker = false }
+            )
+        }
     }
-    if (showToPicker) {
-        val fromH = state.startTime?.first ?: 9
-        val fromM = state.startTime?.second ?: 0
-        val totalFromMin = fromH * 60 + fromM
-        WheelDateTimePickerDialog(
-            title = stringResource(R.string.edit_end_time),
-            initialDate = state.date,
-            initialHour = state.endTime?.first ?: ((totalFromMin + 15) / 60),
-            initialMinute = state.endTime?.second ?: ((totalFromMin + 15) % 60),
-            onConfirm = { date, h, m ->
-                vm.setDate(date.year, date.monthValue, date.dayOfMonth)
-                vm.setEndTime(h, m)
-                showToPicker = false
-            },
-            onDismiss = { showToPicker = false }
-        )
+    if (showToPicker && state.date != null) {
+        val isAllDay = state.startTime == null && state.endTime == null
+        if (isAllDay) {
+            WheelDatePickerDialog(
+                title = stringResource(R.string.edit_end_time),
+                initialDate = state.date!!,
+                onConfirm = { date ->
+                    vm.setDate(date.year, date.monthValue, date.dayOfMonth)
+                    showToPicker = false
+                },
+                onDismiss = { showToPicker = false }
+            )
+        } else {
+            val fromH = state.startTime?.first ?: 9
+            val fromM = state.startTime?.second ?: 0
+            val totalFromMin = fromH * 60 + fromM
+            WheelDateTimePickerDialog(
+                title = stringResource(R.string.edit_end_time),
+                initialDate = state.date!!,
+                initialHour = state.endTime?.first ?: ((totalFromMin + 15) / 60),
+                initialMinute = state.endTime?.second ?: ((totalFromMin + 15) % 60),
+                onConfirm = { date, h, m ->
+                    vm.setDate(date.year, date.monthValue, date.dayOfMonth)
+                    vm.setEndTime(h, m)
+                    showToPicker = false
+                },
+                onDismiss = { showToPicker = false }
+            )
+        }
     }
 }
