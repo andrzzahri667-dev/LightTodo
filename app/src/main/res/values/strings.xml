@@ -115,6 +115,7 @@
     <string name="note_back">返回</string>
     <string name="note_created_at">创建于 %1$s</string>
     <string name="note_updated_at">更新于 %1$s</string>
+    <string name="note_meta">%1$s\u00A0\u00A0\u00A0|\u00A0\u00A0\u00A0%2$d 字符</string>
     <string name="note_selected_count">已选 %d 项</string>
     <string name="note_delete_selected">删除</string>
 </resources>

@@ -115,6 +115,7 @@
     <string name="note_back">Back</string>
     <string name="note_created_at">Created %1$s</string>
     <string name="note_updated_at">Updated %1$s</string>
+    <string name="note_meta">%1$s\u00A0\u00A0\u00A0|\u00A0\u00A0\u00A0%2$d characters</string>
     <string name="note_selected_count">%d selected</string>
     <string name="note_delete_selected">Delete</string>
 </resources>

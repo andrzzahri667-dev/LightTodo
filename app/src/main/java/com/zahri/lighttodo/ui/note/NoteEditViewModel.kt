@@ -7,6 +7,7 @@ import com.zahri.lighttodo.data.NoteEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class NoteEditViewModel : ViewModel() {
@@ -28,6 +29,10 @@ class NoteEditViewModel : ViewModel() {
 
     private var noteId: Long? = null
     private var loaded = false
+    private var saveJob: Job? = null
+    private var saveAgainAfterCurrentJob = false
+    private var lastSavedTitle = ""
+    private var lastSavedContent = ""
 
     fun load(id: Long?) {
         if (loaded) return
@@ -45,30 +50,51 @@ class NoteEditViewModel : ViewModel() {
             _content.value = note.content
             _createdAt.value = note.createdAtMillis
             _updatedAt.value = note.updatedAtMillis
+            lastSavedTitle = _title.value.trim()
+            lastSavedContent = _content.value
         }
     }
 
-    fun updateTitle(value: String) { _title.value = value }
-    fun updateContent(value: String) { _content.value = value }
+    fun updateTitle(value: String) {
+        if (_title.value == value) return
+        _title.value = value
+        _updatedAt.value = System.currentTimeMillis()
+    }
+
+    fun updateContent(value: String) {
+        if (_content.value == value) return
+        _content.value = value
+        _updatedAt.value = System.currentTimeMillis()
+    }
 
     /** 自动保存：有内容时写库 */
     fun save() {
-        val t = _title.value.trim()
-        val c = _content.value
-        if (t.isEmpty() && c.isBlank()) return
+        if (saveJob?.isActive == true) {
+            saveAgainAfterCurrentJob = true
+            return
+        }
+        saveJob = viewModelScope.launch {
+            do {
+                saveAgainAfterCurrentJob = false
+                val t = _title.value.trim()
+                val c = _content.value
+                if (t.isEmpty() && c.isBlank()) return@launch
+                if (noteId != null && t == lastSavedTitle && c == lastSavedContent) return@launch
 
-        val now = System.currentTimeMillis()
-        viewModelScope.launch {
-            val entity = NoteEntity(
-                id = noteId ?: 0L,
-                title = t.ifEmpty { null },
-                content = c,
-                createdAtMillis = _createdAt.value,
-                updatedAtMillis = now
-            )
-            val newId = noteDao.upsert(entity)
-            if (noteId == null) noteId = newId
-            _updatedAt.value = now
+                val now = System.currentTimeMillis()
+                val entity = NoteEntity(
+                    id = noteId ?: 0L,
+                    title = t.ifEmpty { null },
+                    content = c,
+                    createdAtMillis = _createdAt.value,
+                    updatedAtMillis = now
+                )
+                val newId = noteDao.upsert(entity)
+                if (noteId == null) noteId = newId
+                lastSavedTitle = t
+                lastSavedContent = c
+                _updatedAt.value = now
+            } while (saveAgainAfterCurrentJob)
         }
     }
 

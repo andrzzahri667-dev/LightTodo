@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
-import com.zahri.lighttodo.ui.note.MarkdownParser
+import com.zahri.lighttodo.ui.note.MarkdownSpanApplier
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
@@ -114,7 +114,7 @@ private fun NoteCard(
         }
         if (preview != null) {
             Text(
-                text = MarkdownParser.render(preview),
+                text = MarkdownSpanApplier.stripMarkdown(preview),
                 style = AppType.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (title != null) 5 else 7,
