@@ -114,6 +114,20 @@ class NoteContentBlocksTest {
     }
 
     @Test
+    fun mediaRefBeforeTextCursor_findsPreviousMediaWithoutChangingBlocks() {
+        val ref = NoteContentBlocks.mediaRefBeforeTextCursor(
+            blocks = listOf(
+                NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg"),
+                NoteContentBlock.Text("line 2")
+            ),
+            textBlockIndex = 1,
+            cursor = 0
+        )
+
+        assertEquals("lighttodo://attachment/image/photo.jpg", ref)
+    }
+
+    @Test
     fun removeMediaBeforeTextCursor_deletesPreviousAudioAndMergesText() {
         val result = NoteContentBlocks.removeMediaBeforeTextCursor(
             blocks = listOf(

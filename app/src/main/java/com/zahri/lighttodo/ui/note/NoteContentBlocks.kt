@@ -130,16 +130,10 @@ object NoteContentBlocks {
         textBlockIndex: Int,
         cursor: Int
     ): RemoveResult? {
-        if (cursor != 0) return null
-        val index = textBlockIndex.takeIf { it in blocks.indices } ?: return null
-        val current = blocks[index] as? NoteContentBlock.Text ?: return null
+        val removedRef = mediaRefBeforeTextCursor(blocks, textBlockIndex, cursor) ?: return null
+        val index = textBlockIndex
+        val current = blocks[index] as NoteContentBlock.Text
         val mediaIndex = index - 1
-        val media = blocks.getOrNull(mediaIndex) ?: return null
-        val removedRef = when (media) {
-            is NoteContentBlock.Image -> media.ref
-            is NoteContentBlock.Audio -> media.ref
-            is NoteContentBlock.Text -> return null
-        }
 
         val previousTextIndex = mediaIndex - 1
         val previousText = blocks.getOrNull(previousTextIndex) as? NoteContentBlock.Text
@@ -163,6 +157,21 @@ object NoteContentBlocks {
             focusTextIndex = focusTextIndex.coerceAtLeast(0),
             removedRef = removedRef
         )
+    }
+
+    fun mediaRefBeforeTextCursor(
+        blocks: List<NoteContentBlock>,
+        textBlockIndex: Int,
+        cursor: Int
+    ): String? {
+        if (cursor != 0) return null
+        val index = textBlockIndex.takeIf { it in blocks.indices } ?: return null
+        blocks[index] as? NoteContentBlock.Text ?: return null
+        return when (val media = blocks.getOrNull(index - 1)) {
+            is NoteContentBlock.Image -> media.ref
+            is NoteContentBlock.Audio -> media.ref
+            is NoteContentBlock.Text, null -> null
+        }
     }
 
     private fun joinTextAroundRemovedMedia(before: String, after: String): String {

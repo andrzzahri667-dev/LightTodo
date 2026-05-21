@@ -133,6 +133,7 @@ fun NoteEditScreen(
     var playingAudioRef by remember { mutableStateOf<String?>(null) }
     var previewImageRef by remember { mutableStateOf<String?>(null) }
     var pendingDeleteAttachment by remember { mutableStateOf<NoteAttachmentMarkdown.Attachment?>(null) }
+    var pendingKeyboardMediaDelete by remember { mutableStateOf<Pair<Int, String>?>(null) }
     val formatMode = remember { mutableStateOf(false) }
     var styleState by remember { mutableStateOf(MarkdownStyleState()) }
     val formattingController = remember { MarkdownFormattingController() }
@@ -145,6 +146,7 @@ fun NoteEditScreen(
     }
 
     fun updateTextBlock(index: Int, text: String) {
+        pendingKeyboardMediaDelete = null
         val blocks = NoteContentBlocks.parse(content).toMutableList()
         if (index !in blocks.indices || blocks[index] !is NoteContentBlock.Text) return
         blocks[index] = NoteContentBlock.Text(text)
@@ -152,6 +154,7 @@ fun NoteEditScreen(
     }
 
     fun insertBlock(block: NoteContentBlock) {
+        pendingKeyboardMediaDelete = null
         val result = NoteContentBlocks.insertAfterTextCursor(
             blocks = contentBlocks,
             textBlockIndex = focusedTextIndex,
@@ -163,11 +166,26 @@ fun NoteEditScreen(
     }
 
     fun deleteMediaBeforeTextBlock(index: Int): Boolean {
+        val blocks = NoteContentBlocks.parse(content)
+        val ref = NoteContentBlocks.mediaRefBeforeTextCursor(
+            blocks = blocks,
+            textBlockIndex = index,
+            cursor = 0
+        ) ?: run {
+            pendingKeyboardMediaDelete = null
+            return false
+        }
+        val marker = index to ref
+        if (pendingKeyboardMediaDelete != marker) {
+            pendingKeyboardMediaDelete = marker
+            return true
+        }
         val result = NoteContentBlocks.removeMediaBeforeTextCursor(
-            blocks = NoteContentBlocks.parse(content),
+            blocks = blocks,
             textBlockIndex = index,
             cursor = 0
         ) ?: return false
+        pendingKeyboardMediaDelete = null
         pendingFocusTextIndex = result.focusTextIndex
         updateBlocks(result.blocks)
         NoteAttachmentStore.delete(context, result.removedRef)
@@ -180,6 +198,7 @@ fun NoteEditScreen(
     }
 
     fun focusAfterContent() {
+        pendingKeyboardMediaDelete = null
         when (contentBlocks.lastOrNull()) {
             is NoteContentBlock.Text -> {
                 pendingFocusTextIndex = contentBlocks.lastIndex
@@ -445,6 +464,9 @@ fun NoteEditScreen(
                             onFocusApplied = { pendingFocusTextIndex = null },
                             onTextChanged = ::updateTextBlock,
                             onFocused = { editText ->
+                                if (focusedTextIndex != index) {
+                                    pendingKeyboardMediaDelete = null
+                                }
                                 focusedTextIndex = index
                                 focusedCursor = editText.selectionStart.coerceAtLeast(0)
                                 focusedEditor = editText
@@ -456,6 +478,9 @@ fun NoteEditScreen(
                             },
                             onSelectionChanged = { start, end, editText ->
                                 if (focusedTextIndex == index) {
+                                    if (start != 0 || end != 0) {
+                                        pendingKeyboardMediaDelete = null
+                                    }
                                     focusedCursor = start
                                     styleState = formattingController.onSelectionChanged(editText, start, end)
                                 }
