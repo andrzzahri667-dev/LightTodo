@@ -8,6 +8,8 @@ import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.calendar.CalendarSync
 import com.zahri.lighttodo.data.BackupBundle
+import com.zahri.lighttodo.data.BackupManager
+import com.zahri.lighttodo.data.Repository
 import com.zahri.lighttodo.data.UserPrefs
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,12 +18,12 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class SettingsViewModel : ViewModel() {
-
-    private val app = App.instance
-    private val prefs = app.prefs
-    private val repo = app.repository
-    private val backupManager = app.backupManager
+class SettingsViewModel(
+    private val app: App = App.instance,
+    private val prefs: UserPrefs = app.prefs,
+    private val repo: Repository = app.repository,
+    private val backupManager: BackupManager = app.backupManager
+) : ViewModel() {
 
     val state: StateFlow<UserPrefs.Snapshot> = prefs.flow.stateIn(
         scope = viewModelScope,

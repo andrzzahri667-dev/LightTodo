@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
+import com.zahri.lighttodo.data.NoteDao
 import com.zahri.lighttodo.data.NoteEntity
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Job
@@ -27,10 +28,10 @@ data class RecordedNoteAudio(
     val durationMillis: Long
 )
 
-class NoteEditViewModel : ViewModel() {
-
-    private val app = App.instance
-    private val noteDao = app.db.noteDao()
+class NoteEditViewModel(
+    private val app: App = App.instance,
+    private val noteDao: NoteDao = app.db.noteDao()
+) : ViewModel() {
 
     private val _title = MutableStateFlow("")
     val title: StateFlow<String> = _title.asStateFlow()

@@ -3,8 +3,12 @@ package com.zahri.lighttodo.ui.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
+import com.zahri.lighttodo.data.Repository
+import com.zahri.lighttodo.data.TagDao
 import com.zahri.lighttodo.data.TagEntity
+import com.zahri.lighttodo.data.TodoDao
 import com.zahri.lighttodo.data.TodoInput
+import com.zahri.lighttodo.data.UserPrefs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,12 +35,12 @@ data class EditUiState(
     val readOnly: Boolean = false
 )
 
-class EditViewModel : ViewModel() {
-    private val app = App.instance
-    private val repo = app.repository
-    private val prefs = app.prefs
-    private val tagDao = app.db.tagDao()
-    private val todoDao = app.db.todoDao()
+class EditViewModel(
+    private val repo: Repository = App.instance.repository,
+    private val prefs: UserPrefs = App.instance.prefs,
+    private val tagDao: TagDao = App.instance.db.tagDao(),
+    private val todoDao: TodoDao = App.instance.db.todoDao()
+) : ViewModel() {
 
     private val _state = MutableStateFlow(EditUiState())
     val state: StateFlow<EditUiState> = _state.asStateFlow()

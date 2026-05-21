@@ -1,13 +1,17 @@
 package com.zahri.lighttodo.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.HomeData
 import com.zahri.lighttodo.data.NoteEntity
+import com.zahri.lighttodo.data.NoteDao
+import com.zahri.lighttodo.data.Repository
 import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.data.UserPrefs
 import com.zahri.lighttodo.ui.note.NoteAttachmentMarkdown
 import com.zahri.lighttodo.ui.note.NoteAttachmentStore
 import com.zahri.lighttodo.util.DateUtils
@@ -32,11 +36,12 @@ data class HomeUiState(
     val doneExpanded: Boolean
 )
 
-class HomeViewModel : ViewModel() {
-
-    private val app = App.instance
-    private val repo = app.repository
-    private val prefs = app.prefs
+class HomeViewModel(
+    private val appContext: Context = App.instance,
+    private val repo: Repository = App.instance.repository,
+    private val prefs: UserPrefs = App.instance.prefs,
+    private val noteDao: NoteDao = App.instance.db.noteDao()
+) : ViewModel() {
 
     val state: StateFlow<HomeUiState> =
         repo.homeFlow().map { data -> data.toUiState() }
@@ -48,7 +53,7 @@ class HomeViewModel : ViewModel() {
 
     // ── Notes ────────────────────────────────────────────────
     val notes: StateFlow<List<NoteEntity>> =
-        app.db.noteDao().observeAll()
+        noteDao.observeAll()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     private val _noteSelectedIds = MutableStateFlow<Set<Long>>(emptySet())
@@ -66,14 +71,14 @@ class HomeViewModel : ViewModel() {
         val ids = _noteSelectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            app.db.noteDao().findByIds(ids).forEach { note ->
-                NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(note.content))
+            noteDao.findByIds(ids).forEach { note ->
+                NoteAttachmentStore.deleteRefs(appContext, NoteAttachmentMarkdown.refsIn(note.content))
             }
-            app.db.noteDao().deleteByIds(ids)
-            val refs = app.db.noteDao().listAll()
+            noteDao.deleteByIds(ids)
+            val refs = noteDao.listAll()
                 .flatMap { NoteAttachmentMarkdown.refsIn(it.content) }
                 .toSet()
-            NoteAttachmentStore.deleteUnreferenced(app, refs)
+            NoteAttachmentStore.deleteUnreferenced(appContext, refs)
             _noteSelectedIds.value = emptySet()
         }
     }
@@ -93,7 +98,7 @@ class HomeViewModel : ViewModel() {
             if (items.isNotEmpty()) groups += TagGroup(t.id, t.name, items)
         }
         val uncatItems = byTag[null].orEmpty().sortedWith(itemOrder)
-        if (uncatItems.isNotEmpty()) groups += TagGroup(null, app.getString(R.string.home_uncategorized), uncatItems)
+        if (uncatItems.isNotEmpty()) groups += TagGroup(null, appContext.getString(R.string.home_uncategorized), uncatItems)
 
         return HomeUiState(
             groups = groups,
