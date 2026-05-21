@@ -75,6 +75,7 @@ object MarkdownSpanApplier {
             .replace(Regex("__([^_]+)__"), "$1")
             .replace(Regex("~~([^~]+)~~"), "$1")
             .replace(Regex("~([^~]+)~"), "$1")
+            .replace(Regex("<u>(.*?)</u>"), "$1")
             .replace(Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)"), "$1")
             .replace(Regex("(?<!_)_([^_]+)_(?!_)"), "$1")
     }
@@ -367,6 +368,18 @@ object MarkdownSpanApplier {
                             i = close + 1
                             continue
                         }
+                    }
+                    i++
+                }
+                // Underline <u>text</u>
+                text.startsWith("<u>", i) -> {
+                    val close = text.indexOf("</u>", i + 3)
+                    if (close > i + 3) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 3, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(UnderlineSpan(), start + i + 3, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 4, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = close + 4
+                        continue
                     }
                     i++
                 }

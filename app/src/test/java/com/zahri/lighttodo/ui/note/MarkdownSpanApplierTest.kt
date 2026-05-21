@@ -31,10 +31,10 @@ class MarkdownSpanApplierTest {
     @Test
     fun stripMarkdown_removesInlineMarkersForCardPreview() {
         val preview = MarkdownSpanApplier.stripMarkdown(
-            "**加粗** *斜体* ~~删除线~~ `code` [官网](https://example.com)"
+            "**加粗** *斜体* ~~删除线~~ <u>下划线</u> `code` [官网](https://example.com)"
         )
 
-        assertEquals("加粗 斜体 删除线 code 官网", preview)
+        assertEquals("加粗 斜体 删除线 下划线 code 官网", preview)
     }
 
     @Test
