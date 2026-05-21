@@ -17,7 +17,7 @@ class MarkdownTextTransformsTest {
     fun markdownLinkForPastedText_wrapsWwwUrl() {
         val wrapped = MarkdownTextTransforms.markdownLinkForPastedText("www.example.com")
 
-        assertEquals("[www.example.com](www.example.com)", wrapped)
+        assertEquals("[www.example.com](https://www.example.com)", wrapped)
     }
 
     @Test

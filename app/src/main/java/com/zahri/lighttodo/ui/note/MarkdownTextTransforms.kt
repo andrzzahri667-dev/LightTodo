@@ -20,7 +20,8 @@ object MarkdownTextTransforms {
         if (trimmed.isEmpty()) return null
         if (MarkdownLinkRegex.matches(trimmed)) return null
         if (!BareUrlRegex.matches(trimmed)) return null
-        return "[$trimmed]($trimmed)"
+        val url = if (trimmed.startsWith("www.")) "https://$trimmed" else trimmed
+        return "[$trimmed]($url)"
     }
 
     fun toggleTaskListLine(line: String): String? {

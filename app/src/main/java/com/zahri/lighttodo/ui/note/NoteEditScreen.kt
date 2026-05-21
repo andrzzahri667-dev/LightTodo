@@ -153,36 +153,31 @@ fun NoteEditScreen(
     }
 
     fun insertBlock(block: NoteContentBlock) {
-        val blocks = contentBlocks.toMutableList()
-        val index = focusedTextIndex.coerceIn(0, blocks.lastIndex.coerceAtLeast(0))
-        val current = blocks.getOrNull(index)
-        val nextBlocks = mutableListOf<NoteContentBlock>()
-        var focusAfterInsert = 0
+        val result = NoteContentBlocks.insertAfterTextCursor(
+            blocks = contentBlocks,
+            textBlockIndex = focusedTextIndex,
+            cursor = focusedEditor?.selectionStart ?: focusedCursor,
+            insertedBlock = block
+        )
+        pendingFocusTextIndex = result.focusTextIndex
+        updateBlocks(result.blocks)
+    }
 
-        if (current is NoteContentBlock.Text) {
-            val cursor = (focusedEditor?.selectionStart ?: focusedCursor)
-                .coerceIn(0, current.text.length)
-            val before = current.text.substring(0, cursor)
-            val after = current.text.substring(cursor)
-            blocks.forEachIndexed { blockIndex, existing ->
-                if (blockIndex != index) {
-                    nextBlocks += existing
-                } else {
-                    if (before.isNotEmpty()) nextBlocks += NoteContentBlock.Text(before)
-                    nextBlocks += block
-                    focusAfterInsert = nextBlocks.size
-                    nextBlocks += NoteContentBlock.Text(after)
-                }
+    fun focusAfterContent() {
+        when (contentBlocks.lastOrNull()) {
+            is NoteContentBlock.Text -> {
+                pendingFocusTextIndex = contentBlocks.lastIndex
             }
-        } else {
-            nextBlocks += blocks
-            nextBlocks += block
-            focusAfterInsert = nextBlocks.size
-            nextBlocks += NoteContentBlock.Text("")
+            null -> {
+                pendingFocusTextIndex = 0
+                updateBlocks(listOf(NoteContentBlock.Text("")))
+            }
+            else -> {
+                val nextBlocks = contentBlocks + NoteContentBlock.Text("\n")
+                pendingFocusTextIndex = nextBlocks.lastIndex
+                updateBlocks(nextBlocks)
+            }
         }
-
-        pendingFocusTextIndex = focusAfterInsert
-        updateBlocks(nextBlocks)
     }
 
     fun playAudio(ref: String) {
@@ -437,7 +432,7 @@ fun NoteEditScreen(
                                 if (focusedTextIndex == index) focusedCursor = cursor
                             },
                             onLinkClick = { url ->
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                val intent = Intent(Intent.ACTION_VIEW, browsableUri(url))
                                 context.startActivity(intent)
                             }
                         )
@@ -469,7 +464,14 @@ fun NoteEditScreen(
                     }
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(96.dp)
+                        .pointerInput(contentBlocks) {
+                            detectTapGestures(onTap = { focusAfterContent() })
+                        }
+                )
             }
 
             AnimatedVisibility(visible = keyboardVisible || editorFocused || recorder != null) {
@@ -847,6 +849,12 @@ private fun createNoteMediaRecorder(context: Context, file: File): MediaRecorder
         setAudioSamplingRate(44_100)
         setOutputFile(file.absolutePath)
     }
+}
+
+private fun browsableUri(url: String): Uri {
+    val trimmed = url.trim()
+    val hasScheme = trimmed.contains("://")
+    return Uri.parse(if (hasScheme) trimmed else "https://$trimmed")
 }
 
 private fun hideNoteKeyboard(

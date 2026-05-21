@@ -8,6 +8,11 @@ sealed interface NoteContentBlock {
 
 object NoteContentBlocks {
 
+    data class InsertResult(
+        val blocks: List<NoteContentBlock>,
+        val focusTextIndex: Int
+    )
+
     fun parse(markdown: String): List<NoteContentBlock> {
         if (markdown.isEmpty()) return listOf(NoteContentBlock.Text(""))
         if (markdown.lineSequence().none { NoteAttachmentMarkdown.parseLine(it) != null }) {
@@ -77,4 +82,40 @@ object NoteContentBlocks {
                 is NoteContentBlock.Text -> false
             }
         })
+
+    fun insertAfterTextCursor(
+        blocks: List<NoteContentBlock>,
+        textBlockIndex: Int,
+        cursor: Int,
+        insertedBlock: NoteContentBlock
+    ): InsertResult {
+        val safeBlocks = blocks.ifEmpty { listOf(NoteContentBlock.Text("")) }
+        val index = textBlockIndex.coerceIn(0, safeBlocks.lastIndex)
+        val current = safeBlocks[index]
+        val nextBlocks = mutableListOf<NoteContentBlock>()
+        var focusAfterInsert = safeBlocks.size
+
+        if (current is NoteContentBlock.Text) {
+            val safeCursor = cursor.coerceIn(0, current.text.length)
+            val before = current.text.substring(0, safeCursor)
+            val after = current.text.substring(safeCursor).ifEmpty { "\n" }
+            safeBlocks.forEachIndexed { blockIndex, existing ->
+                if (blockIndex != index) {
+                    nextBlocks += existing
+                } else {
+                    if (before.isNotEmpty()) nextBlocks += NoteContentBlock.Text(before)
+                    nextBlocks += insertedBlock
+                    focusAfterInsert = nextBlocks.size
+                    nextBlocks += NoteContentBlock.Text(after)
+                }
+            }
+        } else {
+            nextBlocks += safeBlocks
+            nextBlocks += insertedBlock
+            focusAfterInsert = nextBlocks.size
+            nextBlocks += NoteContentBlock.Text("\n")
+        }
+
+        return InsertResult(nextBlocks, focusAfterInsert)
+    }
 }

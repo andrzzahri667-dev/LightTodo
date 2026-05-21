@@ -32,6 +32,14 @@ object MarkdownSpanApplier {
     private val UnorderedListRegex = Regex("^(\\s*)[-*+]\\s+(.+)$")
     private val TaskListRegex = Regex("^(\\s*)[-*+]\\s+\\[([ xX]?)]\\s*(.*)$")
 
+    data class LinkRange(
+        val textStart: Int,
+        val textEnd: Int,
+        val suffixStart: Int,
+        val suffixEnd: Int,
+        val url: String
+    )
+
     /**
      * Strip markdown syntax for preview display.
      * Returns plain text suitable for a Text composable.
@@ -135,6 +143,7 @@ object MarkdownSpanApplier {
             }
 
             if (lineIsActive) {
+                applyActiveLineLinks(editable, lineStart, lineEnd)
                 lineStart = lineEnd + 1
                 continue
             }
@@ -241,6 +250,32 @@ object MarkdownSpanApplier {
 
     // ─── Inline parsing ─────────────────────────────────────
 
+    fun findMarkdownLinkRanges(line: String): List<LinkRange> {
+        val ranges = mutableListOf<LinkRange>()
+        var i = 0
+        while (i < line.length) {
+            if (line[i] == '[') {
+                val closeB = line.indexOf(']', i + 1)
+                if (closeB > i && closeB + 1 < line.length && line[closeB + 1] == '(') {
+                    val closeP = line.indexOf(')', closeB + 2)
+                    if (closeP > closeB) {
+                        ranges += LinkRange(
+                            textStart = i + 1,
+                            textEnd = closeB,
+                            suffixStart = closeB,
+                            suffixEnd = closeP + 1,
+                            url = line.substring(closeB + 2, closeP)
+                        )
+                        i = closeP + 1
+                        continue
+                    }
+                }
+            }
+            i++
+        }
+        return ranges
+    }
+
     private fun applyInline(editable: Editable, start: Int, end: Int) {
         if (start >= end) return
         val text = editable.subSequence(start, end)
@@ -253,15 +288,18 @@ object MarkdownSpanApplier {
                     if (closeB > i && closeB + 1 < text.length && text[closeB + 1] == '(') {
                         val closeP = text.indexOf(')', closeB + 2)
                         if (closeP > closeB) {
-                            // Dim [
-                            editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            // Clickable link
-                            val linkTextStart = start + i + 1
-                            val linkTextEnd = start + closeB
-                            val url = text.substring(closeB + 2, closeP)
-                            editable.setSpan(MarkdownLinkSpan(url), linkTextStart, linkTextEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            // Hide ](url)
-                            editable.setSpan(MarkdownLinkUrlSpan(), start + closeB, start + closeP + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            applyLinkRange(
+                                editable = editable,
+                                lineStart = start,
+                                range = LinkRange(
+                                    textStart = i + 1,
+                                    textEnd = closeB,
+                                    suffixStart = closeB,
+                                    suffixEnd = closeP + 1,
+                                    url = text.substring(closeB + 2, closeP)
+                                ),
+                                hideSyntax = true
+                            )
                             i = closeP + 1
                             continue
                         }
@@ -348,6 +386,42 @@ object MarkdownSpanApplier {
                 else -> i++
             }
         }
+    }
+
+    private fun applyActiveLineLinks(editable: Editable, start: Int, end: Int) {
+        if (start >= end) return
+        val line = editable.subSequence(start, end).toString()
+        findMarkdownLinkRanges(line).forEach { range ->
+            applyLinkRange(editable, start, range, hideSyntax = false)
+        }
+    }
+
+    private fun applyLinkRange(
+        editable: Editable,
+        lineStart: Int,
+        range: LinkRange,
+        hideSyntax: Boolean
+    ) {
+        if (hideSyntax) {
+            editable.setSpan(
+                MarkdownSyntaxSpan(),
+                lineStart + range.textStart - 1,
+                lineStart + range.textStart,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            editable.setSpan(
+                MarkdownLinkUrlSpan(),
+                lineStart + range.suffixStart,
+                lineStart + range.suffixEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        editable.setSpan(
+            MarkdownLinkSpan(range.url),
+            lineStart + range.textStart,
+            lineStart + range.textEnd,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
     }
 
     private fun isQuote(line: String): Boolean {

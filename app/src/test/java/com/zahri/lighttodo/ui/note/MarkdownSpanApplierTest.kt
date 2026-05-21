@@ -61,4 +61,22 @@ class MarkdownSpanApplierTest {
 
         assertEquals("before\nval x = 1\nafter", preview)
     }
+
+    @Test
+    fun findMarkdownLinkRanges_findsLinkTextOnActiveLine() {
+        val ranges = MarkdownSpanApplier.findMarkdownLinkRanges("[site](https://example.com)")
+
+        assertEquals(
+            listOf(
+                MarkdownSpanApplier.LinkRange(
+                    textStart = 1,
+                    textEnd = 5,
+                    suffixStart = 5,
+                    suffixEnd = 27,
+                    url = "https://example.com"
+                )
+            ),
+            ranges
+        )
+    }
 }

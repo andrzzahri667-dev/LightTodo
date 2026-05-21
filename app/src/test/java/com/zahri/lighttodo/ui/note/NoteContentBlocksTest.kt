@@ -70,6 +70,28 @@ class NoteContentBlocksTest {
     }
 
     @Test
+    fun insertAfterTextCursor_addsEditableTextLineAfterInsertedMedia() {
+        val result = NoteContentBlocks.insertAfterTextCursor(
+            blocks = listOf(NoteContentBlock.Text("hello")),
+            textBlockIndex = 0,
+            cursor = 5,
+            insertedBlock = NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg")
+        )
+
+        assertEquals(
+            NoteContentBlocks.InsertResult(
+                blocks = listOf(
+                    NoteContentBlock.Text("hello"),
+                    NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg"),
+                    NoteContentBlock.Text("\n")
+                ),
+                focusTextIndex = 2
+            ),
+            result
+        )
+    }
+
+    @Test
     fun removeAttachment_removesOnlyMatchingMediaBlock() {
         val markdown = NoteContentBlocks.removeAttachment(
             "a\n" +

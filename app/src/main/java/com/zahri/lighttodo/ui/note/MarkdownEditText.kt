@@ -12,6 +12,9 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.ViewConfiguration
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputConnectionWrapper
 import android.widget.EditText
 
 /**
@@ -167,15 +170,21 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 ?.getItemAt(0)
                 ?.coerceToText(context)
                 ?.toString()
-            val markdownLink = pasted?.let(MarkdownTextTransforms::markdownLinkForPastedText)
-            if (markdownLink != null) {
-                val start = selectionStart.coerceAtLeast(0)
-                val end = selectionEnd.coerceAtLeast(0)
-                editableText.replace(minOf(start, end), maxOf(start, end), markdownLink)
-                return true
-            }
+            if (replaceSelectionWithPastedMarkdownLink(pasted)) return true
         }
         return super.onTextContextMenuItem(id)
+    }
+
+    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
+        val inputConnection = super.onCreateInputConnection(outAttrs) ?: return null
+        return object : InputConnectionWrapper(inputConnection, true) {
+            override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
+                val markdownLink = text
+                    ?.toString()
+                    ?.let(MarkdownTextTransforms::markdownLinkForPastedText)
+                return super.commitText(markdownLink ?: text, newCursorPosition)
+            }
+        }
     }
 
     /** Sets text from ViewModel without triggering the TextWatcher callback. */
@@ -209,6 +218,17 @@ class MarkdownEditText(context: Context) : EditText(context) {
         val next = NoteAttachmentMarkdown.removeAttachment(editableText.toString(), ref)
         editableText.replace(0, editableText.length, next)
         setSelection(selectionStart.coerceIn(0, editableText.length))
+    }
+
+    private fun replaceSelectionWithPastedMarkdownLink(text: String?): Boolean {
+        val markdownLink = text?.let(MarkdownTextTransforms::markdownLinkForPastedText) ?: return false
+        val start = selectionStart.coerceAtLeast(0)
+        val end = selectionEnd.coerceAtLeast(0)
+        val from = minOf(start, end)
+        val to = maxOf(start, end)
+        editableText.replace(from, to, markdownLink)
+        setSelection((from + markdownLink.length).coerceIn(0, editableText.length))
+        return true
     }
 
     private fun applyPendingListContinuation(s: Editable) {
