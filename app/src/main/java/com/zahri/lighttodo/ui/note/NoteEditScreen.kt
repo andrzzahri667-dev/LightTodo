@@ -6,9 +6,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.content.Intent
 import android.net.Uri
-import android.media.MediaPlayer
-import android.media.MediaRecorder
-import android.os.Build
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
@@ -63,7 +60,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,6 +105,7 @@ fun NoteEditScreen(
     val content by vm.content.collectAsStateWithLifecycle()
     val createdAt by vm.createdAt.collectAsStateWithLifecycle()
     val updatedAt by vm.updatedAt.collectAsStateWithLifecycle()
+    val mediaState by vm.mediaState.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val view = LocalView.current
@@ -127,20 +124,12 @@ fun NoteEditScreen(
     var focusedEditor by remember { mutableStateOf<MarkdownEditText?>(null) }
     var pendingFocusTextIndex by remember { mutableStateOf<Int?>(null) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
-    var recorder by remember { mutableStateOf<MediaRecorder?>(null) }
-    var recordingFile by remember { mutableStateOf<File?>(null) }
-    var recordingStartedAt by remember { mutableStateOf(0L) }
-    var player by remember { mutableStateOf<MediaPlayer?>(null) }
-    var playingAudioRef by remember { mutableStateOf<String?>(null) }
     var previewImageRef by remember { mutableStateOf<String?>(null) }
     var pendingDeleteAttachment by remember { mutableStateOf<NoteAttachmentMarkdown.Attachment?>(null) }
     var pendingKeyboardMediaDelete by remember { mutableStateOf<Pair<Int, String>?>(null) }
     val formatMode = remember { mutableStateOf(false) }
     var styleState by remember { mutableStateOf(MarkdownStyleState()) }
     val formattingController = remember { MarkdownFormattingController() }
-
-    val latestRecorder by rememberUpdatedState(recorder)
-    val latestPlayer by rememberUpdatedState(player)
 
     fun updateBlocks(blocks: List<NoteContentBlock>) {
         vm.updateContent(NoteContentBlocks.serialize(blocks))
@@ -189,11 +178,7 @@ fun NoteEditScreen(
         pendingKeyboardMediaDelete = null
         pendingFocusTextIndex = result.focusTextIndex
         updateBlocks(result.blocks)
-        if (playingAudioRef == result.removedRef) {
-            player?.release()
-            player = null
-            playingAudioRef = null
-        }
+        vm.stopAudioPlayback(result.removedRef)
         return true
     }
 
@@ -216,83 +201,26 @@ fun NoteEditScreen(
     }
 
     fun playAudio(ref: String) {
-        if (playingAudioRef == ref) {
-            player?.release()
-            player = null
-            playingAudioRef = null
-            return
-        }
-
-        val file = NoteAttachmentStore.resolve(context, ref)
-        if (file == null) {
-            Toast.makeText(context, R.string.note_audio_play_failed, Toast.LENGTH_SHORT).show()
-            return
-        }
-        runCatching {
-            player?.release()
-            val nextPlayer = MediaPlayer().apply {
-                setDataSource(file.absolutePath)
-                setOnCompletionListener { completed ->
-                    completed.release()
-                    if (player === completed) {
-                        player = null
-                        playingAudioRef = null
-                    }
-                }
-                prepare()
-                start()
-            }
-            player = nextPlayer
-            playingAudioRef = ref
-        }.onFailure {
-            player?.release()
-            player = null
-            playingAudioRef = null
+        if (!vm.toggleAudioPlayback(context, ref)) {
             Toast.makeText(context, R.string.note_audio_play_failed, Toast.LENGTH_SHORT).show()
         }
     }
 
     fun startRecording() {
-        player?.release()
-        player = null
-        playingAudioRef = null
-
-        val file = NoteAttachmentStore.createAudioFile(context)
-        val nextRecorder = createNoteMediaRecorder(context, file)
-        runCatching {
-            nextRecorder.prepare()
-            nextRecorder.start()
-        }.onSuccess {
-            recordingFile = file
-            recordingStartedAt = System.currentTimeMillis()
-            recorder = nextRecorder
-        }.onFailure {
-            nextRecorder.release()
-            file.delete()
+        if (!vm.startRecording(context)) {
             Toast.makeText(context, R.string.note_record_failed, Toast.LENGTH_SHORT).show()
         }
     }
 
     fun stopRecording() {
-        val activeRecorder = recorder ?: return
-        val file = recordingFile
-        val startedAt = recordingStartedAt
-        recorder = null
-        recordingFile = null
-        recordingStartedAt = 0L
-
-        val stopped = runCatching { activeRecorder.stop() }.isSuccess
-        activeRecorder.release()
-        val duration = System.currentTimeMillis() - startedAt
-        if (stopped && file != null && file.exists() && file.length() > 0L) {
+        val recorded = vm.stopRecording()
+        if (recorded != null) {
             insertBlock(
                 NoteContentBlock.Audio(
-                    ref = NoteAttachmentStore.audioRef(file),
-                    durationLabel = NoteAttachmentMarkdown.formatDuration(duration)
+                    ref = NoteAttachmentStore.audioRef(recorded.file),
+                    durationLabel = NoteAttachmentMarkdown.formatDuration(recorded.durationMillis)
                 )
             )
-        } else {
-            file?.delete()
         }
     }
 
@@ -333,7 +261,7 @@ fun NoteEditScreen(
     }
 
     fun toggleRecording() {
-        if (recorder != null) {
+        if (mediaState.recording) {
             stopRecording()
             return
         }
@@ -360,9 +288,6 @@ fun NoteEditScreen(
     DisposableEffect(Unit) {
         onDispose {
             vm.save()
-            latestRecorder?.runCatching { stop() }
-            latestRecorder?.release()
-            latestPlayer?.release()
         }
     }
 
@@ -510,7 +435,7 @@ fun NoteEditScreen(
 
                         is NoteContentBlock.Audio -> NoteAudioBlock(
                             durationLabel = block.durationLabel,
-                            playing = playingAudioRef == block.ref,
+                            playing = mediaState.playingAudioRef == block.ref,
                             selected = pendingKeyboardMediaDelete?.second == block.ref,
                             onPlayPause = { playAudio(block.ref) },
                             onDelete = {
@@ -538,7 +463,7 @@ fun NoteEditScreen(
                 NoteToolbar(
                     formatMode = formatMode,
                     styleState = styleState,
-                    recording = recorder != null,
+                    recording = mediaState.recording,
                     onPickImage = {
                         galleryLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -575,11 +500,7 @@ fun NoteEditScreen(
                     onClick = {
                         val next = NoteContentBlocks.removeAttachment(content, attachment.ref)
                         vm.updateContent(next)
-                        if (playingAudioRef == attachment.ref) {
-                            player?.release()
-                            player = null
-                            playingAudioRef = null
-                        }
+                        vm.stopAudioPlayback(attachment.ref)
                         pendingDeleteAttachment = null
                     }
                 ) {
@@ -852,23 +773,6 @@ private fun calculateImageSampleSize(width: Int, targetWidth: Int): Int {
     var sample = 1
     while (width / sample > targetWidth * 2) sample *= 2
     return sample
-}
-
-private fun createNoteMediaRecorder(context: Context, file: File): MediaRecorder {
-    val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        MediaRecorder(context)
-    } else {
-        @Suppress("DEPRECATION")
-        MediaRecorder()
-    }
-    return recorder.apply {
-        setAudioSource(MediaRecorder.AudioSource.MIC)
-        setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-        setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-        setAudioEncodingBitRate(96_000)
-        setAudioSamplingRate(44_100)
-        setOutputFile(file.absolutePath)
-    }
 }
 
 private fun browsableUri(url: String): Uri {
