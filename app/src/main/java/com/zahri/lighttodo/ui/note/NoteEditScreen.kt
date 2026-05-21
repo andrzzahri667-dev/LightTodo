@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -188,7 +189,6 @@ fun NoteEditScreen(
         pendingKeyboardMediaDelete = null
         pendingFocusTextIndex = result.focusTextIndex
         updateBlocks(result.blocks)
-        NoteAttachmentStore.delete(context, result.removedRef)
         if (playingAudioRef == result.removedRef) {
             player?.release()
             player = null
@@ -461,6 +461,7 @@ fun NoteEditScreen(
                             hint = if (contentBlocks.size == 1) contentHint else "",
                             minHeight = if (contentBlocks.size == 1) 360.dp else 56.dp,
                             requestFocus = pendingFocusTextIndex == index,
+                            cursorVisible = pendingKeyboardMediaDelete?.first != index,
                             onFocusApplied = { pendingFocusTextIndex = null },
                             onTextChanged = ::updateTextBlock,
                             onFocused = { editText ->
@@ -496,6 +497,7 @@ fun NoteEditScreen(
 
                         is NoteContentBlock.Image -> NoteImageBlock(
                             ref = block.ref,
+                            selected = pendingKeyboardMediaDelete?.second == block.ref,
                             onOpen = { previewImageRef = block.ref },
                             onDelete = {
                                 pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
@@ -509,6 +511,7 @@ fun NoteEditScreen(
                         is NoteContentBlock.Audio -> NoteAudioBlock(
                             durationLabel = block.durationLabel,
                             playing = playingAudioRef == block.ref,
+                            selected = pendingKeyboardMediaDelete?.second == block.ref,
                             onPlayPause = { playAudio(block.ref) },
                             onDelete = {
                                 pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
@@ -572,7 +575,6 @@ fun NoteEditScreen(
                     onClick = {
                         val next = NoteContentBlocks.removeAttachment(content, attachment.ref)
                         vm.updateContent(next)
-                        NoteAttachmentStore.delete(context, attachment.ref)
                         if (playingAudioRef == attachment.ref) {
                             player?.release()
                             player = null
@@ -600,6 +602,7 @@ private fun NoteTextBlockEditor(
     hint: String,
     minHeight: Dp,
     requestFocus: Boolean,
+    cursorVisible: Boolean,
     onFocusApplied: () -> Unit,
     onTextChanged: (Int, String) -> Unit,
     onFocused: (MarkdownEditText) -> Unit,
@@ -622,6 +625,7 @@ private fun NoteTextBlockEditor(
             view.setTextColor(textColor)
             view.setHintTextColor(0xFF8E8E93.toInt())
             view.hint = hint
+            view.isCursorVisible = cursorVisible
             view.contentUpdateCallback = { onTextChanged(index, it) }
             view.selectionChangedCallback = { start, end -> onSelectionChanged(start, end, view) }
             view.deletePreviousMediaCallback = onDeletePreviousMedia
@@ -661,6 +665,7 @@ private fun NoteTextBlockEditor(
 @Composable
 private fun NoteImageBlock(
     ref: String,
+    selected: Boolean,
     onOpen: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -686,6 +691,7 @@ private fun NoteImageBlock(
                     .fillMaxWidth()
                     .aspectRatio(image.aspectRatio)
                     .clip(shape)
+                    .then(mediaSelectionModifier(selected, shape))
                     .pointerInput(ref) {
                         detectTapGestures(
                             onTap = { onOpen() },
@@ -701,6 +707,7 @@ private fun NoteImageBlock(
                     .aspectRatio(16f / 9f)
                     .clip(shape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(mediaSelectionModifier(selected, shape))
                     .pointerInput(ref) {
                         detectTapGestures(onLongPress = { onDelete() })
                     },
@@ -720,14 +727,17 @@ private fun NoteImageBlock(
 private fun NoteAudioBlock(
     durationLabel: String,
     playing: Boolean,
+    selected: Boolean,
     onPlayPause: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val shape = RoundedCornerShape(12.dp)
     Row(
         modifier = Modifier
             .padding(vertical = 5.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(shape)
             .background(if (playing) Color(0xFFFFE4B8) else Color(0xFFFFF1DA))
+            .then(mediaSelectionModifier(selected, shape))
             .height(44.dp)
             .pointerInput(durationLabel, playing) {
                 detectTapGestures(
@@ -751,6 +761,18 @@ private fun NoteAudioBlock(
             color = Color(0xFF5C4A26),
             style = TextStyle(fontSize = 15.sp, lineHeight = 20.sp)
         )
+    }
+}
+
+@Composable
+private fun mediaSelectionModifier(
+    selected: Boolean,
+    shape: RoundedCornerShape
+): Modifier {
+    return if (selected) {
+        Modifier.border(width = 2.dp, color = Color(0xFFFFC400), shape = shape)
+    } else {
+        Modifier
     }
 }
 

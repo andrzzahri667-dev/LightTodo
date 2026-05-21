@@ -83,6 +83,19 @@ class NoteAttachmentMarkdownTest {
     }
 
     @Test
+    fun removedRefs_returnsOnlyRefsMissingFromCurrentContent() {
+        val removed = NoteAttachmentMarkdown.removedRefs(
+            previousMarkdown = "a\n" +
+                "![image](lighttodo://attachment/image/photo.jpg)\n" +
+                "[audio 00:08](lighttodo://attachment/audio/clip.m4a)",
+            currentMarkdown = "a\n" +
+                "[audio 00:08](lighttodo://attachment/audio/clip.m4a)"
+        )
+
+        assertEquals(listOf("lighttodo://attachment/image/photo.jpg"), removed)
+    }
+
+    @Test
     fun removeAttachment_removesOnlyMatchingAttachmentLine() {
         val updated = NoteAttachmentMarkdown.removeAttachment(
             "a\n" +

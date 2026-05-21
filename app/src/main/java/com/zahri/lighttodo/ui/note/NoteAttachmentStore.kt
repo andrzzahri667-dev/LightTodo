@@ -55,9 +55,7 @@ object NoteAttachmentStore {
     }
 
     fun deleteRemovedRefs(context: Context, previousContent: String, currentContent: String) {
-        val currentRefs = NoteAttachmentMarkdown.refsIn(currentContent).toSet()
-        val removedRefs = NoteAttachmentMarkdown.refsIn(previousContent).filterNot { it in currentRefs }
-        deleteRefs(context, removedRefs)
+        deleteRefs(context, NoteAttachmentMarkdown.removedRefs(previousContent, currentContent))
     }
 
     fun deleteUnreferenced(context: Context, referencedRefs: Set<String>) {

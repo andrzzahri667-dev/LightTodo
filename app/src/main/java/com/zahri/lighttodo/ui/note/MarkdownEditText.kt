@@ -255,12 +255,15 @@ class MarkdownEditText(context: Context) : EditText(context) {
     }
 
     private fun tryDeletePreviousMediaFromKeyboard(): Boolean {
-        if (selectionStart != selectionEnd) return false
-        val cursor = selectionStart
         val text = editableText.toString()
-        val atStart = cursor == 0
-        val onAutoInsertedBlankLine = text == "\n" && cursor == text.length
-        if (!atStart && !onAutoInsertedBlankLine) return false
+        if (!MarkdownKeyboardDeletePolicy.shouldRequestPreviousMediaDelete(
+                text = text,
+                selectionStart = selectionStart,
+                selectionEnd = selectionEnd
+            )
+        ) {
+            return false
+        }
         return deletePreviousMediaCallback?.invoke() == true
     }
 

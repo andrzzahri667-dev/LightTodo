@@ -63,22 +63,23 @@ object NoteContentBlocks {
         }
 
         flushText(dropSeparatorNewline = false)
+        if (markdown.endsWith('\n') && blocks.lastOrNull() !is NoteContentBlock.Text) {
+            blocks += NoteContentBlock.Text("")
+        }
         return blocks.ifEmpty { listOf(NoteContentBlock.Text("")) }
     }
 
     fun serialize(blocks: List<NoteContentBlock>): String =
-        blocks
-            .filterNot { it is NoteContentBlock.Text && it.text.isEmpty() && blocks.size > 1 }
-            .joinToString("\n") { block ->
-                when (block) {
-                    is NoteContentBlock.Text -> block.text
-                    is NoteContentBlock.Image -> NoteAttachmentMarkdown.image(block.ref)
-                    is NoteContentBlock.Audio -> NoteAttachmentMarkdown.audio(
-                        ref = block.ref,
-                        durationLabel = block.durationLabel
-                    )
-                }
+        blocks.joinToString("\n") { block ->
+            when (block) {
+                is NoteContentBlock.Text -> block.text
+                is NoteContentBlock.Image -> NoteAttachmentMarkdown.image(block.ref)
+                is NoteContentBlock.Audio -> NoteAttachmentMarkdown.audio(
+                    ref = block.ref,
+                    durationLabel = block.durationLabel
+                )
             }
+        }
 
     fun removeAttachment(markdown: String, ref: String): String =
         serialize(parse(markdown).filterNot { block ->
@@ -104,7 +105,7 @@ object NoteContentBlocks {
         if (current is NoteContentBlock.Text) {
             val safeCursor = cursor.coerceIn(0, current.text.length)
             val before = current.text.substring(0, safeCursor)
-            val after = current.text.substring(safeCursor).ifEmpty { "\n" }
+            val after = current.text.substring(safeCursor)
             safeBlocks.forEachIndexed { blockIndex, existing ->
                 if (blockIndex != index) {
                     nextBlocks += existing

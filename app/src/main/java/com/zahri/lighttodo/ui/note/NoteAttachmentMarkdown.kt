@@ -41,6 +41,11 @@ object NoteAttachmentMarkdown {
             .mapNotNull { parseLine(it)?.ref }
             .toList()
 
+    fun removedRefs(previousMarkdown: String, currentMarkdown: String): List<String> {
+        val currentRefs = refsIn(currentMarkdown).toSet()
+        return refsIn(previousMarkdown).filterNot { it in currentRefs }
+    }
+
     fun removeAttachment(markdown: String, ref: String): String =
         markdown.lineSequence()
             .filterNot { parseLine(it)?.ref == ref }

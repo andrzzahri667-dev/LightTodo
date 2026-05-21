@@ -6,6 +6,8 @@ import com.zahri.lighttodo.App
 import com.zahri.lighttodo.data.NoteEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -76,26 +78,28 @@ class NoteEditViewModel : ViewModel() {
         saveJob = viewModelScope.launch {
             do {
                 saveAgainAfterCurrentJob = false
-                val t = _title.value.trim()
-                val c = _content.value
-                if (t.isEmpty() && c.isBlank()) return@launch
-                if (noteId != null && t == lastSavedTitle && c == lastSavedContent) return@launch
+                // 非取消块：防止按返回时 viewModelScope 被取消导致
+                // 内容（含录音/图片引用）未写入数据库，造成文件被错误清理而丢失
+                withContext(NonCancellable) {
+                    val t = _title.value.trim()
+                    val c = _content.value
+                    if (t.isEmpty() && c.isBlank()) return@withContext
+                    if (noteId != null && t == lastSavedTitle && c == lastSavedContent) return@withContext
 
-                val now = System.currentTimeMillis()
-                val entity = NoteEntity(
-                    id = noteId ?: 0L,
-                    title = t.ifEmpty { null },
-                    content = c,
-                    createdAtMillis = _createdAt.value,
-                    updatedAtMillis = now
-                )
-                val newId = noteDao.upsert(entity)
-                if (noteId == null) noteId = newId
-                NoteAttachmentStore.deleteRemovedRefs(app, lastSavedContent, c)
-                cleanupUnreferencedAttachments()
-                lastSavedTitle = t
-                lastSavedContent = c
-                _updatedAt.value = now
+                    val now = System.currentTimeMillis()
+                    val entity = NoteEntity(
+                        id = noteId ?: 0L,
+                        title = t.ifEmpty { null },
+                        content = c,
+                        createdAtMillis = _createdAt.value,
+                        updatedAtMillis = now
+                    )
+                    val newId = noteDao.upsert(entity)
+                    if (noteId == null) noteId = newId
+                    NoteAttachmentStore.deleteRemovedRefs(app, lastSavedContent, c)
+                    lastSavedTitle = t
+                    lastSavedContent = c
+                }
             } while (saveAgainAfterCurrentJob)
         }
     }
@@ -103,10 +107,12 @@ class NoteEditViewModel : ViewModel() {
     fun delete(onDone: () -> Unit) {
         val id = noteId ?: run { onDone(); return }
         viewModelScope.launch {
-            val content = noteDao.findById(id)?.content ?: _content.value
-            NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(content))
-            noteDao.delete(id)
-            cleanupUnreferencedAttachments()
+            withContext(NonCancellable) {
+                val content = noteDao.findById(id)?.content ?: _content.value
+                NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(content))
+                noteDao.delete(id)
+                cleanupUnreferencedAttachments()
+            }
             onDone()
         }
     }

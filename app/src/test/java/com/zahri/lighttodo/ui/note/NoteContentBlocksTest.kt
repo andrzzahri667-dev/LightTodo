@@ -83,11 +83,42 @@ class NoteContentBlocksTest {
                 blocks = listOf(
                     NoteContentBlock.Text("hello"),
                     NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg"),
-                    NoteContentBlock.Text("\n")
+                    NoteContentBlock.Text("")
                 ),
                 focusTextIndex = 2
             ),
             result
+        )
+    }
+
+    @Test
+    fun insertAfterTextCursor_serializesWithSingleNewlineAfterInsertedMedia() {
+        val result = NoteContentBlocks.insertAfterTextCursor(
+            blocks = listOf(NoteContentBlock.Text("hello")),
+            textBlockIndex = 0,
+            cursor = 5,
+            insertedBlock = NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg")
+        )
+
+        assertEquals(
+            "hello\n![image](lighttodo://attachment/image/photo.jpg)\n",
+            NoteContentBlocks.serialize(result.blocks)
+        )
+    }
+
+    @Test
+    fun parse_preservesEditableTextBlockAfterTrailingMediaNewline() {
+        val blocks = NoteContentBlocks.parse(
+            "hello\n![image](lighttodo://attachment/image/photo.jpg)\n"
+        )
+
+        assertEquals(
+            listOf(
+                NoteContentBlock.Text("hello"),
+                NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg"),
+                NoteContentBlock.Text("")
+            ),
+            blocks
         )
     }
 
