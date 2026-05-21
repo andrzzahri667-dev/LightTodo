@@ -63,6 +63,20 @@ class MarkdownTextTransformsTest {
     }
 
     @Test
+    fun toggleLinePrefix_handlesCursorBeforeLeadingNewline() {
+        val edit = MarkdownTextTransforms.toggleLinePrefix(
+            text = "\n",
+            cursor = 0,
+            prefix = "- "
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 0, "- ", 2),
+            edit
+        )
+    }
+
+    @Test
     fun toggleOrderedListPrefix_addsOrderedMarker() {
         val edit = MarkdownTextTransforms.toggleOrderedListPrefix(
             text = "- item",

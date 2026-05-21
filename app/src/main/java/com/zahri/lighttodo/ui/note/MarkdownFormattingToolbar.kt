@@ -377,8 +377,12 @@ object MarkdownToolbarHelper {
 
     private fun findLineRange(text: Editable, pos: Int): Pair<Int, Int> {
         val safePos = pos.coerceIn(0, text.length)
-        val lineStart = text.lastIndexOf('\n', startIndex = (safePos - 1).coerceAtLeast(0)).let {
-            if (it == -1) 0 else it + 1
+        val lineStart = if (safePos == 0) {
+            0
+        } else {
+            text.lastIndexOf('\n', startIndex = safePos - 1).let {
+                if (it == -1) 0 else it + 1
+            }
         }
         val lineEnd = text.indexOf('\n', startIndex = safePos).let {
             if (it == -1) text.length else it

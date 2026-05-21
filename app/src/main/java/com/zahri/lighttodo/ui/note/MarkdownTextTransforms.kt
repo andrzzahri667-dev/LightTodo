@@ -146,10 +146,15 @@ object MarkdownTextTransforms {
     }
 
     private fun findLineRange(text: String, pos: Int): Pair<Int, Int> {
-        val lineStart = text.lastIndexOf('\n', startIndex = (pos - 1).coerceAtLeast(0)).let {
-            if (it == -1) 0 else it + 1
+        val safePos = pos.coerceIn(0, text.length)
+        val lineStart = if (safePos == 0) {
+            0
+        } else {
+            text.lastIndexOf('\n', startIndex = safePos - 1).let {
+                if (it == -1) 0 else it + 1
+            }
         }
-        val lineEnd = text.indexOf('\n', startIndex = pos).let {
+        val lineEnd = text.indexOf('\n', startIndex = safePos).let {
             if (it == -1) text.length else it
         }
         return lineStart to lineEnd

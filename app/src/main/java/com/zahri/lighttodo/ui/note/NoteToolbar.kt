@@ -114,18 +114,20 @@ private fun ToolbarIconButton(
     selected: Boolean = false,
     imageVector: ImageVector
 ) {
+    val bg = if (selected) AppColors.Brand.copy(alpha = 0.16f) else Color.Transparent
+    val tint = if (selected) AppColors.Brand else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.surfaceVariant),
+            .background(bg),
         contentAlignment = Alignment.Center
     ) {
         IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
             Icon(
                 imageVector = imageVector,
                 contentDescription = contentDescription,
-                tint = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = tint,
                 modifier = Modifier.size(22.dp)
             )
         }

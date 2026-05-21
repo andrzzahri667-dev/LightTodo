@@ -127,6 +127,7 @@
     <string name="note_delete_attachment">Delete attachment</string>
     <string name="note_delete_attachment_msg">Remove this attachment from the note and delete the local file.</string>
     <string name="note_image_missing">Image unavailable</string>
+    <string name="note_image_insert_failed">Image insert failed</string>
     <string name="note_record_failed">Recording failed</string>
     <string name="note_audio_play_failed">Playback failed</string>
     <string name="note_audio_permission_denied">Audio permission denied</string>

@@ -14,6 +14,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -119,6 +120,7 @@ fun NoteEditScreen(
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
 
     var editorFocused by remember { mutableStateOf(false) }
+    val toolbarVisible = keyboardVisible || editorFocused
     var focusedTextIndex by remember { mutableStateOf(0) }
     var focusedCursor by remember { mutableStateOf(0) }
     var focusedEditor by remember { mutableStateOf<MarkdownEditText?>(null) }
@@ -266,14 +268,19 @@ fun NoteEditScreen(
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val file = withContext(Dispatchers.IO) {
-                NoteAttachmentStore.copyImageFromUri(context, uri)
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    NoteAttachmentStore.copyImageFromUri(context, uri)
+                }
+            }.onSuccess { file ->
+                insertBlock(NoteContentBlock.Image(NoteAttachmentStore.imageRef(file)))
+            }.onFailure {
+                Toast.makeText(context, R.string.note_image_insert_failed, Toast.LENGTH_SHORT).show()
             }
-            insertBlock(NoteContentBlock.Image(NoteAttachmentStore.imageRef(file)))
         }
     }
 
@@ -309,6 +316,10 @@ fun NoteEditScreen(
     }
 
     LaunchedEffect(Unit) { vm.load(editingId) }
+
+    LaunchedEffect(toolbarVisible) {
+        if (!toolbarVisible) formatMode.value = false
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -475,12 +486,16 @@ fun NoteEditScreen(
                 )
             }
 
-            AnimatedVisibility(visible = keyboardVisible || editorFocused || recorder != null || formatMode.value) {
+            AnimatedVisibility(visible = toolbarVisible) {
                 NoteToolbar(
                     formatMode = formatMode,
                     styleState = styleState,
                     recording = recorder != null,
-                    onPickImage = { galleryLauncher.launch("image/*") },
+                    onPickImage = {
+                        galleryLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
                     onTakePhoto = {
                         val file = NoteAttachmentStore.createImageFile(context)
                         pendingCameraFile = file

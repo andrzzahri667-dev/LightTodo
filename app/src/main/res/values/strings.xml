@@ -127,6 +127,7 @@
     <string name="note_delete_attachment">删除附件</string>
     <string name="note_delete_attachment_msg">将从笔记中移除这个附件，并删除本地文件。</string>
     <string name="note_image_missing">图片无法显示</string>
+    <string name="note_image_insert_failed">图片插入失败</string>
     <string name="note_record_failed">录音失败</string>
     <string name="note_audio_play_failed">播放失败</string>
     <string name="note_audio_permission_denied">未授予录音权限</string>
