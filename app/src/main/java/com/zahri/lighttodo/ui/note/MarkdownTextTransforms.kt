@@ -30,6 +30,66 @@ object MarkdownTextTransforms {
         return match.groupValues[1] + nextMarker + match.groupValues[3]
     }
 
+    fun toggleLinePrefix(text: String, cursor: Int, prefix: String): Edit? {
+        val safeCursor = cursor.coerceIn(0, text.length)
+        val (lineStart, lineEnd) = findLineRange(text, safeCursor)
+        val line = text.substring(lineStart, lineEnd)
+        val replacement = if (line.startsWith(prefix)) {
+            line.removePrefix(prefix)
+        } else {
+            prefix + removeBlockPrefix(line)
+        }
+        return Edit(lineStart, lineEnd, replacement, lineStart + replacement.length)
+    }
+
+    fun toggleOrderedListPrefix(text: String, cursor: Int): Edit? {
+        val safeCursor = cursor.coerceIn(0, text.length)
+        val (lineStart, lineEnd) = findLineRange(text, safeCursor)
+        val line = text.substring(lineStart, lineEnd)
+        val replacement = if (OrderedListLineRegex.matchEntire(line) != null) {
+            removeBlockPrefix(line)
+        } else {
+            "1. " + removeBlockPrefix(line)
+        }
+        return Edit(lineStart, lineEnd, replacement, lineStart + replacement.length)
+    }
+
+    fun toggleInlineStyleAtCursor(
+        text: String,
+        cursor: Int,
+        openMarker: String,
+        closeMarker: String
+    ): Edit {
+        val safeCursor = cursor.coerceIn(0, text.length)
+        val (lineStart, lineEnd) = findLineRange(text, safeCursor)
+        val line = text.substring(lineStart, lineEnd)
+        val (contentStartInLine, contentEndInLine) = findInlineContentRange(line)
+
+        if (contentStartInLine >= contentEndInLine) {
+            return Edit(
+                safeCursor,
+                safeCursor,
+                openMarker + closeMarker,
+                safeCursor + openMarker.length
+            )
+        }
+
+        val content = line.substring(contentStartInLine, contentEndInLine)
+        val prefix = line.substring(0, contentStartInLine)
+        val suffix = line.substring(contentEndInLine)
+        val newContent = if (
+            content.startsWith(openMarker) &&
+            content.endsWith(closeMarker) &&
+            content.length >= openMarker.length + closeMarker.length
+        ) {
+            content.substring(openMarker.length, content.length - closeMarker.length)
+        } else {
+            openMarker + content + closeMarker
+        }
+        val replacement = prefix + newContent + suffix
+        return Edit(lineStart, lineEnd, replacement, lineStart + replacement.length)
+    }
+
     fun listContinuationAfterNewline(text: String, newlineIndex: Int): Edit? {
         if (newlineIndex !in text.indices || text[newlineIndex] != '\n') return null
 
@@ -83,5 +143,53 @@ object MarkdownTextTransforms {
         }
 
         return null
+    }
+
+    private fun findLineRange(text: String, pos: Int): Pair<Int, Int> {
+        val lineStart = text.lastIndexOf('\n', startIndex = (pos - 1).coerceAtLeast(0)).let {
+            if (it == -1) 0 else it + 1
+        }
+        val lineEnd = text.indexOf('\n', startIndex = pos).let {
+            if (it == -1) text.length else it
+        }
+        return lineStart to lineEnd
+    }
+
+    private fun removeBlockPrefix(line: String): String {
+        for (prefixRegex in listOf(
+            Regex("^\\s*#{1,6}\\s+"),
+            Regex("^\\s*[-*+]\\s+\\[[ xX]?]\\s*"),
+            Regex("^\\s*[-*+]\\s+"),
+            Regex("^\\s*>\\s+"),
+            Regex("^\\s*\\d+[.)]\\s+")
+        )) {
+            val match = prefixRegex.find(line)
+            if (match != null) return line.substring(match.range.last + 1)
+        }
+        return line
+    }
+
+    private fun findInlineContentRange(line: String): Pair<Int, Int> {
+        val prefixEnd = inlinePrefixEnd(line)
+        var contentEnd = line.length
+        while (contentEnd > prefixEnd && line[contentEnd - 1].isWhitespace()) {
+            contentEnd--
+        }
+        return prefixEnd to contentEnd
+    }
+
+    private fun inlinePrefixEnd(line: String): Int {
+        for (prefixRegex in listOf(
+            Regex("^\\s*#{1,6}\\s+"),
+            Regex("^\\s*[-*+]\\s+\\[[ xX]?]\\s*"),
+            Regex("^\\s*[-*+]\\s+"),
+            Regex("^\\s*>\\s+"),
+            Regex("^\\s*\\d+[.)]\\s+"),
+            Regex("^\\s+")
+        )) {
+            val match = prefixRegex.find(line)
+            if (match != null) return match.range.last + 1
+        }
+        return 0
     }
 }

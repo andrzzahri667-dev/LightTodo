@@ -121,6 +121,7 @@
     <string name="note_insert_image">Insert image</string>
     <string name="note_take_photo">Take photo</string>
     <string name="note_record_audio">Record audio</string>
+    <string name="note_format_text">Format text</string>
     <string name="note_stop_recording">Stop recording</string>
     <string name="note_recording">Recording</string>
     <string name="note_delete_attachment">Delete attachment</string>

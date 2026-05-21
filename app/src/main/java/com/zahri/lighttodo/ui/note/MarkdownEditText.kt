@@ -28,7 +28,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
     var imageClickCallback: ((String) -> Unit)? = null
     var attachmentLongClickCallback: ((NoteAttachmentMarkdown.Attachment) -> Unit)? = null
     var linkClickCallback: ((String) -> Unit)? = null
-    var selectionChangedCallback: ((Int) -> Unit)? = null
+    var selectionChangedCallback: ((Int, Int) -> Unit)? = null
 
     private var isApplyingSpans = false
     private var pendingNewlineIndex: Int? = null
@@ -84,7 +84,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
     override fun onSelectionChanged(selStart: Int, selEnd: Int) {
         super.onSelectionChanged(selStart, selEnd)
         if (isApplyingSpans) return
-        selectionChangedCallback?.invoke(selStart.coerceAtLeast(0))
+        selectionChangedCallback?.invoke(selStart.coerceAtLeast(0), selEnd.coerceAtLeast(0))
         isApplyingSpans = true
         try {
             MarkdownSpanApplier.apply(editableText, selStart.takeIf { it >= 0 }, context)

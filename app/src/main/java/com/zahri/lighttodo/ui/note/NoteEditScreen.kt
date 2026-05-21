@@ -39,19 +39,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,7 +69,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -137,6 +131,9 @@ fun NoteEditScreen(
     var playingAudioRef by remember { mutableStateOf<String?>(null) }
     var previewImageRef by remember { mutableStateOf<String?>(null) }
     var pendingDeleteAttachment by remember { mutableStateOf<NoteAttachmentMarkdown.Attachment?>(null) }
+    val formatMode = remember { mutableStateOf(false) }
+    var styleState by remember { mutableStateOf(MarkdownStyleState()) }
+    val formattingController = remember { MarkdownFormattingController() }
 
     val latestRecorder by rememberUpdatedState(recorder)
     val latestPlayer by rememberUpdatedState(player)
@@ -424,12 +421,16 @@ fun NoteEditScreen(
                                 focusedCursor = editText.selectionStart.coerceAtLeast(0)
                                 focusedEditor = editText
                                 editorFocused = true
+                                styleState = formattingController.bind(editText)
                             },
                             onBlurred = {
                                 editorFocused = false
                             },
-                            onSelectionChanged = { cursor ->
-                                if (focusedTextIndex == index) focusedCursor = cursor
+                            onSelectionChanged = { start, end, editText ->
+                                if (focusedTextIndex == index) {
+                                    focusedCursor = start
+                                    styleState = formattingController.onSelectionChanged(editText, start, end)
+                                }
                             },
                             onLinkClick = { url ->
                                 val intent = Intent(Intent.ACTION_VIEW, browsableUri(url))
@@ -474,8 +475,10 @@ fun NoteEditScreen(
                 )
             }
 
-            AnimatedVisibility(visible = keyboardVisible || editorFocused || recorder != null) {
-                NoteAttachmentToolbar(
+            AnimatedVisibility(visible = keyboardVisible || editorFocused || recorder != null || formatMode.value) {
+                NoteToolbar(
+                    formatMode = formatMode,
+                    styleState = styleState,
                     recording = recorder != null,
                     onPickImage = { galleryLauncher.launch("image/*") },
                     onTakePhoto = {
@@ -484,6 +487,9 @@ fun NoteEditScreen(
                         cameraLauncher.launch(NoteAttachmentStore.fileProviderUri(context, file))
                     },
                     onToggleRecording = { toggleRecording() },
+                    onFormatAction = { action ->
+                        styleState = formattingController.apply(action)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -538,7 +544,7 @@ private fun NoteTextBlockEditor(
     onTextChanged: (Int, String) -> Unit,
     onFocused: (MarkdownEditText) -> Unit,
     onBlurred: () -> Unit,
-    onSelectionChanged: (Int) -> Unit,
+    onSelectionChanged: (Int, Int, MarkdownEditText) -> Unit,
     onLinkClick: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -556,7 +562,7 @@ private fun NoteTextBlockEditor(
             view.setHintTextColor(0xFF8E8E93.toInt())
             view.hint = hint
             view.contentUpdateCallback = { onTextChanged(index, it) }
-            view.selectionChangedCallback = { onSelectionChanged(it) }
+            view.selectionChangedCallback = { start, end -> onSelectionChanged(start, end, view) }
             view.linkClickCallback = onLinkClick
             view.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) onFocused(view) else onBlurred()
@@ -730,77 +736,6 @@ private fun ImagePreviewDialog(ref: String, onDismiss: () -> Unit) {
                     contentScale = ContentScale.Fit
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun NoteAttachmentToolbar(
-    recording: Boolean,
-    onPickImage: () -> Unit,
-    onTakePhoto: () -> Unit,
-    onToggleRecording: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        AttachmentIconButton(
-            onClick = onPickImage,
-            contentDescription = stringResource(R.string.note_insert_image),
-            imageVector = Icons.Default.Image
-        )
-        AttachmentIconButton(
-            onClick = onTakePhoto,
-            contentDescription = stringResource(R.string.note_take_photo),
-            imageVector = Icons.Default.PhotoCamera
-        )
-        AttachmentIconButton(
-            onClick = onToggleRecording,
-            selected = recording,
-            contentDescription = if (recording) {
-                stringResource(R.string.note_stop_recording)
-            } else {
-                stringResource(R.string.note_record_audio)
-            },
-            imageVector = if (recording) Icons.Default.Stop else Icons.Default.Mic
-        )
-        if (recording) {
-            Spacer(Modifier.width(2.dp))
-            Text(
-                text = stringResource(R.string.note_recording),
-                color = AppColors.Overdue,
-                style = TextStyle(fontSize = 13.sp, lineHeight = 18.sp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun AttachmentIconButton(
-    onClick: () -> Unit,
-    contentDescription: String,
-    selected: Boolean = false,
-    imageVector: ImageVector
-) {
-    Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
-            Icon(
-                imageVector = imageVector,
-                contentDescription = contentDescription,
-                tint = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
-            )
         }
     }
 }

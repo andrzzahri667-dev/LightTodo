@@ -121,6 +121,7 @@
     <string name="note_insert_image">插入图片</string>
     <string name="note_take_photo">拍照</string>
     <string name="note_record_audio">录音</string>
+    <string name="note_format_text">文字格式</string>
     <string name="note_stop_recording">停止录音</string>
     <string name="note_recording">正在录音</string>
     <string name="note_delete_attachment">删除附件</string>

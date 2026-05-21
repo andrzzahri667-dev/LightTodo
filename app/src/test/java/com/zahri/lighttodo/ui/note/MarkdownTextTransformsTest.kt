@@ -35,6 +35,120 @@ class MarkdownTextTransformsTest {
     }
 
     @Test
+    fun toggleLinePrefix_replacesExistingBlockStyle() {
+        val edit = MarkdownTextTransforms.toggleLinePrefix(
+            text = "# Title",
+            cursor = 3,
+            prefix = "## "
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 7, "## Title", 8),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleLinePrefix_removesMatchingBlockStyle() {
+        val edit = MarkdownTextTransforms.toggleLinePrefix(
+            text = "## Title",
+            cursor = 4,
+            prefix = "## "
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 8, "Title", 5),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleOrderedListPrefix_addsOrderedMarker() {
+        val edit = MarkdownTextTransforms.toggleOrderedListPrefix(
+            text = "- item",
+            cursor = 3
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 6, "1. item", 7),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleOrderedListPrefix_removesAnyOrderedMarker() {
+        val edit = MarkdownTextTransforms.toggleOrderedListPrefix(
+            text = "2. item",
+            cursor = 3
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 7, "item", 4),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleInlineStyleAtCursor_wrapsCurrentLineTextWhenNoTextIsSelected() {
+        val edit = MarkdownTextTransforms.toggleInlineStyleAtCursor(
+            text = "hello world",
+            cursor = 3,
+            openMarker = "**",
+            closeMarker = "**"
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 11, "**hello world**", 15),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleInlineStyleAtCursor_wrapsOnlyBlockContentWhenLineHasPrefix() {
+        val edit = MarkdownTextTransforms.toggleInlineStyleAtCursor(
+            text = "# Title",
+            cursor = 3,
+            openMarker = "**",
+            closeMarker = "**"
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 7, "# **Title**", 11),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleInlineStyleAtCursor_unwrapsCurrentLineTextWhenAlreadyWrapped() {
+        val edit = MarkdownTextTransforms.toggleInlineStyleAtCursor(
+            text = "- **item**",
+            cursor = 5,
+            openMarker = "**",
+            closeMarker = "**"
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(0, 10, "- item", 6),
+            edit
+        )
+    }
+
+    @Test
+    fun toggleInlineStyleAtCursor_insertsMarkersOnEmptyLine() {
+        val edit = MarkdownTextTransforms.toggleInlineStyleAtCursor(
+            text = "before\n\nnext",
+            cursor = 7,
+            openMarker = "<u>",
+            closeMarker = "</u>"
+        )
+
+        assertEquals(
+            MarkdownTextTransforms.Edit(7, 7, "<u></u>", 10),
+            edit
+        )
+    }
+
+    @Test
     fun toggleTaskListLine_checksUncheckedItem() {
         val toggled = MarkdownTextTransforms.toggleTaskListLine("- [ ] buy milk")
 
