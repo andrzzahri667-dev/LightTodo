@@ -60,9 +60,9 @@
     <string name="settings_cleared">Cleared</string>
     <string name="settings_sync_success">Synced %1$d calendar event(s)</string>
     <string name="settings_sync_failed">Sync failed: missing permission or not enabled</string>
-    <string name="settings_export_success">Exported %1$d task(s)</string>
+    <string name="settings_export_success">Exported %1$d item(s)</string>
     <string name="settings_export_failed">Export failed: %1$s</string>
-    <string name="settings_import_success">Imported %1$d task(s)</string>
+    <string name="settings_import_success">Imported %1$d item(s)</string>
     <string name="settings_import_failed">Import failed: %1$s</string>
     <string name="settings_cannot_read">Cannot read file</string>
 

@@ -8,10 +8,6 @@ import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.calendar.CalendarSync
 import com.zahri.lighttodo.data.BackupBundle
-import com.zahri.lighttodo.data.BackupTag
-import com.zahri.lighttodo.data.BackupTodo
-import com.zahri.lighttodo.data.TagEntity
-import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.data.UserPrefs
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +20,8 @@ class SettingsViewModel : ViewModel() {
 
     private val app = App.instance
     private val prefs = app.prefs
-    private val db = app.db
     private val repo = app.repository
+    private val backupManager = app.backupManager
 
     val state: StateFlow<UserPrefs.Snapshot> = prefs.flow.stateIn(
         scope = viewModelScope,
@@ -60,19 +56,13 @@ class SettingsViewModel : ViewModel() {
 
     fun exportTo(context: Context, uri: Uri, onDone: (String) -> Unit) = viewModelScope.launch {
         runCatching {
-            val tags = db.tagDao().listAll()
-            val todos = db.todoDao().listAll()
-            val bundle = BackupBundle(
-                version = 1,
-                tags = tags.map { BackupTag(it.id, it.name, it.sortOrder) },
-                todos = todos.map { it.toBackup() }
-            )
+            val bundle = backupManager.buildBackupBundle()
             val json = Json { prettyPrint = true; encodeDefaults = true }
             val text = json.encodeToString(bundle)
             context.contentResolver.openOutputStream(uri, "wt")?.use { os ->
                 os.write(text.toByteArray(Charsets.UTF_8))
             }
-            onDone(context.getString(R.string.settings_export_success, todos.size))
+            onDone(context.getString(R.string.settings_export_success, bundle.todos.size + bundle.notes.size))
         }.onFailure { onDone(context.getString(R.string.settings_export_failed, it.message)) }
     }
 
@@ -82,31 +72,8 @@ class SettingsViewModel : ViewModel() {
                 it.readBytes().toString(Charsets.UTF_8)
             } ?: error(context.getString(R.string.settings_cannot_read))
             val bundle = Json { ignoreUnknownKeys = true }.decodeFromString(BackupBundle.serializer(), text)
-            db.tagDao().deleteAll()
-            db.todoDao().deleteAll()
-            db.tagDao().upsertAll(bundle.tags.map { TagEntity(it.id, it.name, it.sortOrder) })
-            db.todoDao().upsertAll(bundle.todos.map { it.toEntity() })
-            repo.rescheduleAllAlarms()
-            onDone(context.getString(R.string.settings_import_success, bundle.todos.size))
+            backupManager.restoreFromBundle(bundle)
+            onDone(context.getString(R.string.settings_import_success, bundle.todos.size + bundle.notes.size))
         }.onFailure { onDone(context.getString(R.string.settings_import_failed, it.message)) }
     }
 }
-
-private fun TodoEntity.toBackup() = BackupTodo(
-    id = id, title = title, note = note, date = date, dateMillis = dateMillis,
-    startHour = startHour, startMinute = startMinute,
-    deadlineHour = deadlineHour, deadlineMinute = deadlineMinute,
-    remindStartAtMillis = remindStartAtMillis, remindAtMillis = remindAtMillis,
-    customRemindHoursBefore = customRemindHoursBefore,
-    tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis
-)
-
-private fun BackupTodo.toEntity() = TodoEntity(
-    id = id, title = title, note = note, date = date, dateMillis = dateMillis,
-    startHour = startHour, startMinute = startMinute,
-    deadlineHour = deadlineHour, deadlineMinute = deadlineMinute,
-    remindStartAtMillis = remindStartAtMillis, remindAtMillis = remindAtMillis,
-    customRemindHoursBefore = customRemindHoursBefore,
-    tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis,
-    calendarEventId = null
-)

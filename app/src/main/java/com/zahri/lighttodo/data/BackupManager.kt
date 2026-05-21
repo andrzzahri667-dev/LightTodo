@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.data
 
 import android.content.Context
+import androidx.room.withTransaction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,6 +27,26 @@ class BackupManager(
 ) {
     private val fileName = "lighttodo-auto-backup.json"
 
+    suspend fun buildBackupBundle(): BackupBundle {
+        val tags = db.tagDao().listAll()
+        val todos = db.todoDao().listAll()
+        val notes = db.noteDao().listAll()
+        return BackupDtoMapper.buildBundle(tags, todos, notes)
+    }
+
+    suspend fun restoreFromBundle(bundle: BackupBundle) {
+        val entities = BackupDtoMapper.toEntities(bundle)
+        db.withTransaction {
+            db.noteDao().deleteAll()
+            db.todoDao().deleteAll()
+            db.tagDao().deleteAll()
+            db.tagDao().upsertAll(entities.tags)
+            db.todoDao().upsertAll(entities.todos)
+            db.noteDao().upsertAll(entities.notes)
+        }
+        repository.rescheduleAllAlarms()
+    }
+
     fun startAutoBackup() {
         scope.launch(Dispatchers.IO) {
             combine(
@@ -37,12 +58,7 @@ class BackupManager(
                     if (todos.isEmpty() && tags.isEmpty() && notes.isEmpty()) return@collectLatest
                     delay(3000)
                     runCatching {
-                        val bundle = BackupBundle(
-                            version = 2,
-                            tags = tags.map { BackupTag(it.id, it.name, it.sortOrder) },
-                            todos = todos.map { it.toBackupTodo() },
-                            notes = notes.map { it.toBackupNote() }
-                        )
+                        val bundle = BackupDtoMapper.buildBundle(tags, todos, notes)
                         val json = Json { prettyPrint = true; encodeDefaults = true }
                         writeBackupFile(json.encodeToString(bundle))
                     }
@@ -61,12 +77,7 @@ class BackupManager(
             runCatching {
                 val bundle = Json { ignoreUnknownKeys = true }
                     .decodeFromString(BackupBundle.serializer(), text)
-                db.tagDao().upsertAll(bundle.tags.map { TagEntity(it.id, it.name, it.sortOrder) })
-                db.todoDao().upsertAll(bundle.todos.map { it.toEntity() })
-                if (bundle.notes.isNotEmpty()) {
-                    db.noteDao().upsertAll(bundle.notes.map { it.toEntity() })
-                }
-                repository.rescheduleAllAlarms()
+                restoreFromBundle(bundle)
             }
         }
     }
@@ -114,32 +125,3 @@ class BackupManager(
         if (file.exists() && file.canRead()) file.readText() else null
     }.getOrNull()
 }
-
-private fun TodoEntity.toBackupTodo() = BackupTodo(
-    id = id, title = title, note = note, date = date, dateMillis = dateMillis,
-    startHour = startHour, startMinute = startMinute,
-    deadlineHour = deadlineHour, deadlineMinute = deadlineMinute,
-    remindStartAtMillis = remindStartAtMillis, remindAtMillis = remindAtMillis,
-    customRemindHoursBefore = customRemindHoursBefore,
-    tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis
-)
-
-private fun BackupTodo.toEntity() = TodoEntity(
-    id = id, title = title, note = note, date = date, dateMillis = dateMillis,
-    startHour = startHour, startMinute = startMinute,
-    deadlineHour = deadlineHour, deadlineMinute = deadlineMinute,
-    remindStartAtMillis = remindStartAtMillis, remindAtMillis = remindAtMillis,
-    customRemindHoursBefore = customRemindHoursBefore,
-    tagId = tagId, done = done, doneAtMillis = doneAtMillis, createdAtMillis = createdAtMillis,
-    calendarEventId = null
-)
-
-private fun NoteEntity.toBackupNote() = BackupNote(
-    id = id, title = title, content = content,
-    tagId = tagId, createdAtMillis = createdAtMillis, updatedAtMillis = updatedAtMillis
-)
-
-private fun BackupNote.toEntity() = NoteEntity(
-    id = id, title = title, content = content,
-    tagId = tagId, createdAtMillis = createdAtMillis, updatedAtMillis = updatedAtMillis
-)
