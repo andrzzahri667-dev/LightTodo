@@ -2,7 +2,6 @@ package com.zahri.lighttodo.data
 
 import android.content.Context
 import com.zahri.lighttodo.notify.ReminderScheduler
-import com.zahri.lighttodo.util.DateUtils
 import com.zahri.lighttodo.widget.TodoWidgetProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -31,13 +30,7 @@ class Repository(
         val p = prefs.flow.first()
         val tagId = resolveTagId(input.tagName)
 
-        // 日期：年月日要么同时给出（有日期任务），要么同时为 null（无日期任务）。
-        val hasDate = input.year != null && input.month != null && input.day != null
-        val (date, dateMillis) = if (hasDate) {
-            DateUtils.dayKeyAndStart(input.year!!, input.month!!, input.day!!)
-        } else {
-            null to null
-        }
+        val dateFields = TodoDateFields.fromParts(input.year, input.month, input.day)
 
         // 无日期任务：清空所有时间相关字段与提醒；
         // 有日期任务：保留时间，并按规则计算提醒时间戳。
@@ -48,7 +41,7 @@ class Repository(
         val customHoursBefore: Int?
         val remindStart: Long?
         val remindEnd: Long?
-        if (hasDate) {
+        if (dateFields is TodoDateFields.Dated) {
             startHour = input.startHour
             startMinute = input.startMinute
             deadlineHour = input.deadlineHour
@@ -56,7 +49,7 @@ class Repository(
             customHoursBefore = input.customHoursBefore
             // 开始时间提醒：恰在开始时刻触发（不应用"提前 N 小时"）
             remindStart = computeRemindAt(
-                dateMillis = dateMillis!!,
+                dateMillis = dateFields.dateMillis,
                 hour = input.startHour,
                 minute = input.startMinute,
                 hoursBefore = 0,
@@ -67,7 +60,7 @@ class Repository(
             // 截止时间提醒：默认在截止时刻触发；若用户设了 customHoursBefore（>0）则提前
             val endHoursBefore = input.customHoursBefore ?: 0
             remindEnd = computeRemindAt(
-                dateMillis = dateMillis,
+                dateMillis = dateFields.dateMillis,
                 hour = input.deadlineHour,
                 minute = input.deadlineMinute,
                 hoursBefore = endHoursBefore,
@@ -91,8 +84,8 @@ class Repository(
             id = input.id ?: 0L,
             title = input.title?.takeIf { it.isNotBlank() },
             note = input.note?.takeIf { it.isNotBlank() },
-            date = date,
-            dateMillis = dateMillis,
+            date = dateFields.date,
+            dateMillis = dateFields.dateMillis,
             startHour = startHour,
             startMinute = startMinute,
             deadlineHour = deadlineHour,

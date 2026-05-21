@@ -7,6 +7,7 @@ import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.data.TodoDateFields
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
 import com.zahri.lighttodo.widget.TodoWidgetProvider
@@ -65,7 +66,7 @@ object CalendarSync {
         val seenIds = mutableListOf<Long>()
         for (ev in events) {
             seenIds += ev.id
-            val (date, dateMillis) = DateUtils.dayKeyAndStartFromMillis(ev.startMillis)
+            val dateFields = TodoDateFields.fromEpochMillis(ev.startMillis)
             val (startH, startM) = if (ev.allDay) null to null else hourMinuteOf(ev.startMillis)
             val (endH, endM) = if (ev.allDay || ev.endMillis == null) null to null else hourMinuteOf(ev.endMillis)
             val existing = existingMap[ev.id]
@@ -73,8 +74,8 @@ object CalendarSync {
                 id = existing?.id ?: 0L,
                 title = ev.title.ifBlank { context.getString(R.string.calendar_no_title) },
                 note = ev.description?.takeIf { it.isNotBlank() },
-                date = date,
-                dateMillis = dateMillis,
+                date = dateFields.date,
+                dateMillis = dateFields.dateMillis,
                 startHour = startH,
                 startMinute = startM,
                 deadlineHour = endH ?: startH,
