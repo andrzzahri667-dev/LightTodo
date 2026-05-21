@@ -255,11 +255,11 @@ object MarkdownSpanApplier {
                         if (closeP > closeB) {
                             // Dim [
                             editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            // Style link text
+                            // Clickable link
                             val linkTextStart = start + i + 1
                             val linkTextEnd = start + closeB
-                            editable.setSpan(ForegroundColorSpan(Color.parseColor(LINK_COLOR)), linkTextStart, linkTextEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            editable.setSpan(UnderlineSpan(), linkTextStart, linkTextEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            val url = text.substring(closeB + 2, closeP)
+                            editable.setSpan(MarkdownLinkSpan(url), linkTextStart, linkTextEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                             // Hide ](url)
                             editable.setSpan(MarkdownLinkUrlSpan(), start + closeB, start + closeP + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                             i = closeP + 1

@@ -16,6 +16,7 @@ import android.text.style.LeadingMarginSpan
 import android.text.style.RelativeSizeSpan
 import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
+import android.view.View
 import android.util.LruCache
 import androidx.annotation.ColorInt
 import kotlin.math.roundToInt
@@ -257,6 +258,7 @@ class MarkdownCodeBlockSpan : CharacterStyle(), MarkdownSpan {
 
 /** Removes the visual width of the hidden ](url) suffix while keeping source text editable. */
 class MarkdownLinkUrlSpan : ReplacementSpan(), MarkdownSpan {
+
     override fun getSize(
         paint: Paint,
         text: CharSequence?,
@@ -276,6 +278,20 @@ class MarkdownLinkUrlSpan : ReplacementSpan(), MarkdownSpan {
         bottom: Int,
         paint: Paint
     ) = Unit
+}
+
+/** Clickable link span storing a URL for click dispatch. */
+class MarkdownLinkSpan(
+    val url: String
+) : android.text.style.ClickableSpan(), MarkdownSpan {
+    override fun onClick(widget: View) {
+        // no-op; click handled by MarkdownEditText.onTouchEvent -> findLinkSpanAt
+    }
+
+    override fun updateDrawState(ds: TextPaint) {
+        ds.color = Color.parseColor("#FF9F0A")
+        ds.isUnderlineText = true
+    }
 }
 
 class MarkdownImageSpan(

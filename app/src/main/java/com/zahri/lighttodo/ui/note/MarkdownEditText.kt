@@ -24,6 +24,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
     var audioClickCallback: ((String) -> Unit)? = null
     var imageClickCallback: ((String) -> Unit)? = null
     var attachmentLongClickCallback: ((NoteAttachmentMarkdown.Attachment) -> Unit)? = null
+    var linkClickCallback: ((String) -> Unit)? = null
     var selectionChangedCallback: ((Int) -> Unit)? = null
 
     private var isApplyingSpans = false
@@ -116,6 +117,12 @@ class MarkdownEditText(context: Context) : EditText(context) {
                             NoteAttachmentMarkdown.Kind.Audio -> audioClickCallback?.invoke(attachment.ref)
                         }
                     }
+                    return true
+                }
+                // Check for link click
+                val link = findLinkSpanAt(event)
+                if (link != null) {
+                    linkClickCallback?.invoke(link)
                     return true
                 }
             }
@@ -230,6 +237,19 @@ class MarkdownEditText(context: Context) : EditText(context) {
             val end = editableText.getSpanEnd(span as Any)
             offset in start..end
         }
+    }
+
+    private fun findLinkSpanAt(event: MotionEvent): String? {
+        val layout = layout ?: return null
+        val vertical = (event.y + scrollY - totalPaddingTop).toInt()
+        val lineIndex = layout.getLineForVertical(vertical)
+        val offset = layout.getOffsetForHorizontal(lineIndex, event.x)
+        val spans = editableText.getSpans(0, editableText.length, MarkdownLinkSpan::class.java)
+        return spans.firstOrNull { span ->
+            val start = editableText.getSpanStart(span)
+            val end = editableText.getSpanEnd(span)
+            offset in start..end
+        }?.url
     }
 
     private fun cancelAttachmentLongPress() {

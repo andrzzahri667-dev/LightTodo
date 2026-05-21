@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.content.Intent
+import android.net.Uri
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
@@ -433,6 +435,10 @@ fun NoteEditScreen(
                             },
                             onSelectionChanged = { cursor ->
                                 if (focusedTextIndex == index) focusedCursor = cursor
+                            },
+                            onLinkClick = { url ->
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                context.startActivity(intent)
                             }
                         )
 
@@ -530,7 +536,8 @@ private fun NoteTextBlockEditor(
     onTextChanged: (Int, String) -> Unit,
     onFocused: (MarkdownEditText) -> Unit,
     onBlurred: () -> Unit,
-    onSelectionChanged: (Int) -> Unit
+    onSelectionChanged: (Int) -> Unit,
+    onLinkClick: (String) -> Unit
 ) {
     val context = LocalContext.current
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
@@ -548,6 +555,7 @@ private fun NoteTextBlockEditor(
             view.hint = hint
             view.contentUpdateCallback = { onTextChanged(index, it) }
             view.selectionChangedCallback = { onSelectionChanged(it) }
+            view.linkClickCallback = onLinkClick
             view.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) onFocused(view) else onBlurred()
             }
@@ -559,9 +567,13 @@ private fun NoteTextBlockEditor(
 
     LaunchedEffect(requestFocus, text) {
         if (requestFocus) {
-            editText.requestFocus()
-            editText.setSelection(editText.editableText.length)
-            onFocusApplied()
+            editText.post {
+                editText.requestFocus()
+                editText.setSelection(editText.editableText.length)
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+                onFocusApplied()
+            }
         }
     }
 
@@ -569,6 +581,7 @@ private fun NoteTextBlockEditor(
         onDispose {
             editText.contentUpdateCallback = null
             editText.selectionChangedCallback = null
+            editText.linkClickCallback = null
             editText.onFocusChangeListener = null
         }
     }
