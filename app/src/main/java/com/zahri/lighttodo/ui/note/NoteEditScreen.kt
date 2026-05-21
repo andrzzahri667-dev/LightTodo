@@ -162,6 +162,23 @@ fun NoteEditScreen(
         updateBlocks(result.blocks)
     }
 
+    fun deleteMediaBeforeTextBlock(index: Int): Boolean {
+        val result = NoteContentBlocks.removeMediaBeforeTextCursor(
+            blocks = NoteContentBlocks.parse(content),
+            textBlockIndex = index,
+            cursor = 0
+        ) ?: return false
+        pendingFocusTextIndex = result.focusTextIndex
+        updateBlocks(result.blocks)
+        NoteAttachmentStore.delete(context, result.removedRef)
+        if (playingAudioRef == result.removedRef) {
+            player?.release()
+            player = null
+            playingAudioRef = null
+        }
+        return true
+    }
+
     fun focusAfterContent() {
         when (contentBlocks.lastOrNull()) {
             is NoteContentBlock.Text -> {
@@ -443,6 +460,9 @@ fun NoteEditScreen(
                                     styleState = formattingController.onSelectionChanged(editText, start, end)
                                 }
                             },
+                            onDeletePreviousMedia = {
+                                deleteMediaBeforeTextBlock(index)
+                            },
                             onLinkClick = { url ->
                                 val intent = Intent(Intent.ACTION_VIEW, browsableUri(url))
                                 context.startActivity(intent)
@@ -560,6 +580,7 @@ private fun NoteTextBlockEditor(
     onFocused: (MarkdownEditText) -> Unit,
     onBlurred: () -> Unit,
     onSelectionChanged: (Int, Int, MarkdownEditText) -> Unit,
+    onDeletePreviousMedia: () -> Boolean,
     onLinkClick: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -578,6 +599,7 @@ private fun NoteTextBlockEditor(
             view.hint = hint
             view.contentUpdateCallback = { onTextChanged(index, it) }
             view.selectionChangedCallback = { start, end -> onSelectionChanged(start, end, view) }
+            view.deletePreviousMediaCallback = onDeletePreviousMedia
             view.linkClickCallback = onLinkClick
             view.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) onFocused(view) else onBlurred()
@@ -604,6 +626,7 @@ private fun NoteTextBlockEditor(
         onDispose {
             editText.contentUpdateCallback = null
             editText.selectionChangedCallback = null
+            editText.deletePreviousMediaCallback = null
             editText.linkClickCallback = null
             editText.onFocusChangeListener = null
         }

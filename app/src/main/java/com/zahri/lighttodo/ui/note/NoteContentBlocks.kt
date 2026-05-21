@@ -13,6 +13,12 @@ object NoteContentBlocks {
         val focusTextIndex: Int
     )
 
+    data class RemoveResult(
+        val blocks: List<NoteContentBlock>,
+        val focusTextIndex: Int,
+        val removedRef: String
+    )
+
     fun parse(markdown: String): List<NoteContentBlock> {
         if (markdown.isEmpty()) return listOf(NoteContentBlock.Text(""))
         if (markdown.lineSequence().none { NoteAttachmentMarkdown.parseLine(it) != null }) {
@@ -117,5 +123,52 @@ object NoteContentBlocks {
         }
 
         return InsertResult(nextBlocks, focusAfterInsert)
+    }
+
+    fun removeMediaBeforeTextCursor(
+        blocks: List<NoteContentBlock>,
+        textBlockIndex: Int,
+        cursor: Int
+    ): RemoveResult? {
+        if (cursor != 0) return null
+        val index = textBlockIndex.takeIf { it in blocks.indices } ?: return null
+        val current = blocks[index] as? NoteContentBlock.Text ?: return null
+        val mediaIndex = index - 1
+        val media = blocks.getOrNull(mediaIndex) ?: return null
+        val removedRef = when (media) {
+            is NoteContentBlock.Image -> media.ref
+            is NoteContentBlock.Audio -> media.ref
+            is NoteContentBlock.Text -> return null
+        }
+
+        val previousTextIndex = mediaIndex - 1
+        val previousText = blocks.getOrNull(previousTextIndex) as? NoteContentBlock.Text
+        val nextBlocks = mutableListOf<NoteContentBlock>()
+        val focusTextIndex: Int
+
+        if (previousText != null) {
+            nextBlocks += blocks.take(previousTextIndex)
+            focusTextIndex = nextBlocks.size
+            nextBlocks += NoteContentBlock.Text(joinTextAroundRemovedMedia(previousText.text, current.text))
+            nextBlocks += blocks.drop(index + 1)
+        } else {
+            nextBlocks += blocks.take(mediaIndex)
+            focusTextIndex = nextBlocks.size
+            nextBlocks += current
+            nextBlocks += blocks.drop(index + 1)
+        }
+
+        return RemoveResult(
+            blocks = nextBlocks.ifEmpty { listOf(NoteContentBlock.Text("")) },
+            focusTextIndex = focusTextIndex.coerceAtLeast(0),
+            removedRef = removedRef
+        )
+    }
+
+    private fun joinTextAroundRemovedMedia(before: String, after: String): String {
+        if (before.isEmpty()) return after
+        if (after.isEmpty()) return before
+        val separator = if (before.endsWith('\n') || after.startsWith('\n')) "" else "\n"
+        return before + separator + after
     }
 }

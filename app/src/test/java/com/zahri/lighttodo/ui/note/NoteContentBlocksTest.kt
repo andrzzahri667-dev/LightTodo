@@ -92,6 +92,50 @@ class NoteContentBlocksTest {
     }
 
     @Test
+    fun removeMediaBeforeTextCursor_deletesPreviousImageAndMergesText() {
+        val result = NoteContentBlocks.removeMediaBeforeTextCursor(
+            blocks = listOf(
+                NoteContentBlock.Text("hello"),
+                NoteContentBlock.Image("lighttodo://attachment/image/photo.jpg"),
+                NoteContentBlock.Text("\n")
+            ),
+            textBlockIndex = 2,
+            cursor = 0
+        )
+
+        assertEquals(
+            NoteContentBlocks.RemoveResult(
+                blocks = listOf(NoteContentBlock.Text("hello\n")),
+                focusTextIndex = 0,
+                removedRef = "lighttodo://attachment/image/photo.jpg"
+            ),
+            result
+        )
+    }
+
+    @Test
+    fun removeMediaBeforeTextCursor_deletesPreviousAudioAndMergesText() {
+        val result = NoteContentBlocks.removeMediaBeforeTextCursor(
+            blocks = listOf(
+                NoteContentBlock.Text("before"),
+                NoteContentBlock.Audio("lighttodo://attachment/audio/clip.m4a", "00:08"),
+                NoteContentBlock.Text("after")
+            ),
+            textBlockIndex = 2,
+            cursor = 0
+        )
+
+        assertEquals(
+            NoteContentBlocks.RemoveResult(
+                blocks = listOf(NoteContentBlock.Text("before\nafter")),
+                focusTextIndex = 0,
+                removedRef = "lighttodo://attachment/audio/clip.m4a"
+            ),
+            result
+        )
+    }
+
+    @Test
     fun removeAttachment_removesOnlyMatchingMediaBlock() {
         val markdown = NoteContentBlocks.removeAttachment(
             "a\n" +

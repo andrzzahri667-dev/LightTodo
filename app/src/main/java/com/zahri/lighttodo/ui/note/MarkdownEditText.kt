@@ -10,6 +10,7 @@ import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.inputmethod.EditorInfo
@@ -29,6 +30,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
     var attachmentLongClickCallback: ((NoteAttachmentMarkdown.Attachment) -> Unit)? = null
     var linkClickCallback: ((String) -> Unit)? = null
     var selectionChangedCallback: ((Int, Int) -> Unit)? = null
+    var deletePreviousMediaCallback: (() -> Boolean)? = null
 
     private var isApplyingSpans = false
     private var pendingNewlineIndex: Int? = null
@@ -161,6 +163,13 @@ class MarkdownEditText(context: Context) : EditText(context) {
         return super.onTouchEvent(event)
     }
 
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_DEL && tryDeletePreviousMediaFromKeyboard()) {
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onTextContextMenuItem(id: Int): Boolean {
         if (id == android.R.id.paste || id == android.R.id.pasteAsPlainText) {
             val clipboard = context.getSystemService(ClipboardManager::class.java)
@@ -183,6 +192,20 @@ class MarkdownEditText(context: Context) : EditText(context) {
                     ?.toString()
                     ?.let(MarkdownTextTransforms::markdownLinkForPastedText)
                 return super.commitText(markdownLink ?: text, newCursorPosition)
+            }
+
+            override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+                if (beforeLength > 0 && afterLength == 0 && tryDeletePreviousMediaFromKeyboard()) {
+                    return true
+                }
+                return super.deleteSurroundingText(beforeLength, afterLength)
+            }
+
+            override fun deleteSurroundingTextInCodePoints(beforeLength: Int, afterLength: Int): Boolean {
+                if (beforeLength > 0 && afterLength == 0 && tryDeletePreviousMediaFromKeyboard()) {
+                    return true
+                }
+                return super.deleteSurroundingTextInCodePoints(beforeLength, afterLength)
             }
         }
     }
@@ -229,6 +252,16 @@ class MarkdownEditText(context: Context) : EditText(context) {
         editableText.replace(from, to, markdownLink)
         setSelection((from + markdownLink.length).coerceIn(0, editableText.length))
         return true
+    }
+
+    private fun tryDeletePreviousMediaFromKeyboard(): Boolean {
+        if (selectionStart != selectionEnd) return false
+        val cursor = selectionStart
+        val text = editableText.toString()
+        val atStart = cursor == 0
+        val onAutoInsertedBlankLine = text == "\n" && cursor == text.length
+        if (!atStart && !onAutoInsertedBlankLine) return false
+        return deletePreviousMediaCallback?.invoke() == true
     }
 
     private fun applyPendingListContinuation(s: Editable) {
