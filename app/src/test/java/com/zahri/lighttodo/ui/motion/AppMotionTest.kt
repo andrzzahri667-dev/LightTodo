@@ -43,4 +43,10 @@ class AppMotionTest {
         assertTrue(AppMotion.NoteGridPlacementDampingRatio in 0.78f..0.92f)
         assertTrue(AppMotion.NoteCardSelectionColorMillis <= 180)
     }
+
+    @Test
+    fun noteEditorContentMotion_isFastEnoughForTypingContext() {
+        assertTrue(AppMotion.NoteContentSizeDampingRatio in 0.78f..0.92f)
+        assertTrue(AppMotion.NoteContentSizeStiffness in 420f..560f)
+    }
 }

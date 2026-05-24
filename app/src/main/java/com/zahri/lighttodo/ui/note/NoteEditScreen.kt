@@ -14,6 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -57,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -380,73 +382,81 @@ fun NoteEditScreen(
                 }
 
                 contentBlocks.forEachIndexed { index, block ->
-                    when (block) {
-                        is NoteContentBlock.Text -> NoteTextBlockEditor(
-                            index = index,
-                            text = block.text,
-                            hint = if (contentBlocks.size == 1) contentHint else "",
-                            minHeight = if (contentBlocks.size == 1) 360.dp else 56.dp,
-                            requestFocus = pendingFocusTextIndex == index,
-                            cursorVisible = pendingKeyboardMediaDelete?.first != index,
-                            onFocusApplied = { pendingFocusTextIndex = null },
-                            onTextChanged = ::updateTextBlock,
-                            onFocused = { editText ->
-                                if (focusedTextIndex != index) {
-                                    pendingKeyboardMediaDelete = null
-                                }
-                                focusedTextIndex = index
-                                focusedCursor = editText.selectionStart.coerceAtLeast(0)
-                                focusedEditor = editText
-                                editorFocused = true
-                                styleState = formattingController.bind(editText)
-                            },
-                            onBlurred = {
-                                editorFocused = false
-                            },
-                            onSelectionChanged = { start, end, editText ->
-                                if (focusedTextIndex == index) {
-                                    if (start != 0 || end != 0) {
-                                        pendingKeyboardMediaDelete = null
+                    key(NoteContentBlockUiKeys.keyFor(index, block)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSize(animationSpec = AppMotion.noteContentSizeSpring())
+                        ) {
+                            when (block) {
+                                is NoteContentBlock.Text -> NoteTextBlockEditor(
+                                    index = index,
+                                    text = block.text,
+                                    hint = if (contentBlocks.size == 1) contentHint else "",
+                                    minHeight = if (contentBlocks.size == 1) 360.dp else 56.dp,
+                                    requestFocus = pendingFocusTextIndex == index,
+                                    cursorVisible = pendingKeyboardMediaDelete?.first != index,
+                                    onFocusApplied = { pendingFocusTextIndex = null },
+                                    onTextChanged = ::updateTextBlock,
+                                    onFocused = { editText ->
+                                        if (focusedTextIndex != index) {
+                                            pendingKeyboardMediaDelete = null
+                                        }
+                                        focusedTextIndex = index
+                                        focusedCursor = editText.selectionStart.coerceAtLeast(0)
+                                        focusedEditor = editText
+                                        editorFocused = true
+                                        styleState = formattingController.bind(editText)
+                                    },
+                                    onBlurred = {
+                                        editorFocused = false
+                                    },
+                                    onSelectionChanged = { start, end, editText ->
+                                        if (focusedTextIndex == index) {
+                                            if (start != 0 || end != 0) {
+                                                pendingKeyboardMediaDelete = null
+                                            }
+                                            focusedCursor = start
+                                            styleState = formattingController.onSelectionChanged(editText, start, end)
+                                        }
+                                    },
+                                    onDeletePreviousMedia = {
+                                        deleteMediaBeforeTextBlock(index)
+                                    },
+                                    onLinkClick = { url ->
+                                        val intent = Intent(Intent.ACTION_VIEW, browsableUri(url))
+                                        context.startActivity(intent)
                                     }
-                                    focusedCursor = start
-                                    styleState = formattingController.onSelectionChanged(editText, start, end)
-                                }
-                            },
-                            onDeletePreviousMedia = {
-                                deleteMediaBeforeTextBlock(index)
-                            },
-                            onLinkClick = { url ->
-                                val intent = Intent(Intent.ACTION_VIEW, browsableUri(url))
-                                context.startActivity(intent)
-                            }
-                        )
+                                )
 
-                        is NoteContentBlock.Image -> NoteImageBlock(
-                            ref = block.ref,
-                            selected = pendingKeyboardMediaDelete?.second == block.ref,
-                            onOpen = { previewImageRef = block.ref },
-                            onDelete = {
-                                pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
-                                    kind = NoteAttachmentMarkdown.Kind.Image,
+                                is NoteContentBlock.Image -> NoteImageBlock(
                                     ref = block.ref,
-                                    label = "Image"
+                                    selected = pendingKeyboardMediaDelete?.second == block.ref,
+                                    onOpen = { previewImageRef = block.ref },
+                                    onDelete = {
+                                        pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
+                                            kind = NoteAttachmentMarkdown.Kind.Image,
+                                            ref = block.ref,
+                                            label = "Image"
+                                        )
+                                    }
+                                )
+
+                                is NoteContentBlock.Audio -> NoteAudioBlock(
+                                    durationLabel = block.durationLabel,
+                                    playing = mediaState.playingAudioRef == block.ref,
+                                    selected = pendingKeyboardMediaDelete?.second == block.ref,
+                                    onPlayPause = { playAudio(block.ref) },
+                                    onDelete = {
+                                        pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
+                                            kind = NoteAttachmentMarkdown.Kind.Audio,
+                                            ref = block.ref,
+                                            label = block.durationLabel
+                                        )
+                                    }
                                 )
                             }
-                        )
-
-                        is NoteContentBlock.Audio -> NoteAudioBlock(
-                            durationLabel = block.durationLabel,
-                            playing = mediaState.playingAudioRef == block.ref,
-                            selected = pendingKeyboardMediaDelete?.second == block.ref,
-                            onPlayPause = { playAudio(block.ref) },
-                            onDelete = {
-                                pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
-                                    kind = NoteAttachmentMarkdown.Kind.Audio,
-                                    ref = block.ref,
-                                    label = block.durationLabel
-                                )
-                            }
-                        )
+                        }
                     }
                 }
 

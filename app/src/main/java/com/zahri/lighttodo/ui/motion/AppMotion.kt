@@ -33,6 +33,8 @@ object AppMotion {
     const val ListPlacementStiffness = 500f
     const val NoteGridPlacementDampingRatio = 0.84f
     const val NoteGridPlacementStiffness = 500f
+    const val NoteContentSizeDampingRatio = 0.86f
+    const val NoteContentSizeStiffness = 500f
     const val SectionArrowDampingRatio = 0.78f
     const val SectionArrowStiffness = 520f
     const val CheckOvershootDampingRatio = 0.42f
@@ -62,6 +64,9 @@ object AppMotion {
 
     fun <T> noteGridPlacementSpring(): SpringSpec<T> =
         spring(dampingRatio = NoteGridPlacementDampingRatio, stiffness = NoteGridPlacementStiffness)
+
+    fun <T> noteContentSizeSpring(): SpringSpec<T> =
+        spring(dampingRatio = NoteContentSizeDampingRatio, stiffness = NoteContentSizeStiffness)
 
     fun <T> sectionArrowSpring(): SpringSpec<T> =
         spring(dampingRatio = SectionArrowDampingRatio, stiffness = SectionArrowStiffness)
