@@ -7,7 +7,8 @@
     <!-- Auto-backup restore after reinstall -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- Reminder alarms -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
@@ -33,7 +34,6 @@
         android:allowBackup="true"
         android:fullBackupContent="true"
         android:hasFragileUserData="true"
-        android:requestLegacyExternalStorage="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

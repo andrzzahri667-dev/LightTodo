@@ -1,13 +1,14 @@
 package com.zahri.lighttodo
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,52 +34,39 @@ import com.zahri.lighttodo.ui.home.HomeScreen
 import com.zahri.lighttodo.ui.note.NoteEditScreen
 import com.zahri.lighttodo.ui.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
-            val storageGranted = results.entries.any { it.key != android.Manifest.permission.POST_NOTIFICATIONS && it.value }
-            if (storageGranted) (application as App).retryRestore()
-        }
-
-    private val manageStorageLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && android.os.Environment.isExternalStorageManager()) {
-                (application as App).retryRestore()
+            val app = application as App
+            val storageGranted = results.entries.any {
+                (it.key == android.Manifest.permission.READ_EXTERNAL_STORAGE ||
+                    it.key == android.Manifest.permission.WRITE_EXTERNAL_STORAGE) && it.value
+            }
+            if (storageGranted) app.retryRestore()
+            if (results[android.Manifest.permission.READ_CALENDAR] == true) {
+                enableCalendarSync()
             }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Request permissions
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+: need MANAGE_EXTERNAL_STORAGE for post-uninstall restore
-            val perms = mutableListOf<String>()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                perms += android.Manifest.permission.POST_NOTIFICATIONS
-            }
-            if (perms.isNotEmpty()) permLauncher.launch(perms.toTypedArray())
-            // Request all-files access if not granted (needed to read backup after reinstall)
-            if (!android.os.Environment.isExternalStorageManager()) {
-                runCatching {
-                    manageStorageLauncher.launch(
-                        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                            .setData(Uri.parse("package:$packageName"))
-                    )
-                }
-            } else {
-                (application as App).retryRestore()
-            }
-        } else {
-            // Android 10 and below
-            val perms = mutableListOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-            permLauncher.launch(perms.toTypedArray())
+        val startupPermissions = PermissionRequestPolicy.startupPermissions()
+        if (startupPermissions.isNotEmpty()) {
+            permLauncher.launch(startupPermissions.toTypedArray())
+        }
+        if (hasCalendarPermission()) {
+            enableCalendarSync()
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            (application as App).retryRestore()
         }
 
         // Hint user to enable exact alarms on Android 12+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             val am = getSystemService(android.app.AlarmManager::class.java)
             if (am != null && !am.canScheduleExactAlarms()) {
                 runCatching {
@@ -99,6 +87,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun hasCalendarPermission(): Boolean =
+        ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+
+    private fun enableCalendarSync() {
+        val app = application as App
+        app.appScope.launch { app.prefs.setCalendarSyncEnabled(true) }
     }
 }
 

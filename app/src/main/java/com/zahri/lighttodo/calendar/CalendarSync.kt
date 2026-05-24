@@ -63,9 +63,7 @@ object CalendarSync {
         val now2 = System.currentTimeMillis()
 
         val toUpsert = mutableListOf<TodoEntity>()
-        val seenIds = mutableListOf<Long>()
         for (ev in events) {
-            seenIds += ev.id
             val dateFields = TodoDateFields.fromEpochMillis(ev.startMillis)
             val (startH, startM) = if (ev.allDay) null to null else hourMinuteOf(ev.startMillis)
             val (endH, endM) = if (ev.allDay || ev.endMillis == null) null to null else hourMinuteOf(ev.endMillis)
@@ -93,8 +91,6 @@ object CalendarSync {
         if (toUpsert.isNotEmpty()) {
             app.db.todoDao().upsertAll(toUpsert)
         }
-        // Remove events that disappeared from the system calendar
-        app.db.todoDao().deleteCalendarOrphans(seenIds)
 
         // Refresh widget(s) when data changed
         if (toUpsert.isNotEmpty()) {
