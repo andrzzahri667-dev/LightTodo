@@ -2,21 +2,23 @@ package com.zahri.lighttodo.ui.note
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NoteRouteTransitionPolicyTest {
     @Test
-    fun specFor_usesSourceCenterAsTransformOrigin() {
+    fun specFor_movesRouteCenterFromSourceCenter() {
         val spec = NoteRouteTransitionPolicy.specFor(
             sourceBounds = Rect(left = 20f, top = 100f, right = 180f, bottom = 260f),
             rootSize = IntSize(width = 400, height = 800)
         )
 
-        assertEquals(0.25f, spec.transformOrigin.pivotFractionX, 0.0001f)
-        assertEquals(0.225f, spec.transformOrigin.pivotFractionY, 0.0001f)
-        assertEquals(0.4f, spec.sourceScale, 0.0001f)
+        assertEquals(TransformOrigin.Center.pivotFractionX, spec.transformOrigin.pivotFractionX, 0.0001f)
+        assertEquals(TransformOrigin.Center.pivotFractionY, spec.transformOrigin.pivotFractionY, 0.0001f)
+        assertEquals(IntOffset(x = -100, y = -220), spec.sourceCenterOffset)
+        assertEquals(0.28f, spec.sourceScale, 0.01f)
     }
 
     @Test
@@ -26,8 +28,9 @@ class NoteRouteTransitionPolicyTest {
             rootSize = IntSize(width = 400, height = 800)
         )
 
-        assertEquals(0.87f, spec.transformOrigin.pivotFractionX, 0.0001f)
-        assertEquals(0.91f, spec.transformOrigin.pivotFractionY, 0.0001f)
+        assertEquals(TransformOrigin.Center.pivotFractionX, spec.transformOrigin.pivotFractionX, 0.0001f)
+        assertEquals(TransformOrigin.Center.pivotFractionY, spec.transformOrigin.pivotFractionY, 0.0001f)
+        assertEquals(IntOffset(x = 148, y = 328), spec.sourceCenterOffset)
         assertEquals(0.16f, spec.sourceScale, 0.0001f)
     }
 
@@ -40,6 +43,7 @@ class NoteRouteTransitionPolicyTest {
 
         assertEquals(TransformOrigin.Center.pivotFractionX, spec.transformOrigin.pivotFractionX, 0.0001f)
         assertEquals(TransformOrigin.Center.pivotFractionY, spec.transformOrigin.pivotFractionY, 0.0001f)
+        assertEquals(IntOffset.Zero, spec.sourceCenterOffset)
         assertEquals(0.985f, spec.sourceScale, 0.0001f)
     }
 }

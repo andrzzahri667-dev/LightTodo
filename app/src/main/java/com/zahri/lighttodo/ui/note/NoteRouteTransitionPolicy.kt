@@ -2,10 +2,14 @@ package com.zahri.lighttodo.ui.note
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 data class NoteRouteTransitionSpec(
     val transformOrigin: TransformOrigin,
+    val sourceCenterOffset: IntOffset,
     val sourceScale: Float
 )
 
@@ -25,19 +29,22 @@ object NoteRouteTransitionPolicy {
         ) {
             return NoteRouteTransitionSpec(
                 transformOrigin = TransformOrigin.Center,
+                sourceCenterOffset = IntOffset.Zero,
                 sourceScale = FALLBACK_SCALE
             )
         }
 
-        val pivotX = (sourceBounds.center.x / rootWidth).coerceIn(0f, 1f)
-        val pivotY = (sourceBounds.center.y / rootHeight).coerceIn(0f, 1f)
-        val sourceScale = maxOf(
-            sourceBounds.width / rootWidth,
-            sourceBounds.height / rootHeight
+        val sourceCenterOffset = IntOffset(
+            x = (sourceBounds.center.x - rootWidth / 2f).roundToInt(),
+            y = (sourceBounds.center.y - rootHeight / 2f).roundToInt()
+        )
+        val sourceScale = sqrt(
+            (sourceBounds.width / rootWidth) * (sourceBounds.height / rootHeight)
         ).coerceIn(MIN_SOURCE_SCALE, MAX_SOURCE_SCALE)
 
         return NoteRouteTransitionSpec(
-            transformOrigin = TransformOrigin(pivotX, pivotY),
+            transformOrigin = TransformOrigin.Center,
+            sourceCenterOffset = sourceCenterOffset,
             sourceScale = sourceScale
         )
     }

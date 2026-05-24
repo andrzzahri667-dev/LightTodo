@@ -14,6 +14,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideIn
+import androidx.compose.animation.slideOut
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -154,6 +156,10 @@ private fun AppNavHost(
                     rootSize = noteTransitionRootSize()
                 )
                 fadeIn(tween(140, easing = noteEasing)) +
+                    slideIn(
+                        animationSpec = tween(360, easing = noteEasing),
+                        initialOffset = { spec.sourceCenterOffset }
+                    ) +
                     scaleIn(
                         animationSpec = tween(360, easing = noteEasing),
                         initialScale = spec.sourceScale,
@@ -193,6 +199,10 @@ private fun AppNavHost(
                     rootSize = noteTransitionRootSize()
                 )
                 fadeOut(tween(120, easing = noteEasing)) +
+                    slideOut(
+                        animationSpec = tween(300, easing = noteEasing),
+                        targetOffset = { spec.sourceCenterOffset }
+                    ) +
                     scaleOut(
                         animationSpec = tween(300, easing = noteEasing),
                         targetScale = spec.sourceScale,
