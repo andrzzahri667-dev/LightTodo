@@ -24,7 +24,6 @@ import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.dateLabel
 import com.zahri.lighttodo.ui.home.displayTitle
-import com.zahri.lighttodo.ui.home.isOverdueDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
@@ -196,6 +195,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
             val items = runBlocking(Dispatchers.IO) {
                 app.db.todoDao().listAllUndoneSync(nowMillis = System.currentTimeMillis(), limit = 3)
             }
+            val clock = TodoWidgetDisplayPolicy.clockAt()
 
             // Populate rows
             for (i in 0..2) {
@@ -208,7 +208,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
                     views.setTextColor(TITLE_IDS[i], context.getColor(R.color.widget_text_primary))
 
                     val datePart = if (com.zahri.lighttodo.util.DateUtils.isTodayOrFalse(item.date)) "" else item.dateLabel()
-                    val subText = datePart + deadlineSuffix(item)
+                    val subText = datePart + TodoWidgetDisplayPolicy.deadlineSuffix(item)
                     views.setTextViewText(SUBTITLE_IDS[i], subText)
                     views.setViewVisibility(
                         SUBTITLE_IDS[i],
@@ -216,7 +216,11 @@ class TodoWidgetProvider : AppWidgetProvider() {
                     )
                     views.setTextColor(
                         SUBTITLE_IDS[i],
-                        if (item.isOverdueDate()) context.getColor(R.color.widget_overdue) else context.getColor(R.color.widget_text_secondary)
+                        if (TodoWidgetDisplayPolicy.isSubtitleOverdue(item, clock)) {
+                            context.getColor(R.color.widget_overdue)
+                        } else {
+                            context.getColor(R.color.widget_text_secondary)
+                        }
                     )
 
                     views.setImageViewResource(CHECK_IDS[i], R.drawable.widget_checkbox)
@@ -273,16 +277,6 @@ class TodoWidgetProvider : AppWidgetProvider() {
             for (id in ids) {
                 mgr.partiallyUpdateAppWidget(id, rv)
             }
-        }
-
-        fun deadlineSuffix(item: com.zahri.lighttodo.data.TodoEntity): String = when {
-            item.startHour != null && item.startMinute != null && item.deadlineHour != null && item.deadlineMinute != null ->
-                " %02d:%02d-%02d:%02d".format(item.startHour, item.startMinute, item.deadlineHour, item.deadlineMinute)
-            item.startHour != null && item.startMinute != null ->
-                " %02d:%02d".format(item.startHour, item.startMinute)
-            item.deadlineHour != null && item.deadlineMinute != null ->
-                " %02d:%02d".format(item.deadlineHour, item.deadlineMinute)
-            else -> ""
         }
 
     }
