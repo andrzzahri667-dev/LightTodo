@@ -19,6 +19,7 @@ object AppMotion {
     const val RouteDurationMillis = 400
     const val NoteEnterFadeMillis = 140
     const val NoteEnterTransformMillis = 360
+    const val NoteCoverRevealFadeMillis = 110
     const val NoteExitFadeMillis = 120
     const val NoteExitTransformMillis = 300
 

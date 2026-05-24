@@ -9,8 +9,11 @@ enum class NoteContainerTransformDirection {
 }
 
 object NoteContainerTransformPolicy {
-    private const val SourceCornerRadius = 12f
-    private const val ContentFadeStart = 0.7f
+    const val DefaultSourceCornerRadius = 12f
+
+    private const val ExitSurfaceFadeEnd = 0.2f
+    private const val SourceSnapshotFadeStart = 0.24f
+    private const val SourceSnapshotFadeEnd = 0.56f
 
     fun boundsAt(progress: Float, sourceBounds: Rect, rootSize: IntSize): Rect {
         val p = progress.coerceIn(0f, 1f)
@@ -22,14 +25,25 @@ object NoteContainerTransformPolicy {
         )
     }
 
-    fun cornerRadiusAt(progress: Float): Float =
-        lerp(SourceCornerRadius, 0f, progress.coerceIn(0f, 1f))
+    fun cornerRadiusAt(progress: Float, sourceRadius: Float = DefaultSourceCornerRadius): Float =
+        lerp(sourceRadius, 0f, progress.coerceIn(0f, 1f))
 
     fun overlayAlphaAt(direction: NoteContainerTransformDirection, progress: Float): Float {
         val p = progress.coerceIn(0f, 1f)
         return when (direction) {
-            NoteContainerTransformDirection.Enter -> 1f - ((p - ContentFadeStart) / (1f - ContentFadeStart)).coerceIn(0f, 1f)
-            NoteContainerTransformDirection.Exit -> ((1f - p) / (1f - ContentFadeStart)).coerceIn(0f, 1f)
+            NoteContainerTransformDirection.Enter -> 1f
+            NoteContainerTransformDirection.Exit -> (p / ExitSurfaceFadeEnd).coerceIn(0f, 1f)
+        }
+    }
+
+    fun sourceSnapshotAlphaAt(direction: NoteContainerTransformDirection, progress: Float): Float {
+        val p = progress.coerceIn(0f, 1f)
+        return when (direction) {
+            NoteContainerTransformDirection.Enter -> {
+                1f - ((p - SourceSnapshotFadeStart) / (SourceSnapshotFadeEnd - SourceSnapshotFadeStart))
+                    .coerceIn(0f, 1f)
+            }
+            NoteContainerTransformDirection.Exit -> overlayAlphaAt(direction, p)
         }
     }
 

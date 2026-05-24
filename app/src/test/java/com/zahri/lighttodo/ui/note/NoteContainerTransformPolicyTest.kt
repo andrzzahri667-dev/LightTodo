@@ -49,41 +49,60 @@ class NoteContainerTransformPolicyTest {
     }
 
     @Test
-    fun cornerRadiusAt_roundsAtSourceAndSquaresAtFullScreen() {
-        assertEquals(12f, NoteContainerTransformPolicy.cornerRadiusAt(progress = 0f), 0.001f)
-        assertEquals(6f, NoteContainerTransformPolicy.cornerRadiusAt(progress = 0.5f), 0.001f)
-        assertEquals(0f, NoteContainerTransformPolicy.cornerRadiusAt(progress = 1f), 0.001f)
+    fun cornerRadiusAt_roundsFromSourceRadiusToFullScreen() {
+        assertEquals(28f, NoteContainerTransformPolicy.cornerRadiusAt(progress = 0f, sourceRadius = 28f), 0.001f)
+        assertEquals(14f, NoteContainerTransformPolicy.cornerRadiusAt(progress = 0.5f, sourceRadius = 28f), 0.001f)
+        assertEquals(0f, NoteContainerTransformPolicy.cornerRadiusAt(progress = 1f, sourceRadius = 28f), 0.001f)
     }
 
     @Test
-    fun overlayAlphaAt_fadesOutNearEndOfEnter() {
+    fun overlayAlphaAt_keepsEnterSurfaceOpaqueUntilRouteIsCovered() {
         assertEquals(
             1f,
             NoteContainerTransformPolicy.overlayAlphaAt(NoteContainerTransformDirection.Enter, progress = 0.7f),
             0.001f
         )
         assertEquals(
-            0f,
+            1f,
             NoteContainerTransformPolicy.overlayAlphaAt(NoteContainerTransformDirection.Enter, progress = 1f),
             0.001f
         )
     }
 
     @Test
-    fun overlayAlphaAt_fadesInAtStartOfExit() {
+    fun overlayAlphaAt_keepsExitSurfaceOpaqueUntilItNearlyReachesSource() {
         assertEquals(
-            0f,
+            1f,
             NoteContainerTransformPolicy.overlayAlphaAt(NoteContainerTransformDirection.Exit, progress = 1f),
             0.001f
         )
         assertEquals(
             1f,
-            NoteContainerTransformPolicy.overlayAlphaAt(NoteContainerTransformDirection.Exit, progress = 0.7f),
+            NoteContainerTransformPolicy.overlayAlphaAt(NoteContainerTransformDirection.Exit, progress = 0.22f),
             0.001f
         )
         assertEquals(
-            1f,
+            0f,
             NoteContainerTransformPolicy.overlayAlphaAt(NoteContainerTransformDirection.Exit, progress = 0f),
+            0.001f
+        )
+    }
+
+    @Test
+    fun sourceSnapshotAlphaAt_fadesSourceSnapshotOutDuringEnter() {
+        assertEquals(
+            1f,
+            NoteContainerTransformPolicy.sourceSnapshotAlphaAt(NoteContainerTransformDirection.Enter, progress = 0.24f),
+            0.001f
+        )
+        assertEquals(
+            0.5f,
+            NoteContainerTransformPolicy.sourceSnapshotAlphaAt(NoteContainerTransformDirection.Enter, progress = 0.4f),
+            0.001f
+        )
+        assertEquals(
+            0f,
+            NoteContainerTransformPolicy.sourceSnapshotAlphaAt(NoteContainerTransformDirection.Enter, progress = 0.56f),
             0.001f
         )
     }
