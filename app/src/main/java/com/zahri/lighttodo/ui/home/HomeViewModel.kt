@@ -5,11 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.HomeData
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.data.NoteDao
 import com.zahri.lighttodo.data.Repository
-import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.data.UserPrefs
 import com.zahri.lighttodo.ui.note.NoteAttachmentMarkdown
@@ -44,7 +42,12 @@ class HomeViewModel(
 ) : ViewModel() {
 
     val state: StateFlow<HomeUiState> =
-        repo.homeFlow().map { data -> data.toUiState() }
+        repo.homeFlow().map { data ->
+            buildHomeUiState(
+                data = data,
+                uncategorizedTitle = appContext.getString(R.string.home_uncategorized)
+            )
+        }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
@@ -81,31 +84,6 @@ class HomeViewModel(
             NoteAttachmentStore.deleteUnreferenced(appContext, refs)
             _noteSelectedIds.value = emptySet()
         }
-    }
-
-    private fun HomeData.toUiState(): HomeUiState {
-        val undone = todos.filter { !it.done }
-        val done = todos.filter { it.done }.sortedByDescending { it.doneAtMillis ?: 0L }
-
-        // Group by tag
-        val byTag: Map<Long?, List<TodoEntity>> = undone.groupBy { it.tagId }
-        val tagOrder: List<TagEntity> = tags
-        val groups = mutableListOf<TagGroup>()
-        // 组内排序：有日期任务在前（按创建时间），无日期任务沉底（同样按创建时间）
-        val itemOrder = compareBy<TodoEntity>({ it.dateMillis == null }, { it.createdAtMillis })
-        for (t in tagOrder) {
-            val items = byTag[t.id].orEmpty().sortedWith(itemOrder)
-            if (items.isNotEmpty()) groups += TagGroup(t.id, t.name, items)
-        }
-        val uncatItems = byTag[null].orEmpty().sortedWith(itemOrder)
-        if (uncatItems.isNotEmpty()) groups += TagGroup(null, appContext.getString(R.string.home_uncategorized), uncatItems)
-
-        return HomeUiState(
-            groups = groups,
-            doneItems = done,
-            collapsedTagIds = prefs.collapsedTagIds,
-            doneExpanded = prefs.doneSectionExpanded
-        )
     }
 
     /**
@@ -165,7 +143,7 @@ class HomeViewModel(
         val ids = _selectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            ids.forEach { repo.delete(it) }
+            repo.deleteMany(ids)
             _selectedIds.value = emptySet()
         }
     }

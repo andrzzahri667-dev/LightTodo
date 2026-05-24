@@ -1,0 +1,377 @@
+package com.zahri.lighttodo.ui.home
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.zahri.lighttodo.R
+import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.ui.theme.AppColors
+import com.zahri.lighttodo.ui.theme.AppType
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TodoPage(
+    state: HomeUiState,
+    selectedIds: Set<Long>,
+    pendingCompleteIds: Set<Long>,
+    inSelection: Boolean,
+    vm: HomeViewModel,
+    onEdit: (Long) -> Unit
+) {
+    val listItems = remember(state) { buildHomeTodoListItems(state) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            top = 8.dp,
+            bottom = 96.dp,
+            start = 16.dp,
+            end = 16.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (state.groups.isEmpty() && state.doneItems.isEmpty()) {
+            item(key = "empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("☀️", fontSize = 48.sp)
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            stringResource(R.string.home_empty),
+                            style = AppType.body,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            return@LazyColumn
+        }
+
+        items(
+            items = listItems,
+            key = { it.key }
+        ) { item ->
+            when (item) {
+                is HomeTodoListItem.Header -> {
+                    SectionHeader(
+                        title = if (item.doneSection) stringResource(R.string.home_done_section) else item.title,
+                        count = item.count,
+                        expanded = item.expanded,
+                        onToggle = {
+                            if (item.doneSection) {
+                                vm.setDoneExpanded(!item.expanded)
+                            } else {
+                                vm.setGroupExpanded(item.sectionKey, !item.expanded)
+                            }
+                        },
+                        modifier = Modifier.animateItemPlacement(
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)
+                        )
+                    )
+                }
+                is HomeTodoListItem.TodoRow -> {
+                    val todo = item.todo
+                    TodoRow(
+                        todo = todo,
+                        selected = todo.id in selectedIds,
+                        inSelectionMode = inSelection,
+                        onToggle = { vm.toggleDone(todo.id, !item.strikeThrough) },
+                        onClick = {
+                            if (inSelection) vm.toggleSelection(todo.id)
+                            else onEdit(todo.id)
+                        },
+                        onLongClick = { vm.toggleSelection(todo.id) },
+                        strikeThrough = item.strikeThrough,
+                        animating = todo.id in pendingCompleteIds,
+                        showDivider = item.showDivider,
+                        modifier = Modifier.animateItemPlacement(
+                            animationSpec = spring(dampingRatio = 0.86f, stiffness = 520f)
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+        label = "section-arrow"
+    )
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onToggle() }
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = AppType.headline,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = "$count",
+            style = AppType.footnote,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.weight(1f))
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .size(20.dp)
+                .graphicsLayer { rotationZ = arrowRotation }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TodoRow(
+    todo: TodoEntity,
+    selected: Boolean = false,
+    inSelectionMode: Boolean = false,
+    onToggle: () -> Unit,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    strikeThrough: Boolean = false,
+    animating: Boolean = false,
+    showDivider: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val titleText = todo.displayTitle(context)
+    val isOverdue = todo.isOverdueDate()
+    val selectedBackground by animateColorAsState(
+        targetValue = if (selected) AppColors.Brand.copy(alpha = 0.12f) else Color.Transparent,
+        animationSpec = tween(160),
+        label = "todo-selection-bg"
+    )
+
+    val checkScale = remember { androidx.compose.animation.core.Animatable(1f) }
+    val checkmarkAlpha = remember { androidx.compose.animation.core.Animatable(if (todo.done) 1f else 0f) }
+    val contentAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
+    val contentTranslateX = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    LaunchedEffect(animating) {
+        if (animating) {
+            kotlinx.coroutines.coroutineScope {
+                launch {
+                    checkScale.snapTo(0.6f)
+                    checkmarkAlpha.snapTo(0f)
+                    launch { checkmarkAlpha.animateTo(1f, tween(180)) }
+                    checkScale.animateTo(
+                        1.15f,
+                        spring(dampingRatio = 0.4f, stiffness = 480f)
+                    )
+                    checkScale.animateTo(
+                        1f,
+                        spring(dampingRatio = 0.7f, stiffness = 360f)
+                    )
+                }
+                launch {
+                    kotlinx.coroutines.delay(110)
+                    launch { contentAlpha.animateTo(0.45f, tween(240)) }
+                    contentTranslateX.animateTo(6f, tween(240))
+                }
+            }
+        } else {
+            checkScale.snapTo(1f)
+            checkmarkAlpha.snapTo(if (todo.done) 1f else 0f)
+            contentAlpha.snapTo(1f)
+            contentTranslateX.snapTo(0f)
+        }
+    }
+
+    val displayDone = todo.done || animating
+    val displayStrike = strikeThrough || animating
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(selectedBackground)
+                .combinedClickable(onLongClick = onLongClick, onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (inSelectionMode) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selected) Text("✓", color = Color.Black, fontSize = 13.sp)
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .graphicsLayer {
+                            scaleX = checkScale.value
+                            scaleY = checkScale.value
+                        }
+                        .background(
+                            if (displayDone) AppColors.DoneGreen
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                        )
+                        .semantics {
+                            contentDescription = context.getString(
+                                if (displayDone) R.string.home_mark_active else R.string.home_mark_done,
+                                titleText
+                            )
+                        }
+                        .clickable(enabled = !animating) { onToggle() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (displayDone) {
+                        Text(
+                            "✓",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            modifier = Modifier.graphicsLayer { alpha = checkmarkAlpha.value }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(
+                Modifier
+                    .weight(1f)
+                    .graphicsLayer {
+                        alpha = contentAlpha.value
+                        translationX = contentTranslateX.value * density
+                    }
+            ) {
+                Text(
+                    text = titleText,
+                    style = AppType.body,
+                    color = if (displayStrike) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (displayStrike) TextDecoration.LineThrough else TextDecoration.None,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val timeSuffix = when {
+                    todo.startHour != null && todo.deadlineHour != null ->
+                        "%02d:%02d – %02d:%02d".format(todo.startHour, todo.startMinute, todo.deadlineHour, todo.deadlineMinute)
+                    todo.startHour != null ->
+                        "%02d:%02d".format(todo.startHour, todo.startMinute)
+                    todo.deadlineHour != null ->
+                        "%02d:%02d".format(todo.deadlineHour, todo.deadlineMinute)
+                    else -> null
+                }
+                val subtitle = buildString {
+                    append(todo.dateLabel())
+                    if (timeSuffix != null) {
+                        append("  ")
+                        append(timeSuffix)
+                    }
+                }
+                if (subtitle.isNotEmpty() || todo.calendarEventId != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (subtitle.isNotEmpty()) {
+                            Text(
+                                text = subtitle,
+                                style = AppType.caption1,
+                                color = if (isOverdue) AppColors.Overdue else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (todo.calendarEventId != null) {
+                            if (subtitle.isNotEmpty()) Spacer(Modifier.width(6.dp))
+                            Icon(
+                                painter = painterResource(R.drawable.ic_calendar_sync),
+                                contentDescription = null,
+                                modifier = Modifier.size(11.dp),
+                                tint = Color.Unspecified
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 52.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
+        }
+    }
+}

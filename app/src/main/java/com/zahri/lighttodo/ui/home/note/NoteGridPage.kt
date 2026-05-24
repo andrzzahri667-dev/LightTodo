@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
-import com.zahri.lighttodo.ui.note.MarkdownSpanApplier
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
@@ -39,10 +39,11 @@ private const val GRID_COLUMNS = 2
 fun NoteGridPage(
     notes: List<NoteEntity>,
     selectedIds: Set<Long>,
-    inSelectionMode: Boolean,
     onNoteClick: (Long) -> Unit,
     onNoteLongClick: (Long) -> Unit
 ) {
+    val noteItems = remember(notes) { buildNoteGridItems(notes) }
+
     if (notes.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -68,7 +69,7 @@ fun NoteGridPage(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalItemSpacing = 10.dp
     ) {
-        items(notes, key = { it.id }) { note ->
+        items(noteItems, key = { it.id }) { note ->
             NoteCard(
                 note = note,
                 selected = note.id in selectedIds,
@@ -82,14 +83,11 @@ fun NoteGridPage(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NoteCard(
-    note: NoteEntity,
+    note: NoteGridItem,
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val title = note.title?.takeIf { it.isNotBlank() }
-    val preview = note.content.takeIf { it.isNotBlank() }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -102,9 +100,9 @@ private fun NoteCard(
             .combinedClickable(onLongClick = onLongClick, onClick = onClick)
             .padding(12.dp)
     ) {
-        if (title != null) {
+        if (note.title != null) {
             Text(
-                text = title,
+                text = note.title,
                 style = AppType.headline,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
@@ -112,16 +110,16 @@ private fun NoteCard(
             )
             Spacer(Modifier.height(4.dp))
         }
-        if (preview != null) {
+        if (note.preview != null) {
             Text(
-                text = MarkdownSpanApplier.stripMarkdown(preview),
+                text = note.preview,
                 style = AppType.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (title != null) 5 else 7,
+                maxLines = note.previewMaxLines,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-        } else {
+        } else if (note.showEmptyPlaceholder) {
             Spacer(Modifier.weight(1f))
             Text(
                 text = stringResource(R.string.note_no_title),
