@@ -10,8 +10,17 @@ import kotlin.math.sqrt
 data class NoteRouteTransitionSpec(
     val transformOrigin: TransformOrigin,
     val sourceCenterOffset: IntOffset,
+    val sourceSize: IntSize,
     val sourceScale: Float
-)
+) {
+    val hasSourceBounds: Boolean
+        get() = sourceSize != IntSize.Zero
+}
+
+enum class NoteRouteBackgroundBehavior {
+    KeepVisible,
+    StandardSlide
+}
 
 object NoteRouteTransitionPolicy {
     private const val FALLBACK_SCALE = 0.985f
@@ -30,10 +39,15 @@ object NoteRouteTransitionPolicy {
             return NoteRouteTransitionSpec(
                 transformOrigin = TransformOrigin.Center,
                 sourceCenterOffset = IntOffset.Zero,
+                sourceSize = IntSize.Zero,
                 sourceScale = FALLBACK_SCALE
             )
         }
 
+        val sourceSize = IntSize(
+            width = sourceBounds.width.roundToInt().coerceAtLeast(1),
+            height = sourceBounds.height.roundToInt().coerceAtLeast(1)
+        )
         val sourceCenterOffset = IntOffset(
             x = (sourceBounds.center.x - rootWidth / 2f).roundToInt(),
             y = (sourceBounds.center.y - rootHeight / 2f).roundToInt()
@@ -45,7 +59,16 @@ object NoteRouteTransitionPolicy {
         return NoteRouteTransitionSpec(
             transformOrigin = TransformOrigin.Center,
             sourceCenterOffset = sourceCenterOffset,
+            sourceSize = sourceSize,
             sourceScale = sourceScale
         )
     }
+
+    fun exitBehaviorForTarget(targetRoute: String?, noteRoute: String): NoteRouteBackgroundBehavior =
+        if (targetRoute == noteRoute) NoteRouteBackgroundBehavior.KeepVisible
+        else NoteRouteBackgroundBehavior.StandardSlide
+
+    fun popEnterBehaviorForInitial(initialRoute: String?, noteRoute: String): NoteRouteBackgroundBehavior =
+        if (initialRoute == noteRoute) NoteRouteBackgroundBehavior.KeepVisible
+        else NoteRouteBackgroundBehavior.StandardSlide
 }

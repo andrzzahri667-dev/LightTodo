@@ -8,7 +8,6 @@ class AppMotionTest {
     @Test
     fun routeDurations_keepNoteMotionComfortableAndBounded() {
         assertEquals(400, AppMotion.RouteDurationMillis)
-        assertEquals(90, AppMotion.NoteBackgroundFadeMillis)
         assertEquals(360, AppMotion.NoteEnterTransformMillis)
         assertEquals(300, AppMotion.NoteExitTransformMillis)
         assertTrue(AppMotion.NoteExitTransformMillis < AppMotion.NoteEnterTransformMillis)

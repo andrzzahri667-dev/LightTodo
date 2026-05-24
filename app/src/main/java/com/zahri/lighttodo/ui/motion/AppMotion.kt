@@ -17,7 +17,6 @@ object AppMotion {
     val EmphasizedEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
     const val RouteDurationMillis = 400
-    const val NoteBackgroundFadeMillis = 90
     const val NoteEnterFadeMillis = 140
     const val NoteEnterTransformMillis = 360
     const val NoteExitFadeMillis = 120

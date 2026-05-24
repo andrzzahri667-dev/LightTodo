@@ -18,6 +18,8 @@ class NoteRouteTransitionPolicyTest {
         assertEquals(TransformOrigin.Center.pivotFractionX, spec.transformOrigin.pivotFractionX, 0.0001f)
         assertEquals(TransformOrigin.Center.pivotFractionY, spec.transformOrigin.pivotFractionY, 0.0001f)
         assertEquals(IntOffset(x = -100, y = -220), spec.sourceCenterOffset)
+        assertEquals(IntSize(width = 160, height = 160), spec.sourceSize)
+        assertEquals(true, spec.hasSourceBounds)
         assertEquals(0.28f, spec.sourceScale, 0.01f)
     }
 
@@ -31,6 +33,8 @@ class NoteRouteTransitionPolicyTest {
         assertEquals(TransformOrigin.Center.pivotFractionX, spec.transformOrigin.pivotFractionX, 0.0001f)
         assertEquals(TransformOrigin.Center.pivotFractionY, spec.transformOrigin.pivotFractionY, 0.0001f)
         assertEquals(IntOffset(x = 148, y = 328), spec.sourceCenterOffset)
+        assertEquals(IntSize(width = 56, height = 56), spec.sourceSize)
+        assertEquals(true, spec.hasSourceBounds)
         assertEquals(0.16f, spec.sourceScale, 0.0001f)
     }
 
@@ -44,6 +48,48 @@ class NoteRouteTransitionPolicyTest {
         assertEquals(TransformOrigin.Center.pivotFractionX, spec.transformOrigin.pivotFractionX, 0.0001f)
         assertEquals(TransformOrigin.Center.pivotFractionY, spec.transformOrigin.pivotFractionY, 0.0001f)
         assertEquals(IntOffset.Zero, spec.sourceCenterOffset)
+        assertEquals(IntSize.Zero, spec.sourceSize)
+        assertEquals(false, spec.hasSourceBounds)
         assertEquals(0.985f, spec.sourceScale, 0.0001f)
+    }
+
+    @Test
+    fun exitBehaviorForTarget_keepsBackgroundVisibleWhenOpeningNote() {
+        assertEquals(
+            NoteRouteBackgroundBehavior.KeepVisible,
+            NoteRouteTransitionPolicy.exitBehaviorForTarget(
+                targetRoute = "note_edit?id={id}",
+                noteRoute = "note_edit?id={id}"
+            )
+        )
+    }
+
+    @Test
+    fun popEnterBehaviorForInitial_keepsBackgroundVisibleWhenClosingNote() {
+        assertEquals(
+            NoteRouteBackgroundBehavior.KeepVisible,
+            NoteRouteTransitionPolicy.popEnterBehaviorForInitial(
+                initialRoute = "note_edit?id={id}",
+                noteRoute = "note_edit?id={id}"
+            )
+        )
+    }
+
+    @Test
+    fun backgroundBehavior_usesStandardSlideForNonNoteRoutes() {
+        assertEquals(
+            NoteRouteBackgroundBehavior.StandardSlide,
+            NoteRouteTransitionPolicy.exitBehaviorForTarget(
+                targetRoute = "settings",
+                noteRoute = "note_edit?id={id}"
+            )
+        )
+        assertEquals(
+            NoteRouteBackgroundBehavior.StandardSlide,
+            NoteRouteTransitionPolicy.popEnterBehaviorForInitial(
+                initialRoute = "settings",
+                noteRoute = "note_edit?id={id}"
+            )
+        )
     }
 }

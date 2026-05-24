@@ -10,10 +10,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandIn
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkOut
 import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
 import androidx.compose.animation.core.tween
@@ -23,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -38,6 +43,7 @@ import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.note.NoteEditScreen
+import com.zahri.lighttodo.ui.note.NoteRouteBackgroundBehavior
 import com.zahri.lighttodo.ui.note.NoteRouteTransitionPolicy
 import com.zahri.lighttodo.ui.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
@@ -151,16 +157,24 @@ private fun AppNavHost(
                     sourceBounds = noteTransitionSourceBounds(),
                     rootSize = noteTransitionRootSize()
                 )
-                fadeIn(tween(AppMotion.NoteEnterFadeMillis, easing = AppMotion.EmphasizedEasing)) +
+                if (spec.hasSourceBounds) {
                     slideIn(
                         animationSpec = AppMotion.noteEnterTween(),
                         initialOffset = { spec.sourceCenterOffset }
                     ) +
-                    scaleIn(
-                        animationSpec = AppMotion.noteEnterTween(),
-                        initialScale = spec.sourceScale,
-                        transformOrigin = spec.transformOrigin
-                    )
+                        expandIn(
+                            animationSpec = AppMotion.noteEnterTween(),
+                            expandFrom = Alignment.Center,
+                            initialSize = { spec.sourceSize }
+                        )
+                } else {
+                    fadeIn(tween(AppMotion.NoteEnterFadeMillis, easing = AppMotion.EmphasizedEasing)) +
+                        scaleIn(
+                            animationSpec = AppMotion.noteEnterTween(),
+                            initialScale = spec.sourceScale,
+                            transformOrigin = spec.transformOrigin
+                        )
+                }
             } else {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
@@ -169,20 +183,18 @@ private fun AppNavHost(
             }
         },
         exitTransition = {
-            if (targetState.destination.route == Routes.NoteEditWithId) {
-                fadeOut(tween(AppMotion.NoteBackgroundFadeMillis, easing = AppMotion.EmphasizedEasing))
-            } else {
-                slideOutOfContainer(
+            when (NoteRouteTransitionPolicy.exitBehaviorForTarget(targetState.destination.route, Routes.NoteEditWithId)) {
+                NoteRouteBackgroundBehavior.KeepVisible -> ExitTransition.None
+                NoteRouteBackgroundBehavior.StandardSlide -> slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
                     AppMotion.routeTween()
                 )
             }
         },
         popEnterTransition = {
-            if (initialState.destination.route == Routes.NoteEditWithId) {
-                fadeIn(tween(AppMotion.NoteBackgroundFadeMillis, easing = AppMotion.EmphasizedEasing))
-            } else {
-                slideIntoContainer(
+            when (NoteRouteTransitionPolicy.popEnterBehaviorForInitial(initialState.destination.route, Routes.NoteEditWithId)) {
+                NoteRouteBackgroundBehavior.KeepVisible -> EnterTransition.None
+                NoteRouteBackgroundBehavior.StandardSlide -> slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
                     AppMotion.routeTween()
                 )
@@ -194,16 +206,24 @@ private fun AppNavHost(
                     sourceBounds = noteTransitionSourceBounds(),
                     rootSize = noteTransitionRootSize()
                 )
-                fadeOut(tween(AppMotion.NoteExitFadeMillis, easing = AppMotion.EmphasizedEasing)) +
+                if (spec.hasSourceBounds) {
                     slideOut(
                         animationSpec = AppMotion.noteExitTween(),
                         targetOffset = { spec.sourceCenterOffset }
                     ) +
-                    scaleOut(
-                        animationSpec = AppMotion.noteExitTween(),
-                        targetScale = spec.sourceScale,
-                        transformOrigin = spec.transformOrigin
-                    )
+                        shrinkOut(
+                            animationSpec = AppMotion.noteExitTween(),
+                            shrinkTowards = Alignment.Center,
+                            targetSize = { spec.sourceSize }
+                        )
+                } else {
+                    fadeOut(tween(AppMotion.NoteExitFadeMillis, easing = AppMotion.EmphasizedEasing)) +
+                        scaleOut(
+                            animationSpec = AppMotion.noteExitTween(),
+                            targetScale = spec.sourceScale,
+                            transformOrigin = spec.transformOrigin
+                        )
+                }
             } else {
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
