@@ -23,7 +23,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,7 +42,7 @@ private const val GRID_COLUMNS = 2
 fun NoteGridPage(
     notes: List<NoteEntity>,
     selectedIds: Set<Long>,
-    onNoteClick: (Long) -> Unit,
+    onNoteClick: (Long, Rect?) -> Unit,
     onNoteLongClick: (Long) -> Unit
 ) {
     val noteItems = remember(notes) { buildNoteGridItems(notes) }
@@ -73,7 +76,7 @@ fun NoteGridPage(
             NoteCard(
                 note = note,
                 selected = note.id in selectedIds,
-                onClick = { onNoteClick(note.id) },
+                onClick = { sourceBounds -> onNoteClick(note.id, sourceBounds) },
                 onLongClick = { onNoteLongClick(note.id) }
             )
         }
@@ -85,9 +88,11 @@ fun NoteGridPage(
 private fun NoteCard(
     note: NoteGridItem,
     selected: Boolean,
-    onClick: () -> Unit,
+    onClick: (Rect?) -> Unit,
     onLongClick: () -> Unit
 ) {
+    val sourceBounds = remember { NoteSourceBounds() }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,7 +102,8 @@ private fun NoteCard(
                 if (selected) AppColors.Brand.copy(alpha = 0.15f)
                 else MaterialTheme.colorScheme.surface
             )
-            .combinedClickable(onLongClick = onLongClick, onClick = onClick)
+            .onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }
+            .combinedClickable(onLongClick = onLongClick, onClick = { onClick(sourceBounds.bounds) })
             .padding(12.dp)
     ) {
         if (note.title != null) {
@@ -128,4 +134,8 @@ private fun NoteCard(
             )
         }
     }
+}
+
+private class NoteSourceBounds {
+    var bounds: Rect? = null
 }

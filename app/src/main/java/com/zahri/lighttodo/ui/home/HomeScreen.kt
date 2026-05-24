@@ -39,8 +39,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -64,7 +67,7 @@ private object HomePagerPages {
 fun HomeScreen(
     onAdd: () -> Unit,
     onEdit: (Long) -> Unit,
-    onNoteEdit: (Long?) -> Unit,
+    onNoteEdit: (Long?, Rect?) -> Unit,
     onSettings: () -> Unit,
     vm: HomeViewModel = viewModel()
 ) {
@@ -86,6 +89,7 @@ fun HomeScreen(
             val anySelection = inSelection || noteInSelection
             if (!anySelection) {
                 val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                val noteSourceBounds = remember { HomeNoteSourceBounds() }
                 val pressed by interaction.collectIsPressedAsState()
                 val scale by animateFloatAsState(
                     targetValue = if (pressed) 0.92f else 1f,
@@ -95,7 +99,7 @@ fun HomeScreen(
                 FloatingActionButton(
                     onClick = {
                         when (currentPage) {
-                            HomePagerPages.NOTE -> onNoteEdit(null)
+                            HomePagerPages.NOTE -> onNoteEdit(null, noteSourceBounds.bounds)
                             HomePagerPages.TODO -> onAdd()
                         }
                     },
@@ -104,6 +108,7 @@ fun HomeScreen(
                     interactionSource = interaction,
                     modifier = Modifier
                         .size(56.dp)
+                        .onGloballyPositioned { noteSourceBounds.bounds = it.boundsInRoot() }
                         .graphicsLayer { scaleX = scale; scaleY = scale }
                 ) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
@@ -217,9 +222,9 @@ fun HomeScreen(
                     HomePagerPages.NOTE -> NoteGridPage(
                         notes = notes,
                         selectedIds = noteSelectedIds,
-                        onNoteClick = { id ->
+                        onNoteClick = { id, sourceBounds ->
                             if (noteInSelection) vm.toggleNoteSelection(id)
-                            else onNoteEdit(id)
+                            else onNoteEdit(id, sourceBounds)
                         },
                         onNoteLongClick = { id -> vm.toggleNoteSelection(id) }
                     )
@@ -235,4 +240,8 @@ fun HomeScreen(
             }
         }
     }
+}
+
+private class HomeNoteSourceBounds {
+    var bounds: Rect? = null
 }

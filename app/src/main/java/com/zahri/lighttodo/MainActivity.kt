@@ -14,15 +14,19 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -32,6 +36,7 @@ import androidx.navigation.navArgument
 import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
 import com.zahri.lighttodo.ui.note.NoteEditScreen
+import com.zahri.lighttodo.ui.note.NoteRouteTransitionPolicy
 import com.zahri.lighttodo.ui.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 import kotlinx.coroutines.launch
@@ -83,7 +88,23 @@ class MainActivity : ComponentActivity() {
             LightTodoTheme {
                 Surface(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                     val nav: NavHostController = rememberNavController()
-                    AppNavHost(nav)
+                    val noteTransitionSourceBounds = remember { mutableStateOf<Rect?>(null) }
+                    val navRootSize = remember { mutableStateOf(IntSize.Zero) }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onSizeChanged { navRootSize.value = it }
+                    ) {
+                        AppNavHost(
+                            nav = nav,
+                            noteTransitionSourceBounds = { noteTransitionSourceBounds.value },
+                            noteTransitionRootSize = { navRootSize.value },
+                            onNoteEdit = { id, sourceBounds ->
+                                noteTransitionSourceBounds.value = sourceBounds
+                                nav.navigate(Routes.noteEdit(id))
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -113,7 +134,12 @@ object Routes {
 }
 
 @androidx.compose.runtime.Composable
-private fun AppNavHost(nav: NavHostController) {
+private fun AppNavHost(
+    nav: NavHostController,
+    noteTransitionSourceBounds: () -> Rect?,
+    noteTransitionRootSize: () -> IntSize,
+    onNoteEdit: (Long?, Rect?) -> Unit
+) {
     // Gentle non-linear curve: slow ease-out with longer duration
     val iosEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
     val noteEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
@@ -123,9 +149,16 @@ private fun AppNavHost(nav: NavHostController) {
         startDestination = Routes.Home,
         enterTransition = {
             if (targetState.destination.route == Routes.NoteEditWithId) {
-                fadeIn(tween(180, easing = noteEasing)) +
-                    slideInVertically(tween(320, easing = noteEasing)) { it / 12 } +
-                    scaleIn(tween(320, easing = noteEasing), initialScale = 0.985f)
+                val spec = NoteRouteTransitionPolicy.specFor(
+                    sourceBounds = noteTransitionSourceBounds(),
+                    rootSize = noteTransitionRootSize()
+                )
+                fadeIn(tween(140, easing = noteEasing)) +
+                    scaleIn(
+                        animationSpec = tween(360, easing = noteEasing),
+                        initialScale = spec.sourceScale,
+                        transformOrigin = spec.transformOrigin
+                    )
             } else {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
@@ -135,8 +168,7 @@ private fun AppNavHost(nav: NavHostController) {
         },
         exitTransition = {
             if (targetState.destination.route == Routes.NoteEditWithId) {
-                fadeOut(tween(120, easing = noteEasing)) +
-                    scaleOut(tween(160, easing = noteEasing), targetScale = 0.995f)
+                fadeOut(tween(90, easing = noteEasing))
             } else {
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
@@ -146,8 +178,7 @@ private fun AppNavHost(nav: NavHostController) {
         },
         popEnterTransition = {
             if (initialState.destination.route == Routes.NoteEditWithId) {
-                fadeIn(tween(160, easing = noteEasing)) +
-                    scaleIn(tween(220, easing = noteEasing), initialScale = 0.995f)
+                fadeIn(tween(90, easing = noteEasing))
             } else {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
@@ -157,9 +188,16 @@ private fun AppNavHost(nav: NavHostController) {
         },
         popExitTransition = {
             if (initialState.destination.route == Routes.NoteEditWithId) {
-                fadeOut(tween(150, easing = noteEasing)) +
-                    slideOutVertically(tween(240, easing = noteEasing)) { it / 10 } +
-                    scaleOut(tween(220, easing = noteEasing), targetScale = 0.985f)
+                val spec = NoteRouteTransitionPolicy.specFor(
+                    sourceBounds = noteTransitionSourceBounds(),
+                    rootSize = noteTransitionRootSize()
+                )
+                fadeOut(tween(120, easing = noteEasing)) +
+                    scaleOut(
+                        animationSpec = tween(300, easing = noteEasing),
+                        targetScale = spec.sourceScale,
+                        transformOrigin = spec.transformOrigin
+                    )
             } else {
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
@@ -172,7 +210,7 @@ private fun AppNavHost(nav: NavHostController) {
             HomeScreen(
                 onAdd = { nav.navigate(Routes.edit()) },
                 onEdit = { id -> nav.navigate(Routes.edit(id)) },
-                onNoteEdit = { id -> nav.navigate(Routes.noteEdit(id)) },
+                onNoteEdit = onNoteEdit,
                 onSettings = { nav.navigate(Routes.Settings) }
             )
         }
