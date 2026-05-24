@@ -5,8 +5,10 @@ import android.content.Context
 import android.content.Intent
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.calendar.CalendarSync
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * 重启 / 升级后重新安排所有未来提醒。
@@ -17,7 +19,7 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as App
         val pending = goAsync()
-        runBlocking(Dispatchers.IO) {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 app.repository.rescheduleAllAlarms()
                 val snap = app.prefs.snapshot()
@@ -29,10 +31,13 @@ class BootReceiver : BroadcastReceiver() {
                     // here we just make sure existing events are pulled in promptly.
                     try {
                         CalendarSync.runOnce(context)
-                    } catch (_: Exception) {
-                        // runBlocking context — CancellationException not expected here
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        // Best effort at boot; normal app startup will retry via the observer path.
                     }
                 }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
             } finally {
                 pending.finish()
             }

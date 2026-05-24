@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.data.TodoReminderDefaults
 import com.zahri.lighttodo.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -144,6 +145,7 @@ internal fun EditDateTimeRow(
 internal fun EditReminderRow(
     hasTime: Boolean,
     customHoursBefore: Int?,
+    defaultHoursBefore: Int,
     defaultRemindLabel: String,
     enabled: Boolean,
     onDecrease: () -> Unit,
@@ -170,7 +172,10 @@ internal fun EditReminderRow(
                 color = valueColor
             )
         } else {
-            val hours = customHoursBefore ?: 0
+            val hours = TodoReminderDefaults.effectiveHoursBefore(
+                customHoursBefore = customHoursBefore,
+                defaultHoursBefore = defaultHoursBefore
+            )
             StepperButton(text = "−", enabled = enabled, onClick = onDecrease)
             Spacer(Modifier.width(10.dp))
             Text(

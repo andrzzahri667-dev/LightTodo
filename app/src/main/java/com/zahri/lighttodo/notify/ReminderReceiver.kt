@@ -10,8 +10,10 @@ import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.displayTitle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * 提醒到点广播接收器。在 BG 拉起一个高优先级通知。
@@ -22,11 +24,11 @@ class ReminderReceiver : BroadcastReceiver() {
         val id = ReminderScheduler.extractTodoId(intent) ?: return
         val isStart = ReminderScheduler.isStartReminder(intent)
         val pending = goAsync()
-        runBlocking(Dispatchers.IO) {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 val app = context.applicationContext as App
-                val todo = app.db.todoDao().findById(id) ?: return@runBlocking
-                if (todo.done) return@runBlocking
+                val todo = app.db.todoDao().findById(id) ?: return@launch
+                if (todo.done) return@launch
 
                 val fullScreenIntent = Intent(context, ReminderActivity::class.java).apply {
                     putExtra(ReminderActivity.EXTRA_TODO_ID, id)
@@ -57,6 +59,8 @@ class ReminderReceiver : BroadcastReceiver() {
                 val nm = context.getSystemService(NotificationManager::class.java)
                 val notifId = if (isStart) (id * 10).toInt() else (id * 10 + 1).toInt()
                 nm?.notify(notifId, notif)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
             } finally {
                 pending.finish()
             }

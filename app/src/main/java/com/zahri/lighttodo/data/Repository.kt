@@ -57,8 +57,11 @@ class Repository(
                 defaultMinute = p.defaultRemindMinute,
                 allDayFallback = false
             )
-            // 截止时间提醒：默认在截止时刻触发；若用户设了 customHoursBefore（>0）则提前
-            val endHoursBefore = input.customHoursBefore ?: 0
+            // 截止时间提醒：未覆盖时使用全局默认提前小时数；显式 0 表示到点提醒。
+            val endHoursBefore = TodoReminderDefaults.effectiveHoursBefore(
+                customHoursBefore = input.customHoursBefore,
+                defaultHoursBefore = p.defaultHoursBefore
+            )
             remindEnd = computeRemindAt(
                 dateMillis = dateFields.dateMillis,
                 hour = input.deadlineHour,
@@ -135,13 +138,20 @@ class Repository(
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
 
+    suspend fun deleteMany(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        ids.forEach { id -> ReminderScheduler.cancel(context, id) }
+        todoDao.deleteByIds(ids)
+        TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
+    }
+
     suspend fun clearDone() {
         todoDao.deleteAllDone()
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
 
     suspend fun rescheduleAllAlarms() {
-        val list = todoDao.listWithReminders()
+        val list = todoDao.listWithReminders().filter { it.hasAnyReminder() }
         val now = System.currentTimeMillis()
         list.forEach { t ->
             if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)

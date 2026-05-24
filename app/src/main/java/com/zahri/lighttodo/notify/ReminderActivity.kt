@@ -40,6 +40,7 @@ import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ReminderActivity : ComponentActivity() {
 
@@ -61,13 +62,19 @@ class ReminderActivity : ComponentActivity() {
         if (todoId <= 0) { finish(); return }
 
         val app = applicationContext as App
-        var todoTitle = getString(R.string.notif_reminder_title)
-        var todoNote = ""
-        lifecycleScope.launch(Dispatchers.IO) {
-            val todo = app.db.todoDao().findByIdSync(todoId) ?: return@launch
-            todoTitle = todo.displayTitle(applicationContext)
-            todoNote = todo.note?.lineSequence()?.firstOrNull().orEmpty()
-        }.invokeOnCompletion {
+        lifecycleScope.launch {
+            val reminder = withContext(Dispatchers.IO) {
+                app.db.todoDao().findByIdSync(todoId)?.let { todo ->
+                    ReminderDialogState(
+                        title = todo.displayTitle(applicationContext),
+                        note = todo.note?.lineSequence()?.firstOrNull().orEmpty()
+                    )
+                }
+            }
+            if (reminder == null) {
+                finish()
+                return@launch
+            }
             setContent {
                 LightTodoTheme {
                     Box(
@@ -95,14 +102,14 @@ class ReminderActivity : ComponentActivity() {
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    todoTitle,
+                                    reminder.title,
                                     fontWeight = FontWeight.Medium,
                                     fontSize = 16.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                if (todoNote.isNotBlank()) {
+                                if (reminder.note.isNotBlank()) {
                                     Text(
-                                        todoNote,
+                                        reminder.note,
                                         fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -153,3 +160,8 @@ class ReminderActivity : ComponentActivity() {
         const val EXTRA_TODO_ID = "todo_id"
     }
 }
+
+private data class ReminderDialogState(
+    val title: String,
+    val note: String
+)

@@ -61,6 +61,9 @@ data class TodoEntity(
     val calendarEventId: Long? = null
 )
 
+fun TodoEntity.hasAnyReminder(): Boolean =
+    remindStartAtMillis != null || remindAtMillis != null
+
 @Entity(
     tableName = "tag",
     indices = [Index("name", unique = true)]

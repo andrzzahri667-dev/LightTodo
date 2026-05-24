@@ -159,6 +159,7 @@ fun EditScreen(
                 EditReminderRow(
                     hasTime = state.startTime != null || state.endTime != null,
                     customHoursBefore = state.customHoursBefore,
+                    defaultHoursBefore = state.defaultHoursBefore,
                     defaultRemindLabel = state.defaultRemindLabel,
                     enabled = !state.readOnly && dateEnabled,
                     onDecrease = { vm.adjustHoursBefore(-1) },

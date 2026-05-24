@@ -8,6 +8,7 @@ import com.zahri.lighttodo.data.TagDao
 import com.zahri.lighttodo.data.TagEntity
 import com.zahri.lighttodo.data.TodoDao
 import com.zahri.lighttodo.data.TodoInput
+import com.zahri.lighttodo.data.TodoReminderDefaults
 import com.zahri.lighttodo.data.UserPrefs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -145,8 +146,11 @@ class EditViewModel(
     }
 
     fun adjustHoursBefore(delta: Int) = _state.update {
-        val cur = it.customHoursBefore ?: 0
-        val next = (cur + delta).coerceIn(0, 72)
+        val next = TodoReminderDefaults.adjustHoursBefore(
+            customHoursBefore = it.customHoursBefore,
+            defaultHoursBefore = it.defaultHoursBefore,
+            delta = delta
+        )
         it.copy(customHoursBefore = next)
     }
 

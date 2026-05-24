@@ -57,7 +57,10 @@ interface TodoDao {
     @Query("SELECT * FROM todo")
     suspend fun listAll(): List<TodoEntity>
 
-    @Query("SELECT * FROM todo WHERE done = 0 AND remindAtMillis IS NOT NULL")
+    @Query("""
+        SELECT * FROM todo
+        WHERE done = 0 AND (remindStartAtMillis IS NOT NULL OR remindAtMillis IS NOT NULL)
+    """)
     suspend fun listWithReminders(): List<TodoEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -75,6 +78,9 @@ interface TodoDao {
     @Query("DELETE FROM todo WHERE id = :id")
     suspend fun delete(id: Long)
 
+    @Query("DELETE FROM todo WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
+
     @Query("DELETE FROM todo WHERE done = 1")
     suspend fun deleteAllDone()
 
@@ -87,9 +93,6 @@ interface TodoDao {
 
     @Query("SELECT * FROM todo WHERE calendarEventId IN (:eventIds)")
     suspend fun findByCalendarEventIds(eventIds: List<Long>): List<TodoEntity>
-
-    @Query("DELETE FROM todo WHERE calendarEventId IS NOT NULL AND calendarEventId NOT IN (:keepIds)")
-    suspend fun deleteCalendarOrphans(keepIds: List<Long>)
 
     @Transaction
     suspend fun replaceAll(tags: List<TagEntity>, todos: List<TodoEntity>) {
