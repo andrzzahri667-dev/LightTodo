@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zahri.lighttodo.BuildConfig
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
@@ -192,6 +193,13 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
                 title = stringResource(R.string.settings_import),
                 onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
             )
+            if (BuildConfig.DEBUG) {
+                InsetDivider()
+                ActionRow(
+                    title = stringResource(R.string.settings_save_db_snapshot),
+                    onClick = { vm.exportDatabaseSnapshot(context) { toast.value = it } }
+                )
+            }
             InsetDivider()
             ActionRow(
                 title = stringResource(R.string.settings_clear_done),

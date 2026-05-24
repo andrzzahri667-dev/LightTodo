@@ -1,7 +1,14 @@
 package com.zahri.lighttodo.data
 
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.room.withTransaction
+import com.zahri.lighttodo.BuildConfig
+import com.zahri.lighttodo.notify.ReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -25,7 +32,7 @@ class BackupManager(
     private val repository: Repository,
     private val scope: CoroutineScope
 ) {
-    private val fileName = "lighttodo-auto-backup.json"
+    private val fileName = BuildConfig.BACKUP_FILE_NAME
 
     suspend fun buildBackupBundle(): BackupBundle {
         val tags = db.tagDao().listAll()
@@ -36,6 +43,8 @@ class BackupManager(
 
     suspend fun restoreFromBundle(bundle: BackupBundle) {
         val entities = BackupDtoMapper.toEntities(bundle)
+        val oldReminderIds = db.todoDao().listWithReminders().map { it.id }
+        oldReminderIds.forEach { id -> ReminderScheduler.cancel(context, id) }
         db.withTransaction {
             db.noteDao().deleteAll()
             db.todoDao().deleteAll()
@@ -85,7 +94,7 @@ class BackupManager(
     private fun writeBackupFile(content: String) {
         val bytes = content.toByteArray()
         writeToAppExternal(bytes)
-        writeToDownloadsDirect(bytes)
+        writeToPublicDownloads(bytes)
     }
 
     private fun writeToAppExternal(bytes: ByteArray) {
@@ -95,10 +104,38 @@ class BackupManager(
         }
     }
 
+    private fun writeToPublicDownloads(bytes: ByteArray) {
+        when (BackupStoragePolicy.publicDownloadsMode()) {
+            BackupStoragePolicy.PublicDownloadsMode.MediaStore -> writeToDownloadsMediaStore(bytes)
+            BackupStoragePolicy.PublicDownloadsMode.LegacyDirectPath -> writeToDownloadsDirect(bytes)
+        }
+    }
+
+    private fun writeToDownloadsMediaStore(bytes: ByteArray) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        runCatching {
+            val resolver = context.contentResolver
+            val uri = findDownloadsMediaStoreUri() ?: resolver.insert(
+                MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+            ) ?: return
+
+            resolver.openOutputStream(uri, "wt")?.use { it.write(bytes) }
+            ContentValues().apply {
+                put(MediaStore.Downloads.IS_PENDING, 0)
+            }.also { resolver.update(uri, it, null, null) }
+        }
+    }
+
     private fun writeToDownloadsDirect(bytes: ByteArray) {
         runCatching {
-            val dir = android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DOWNLOADS
+            val dir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOWNLOADS
             )
             dir.mkdirs()
             File(dir, fileName).writeBytes(bytes)
@@ -107,7 +144,7 @@ class BackupManager(
 
     private fun readBackupFile(): String? {
         readFromAppExternal()?.let { return it }
-        readFromDirectPath()?.let { return it }
+        readFromPublicDownloads()?.let { return it }
         return null
     }
 
@@ -117,9 +154,39 @@ class BackupManager(
         if (f.exists()) f.readText() else null
     }.getOrNull()
 
+    private fun readFromPublicDownloads(): String? =
+        when (BackupStoragePolicy.publicDownloadsMode()) {
+            BackupStoragePolicy.PublicDownloadsMode.MediaStore -> readFromDownloadsMediaStore()
+            BackupStoragePolicy.PublicDownloadsMode.LegacyDirectPath -> readFromDirectPath()
+        }
+
+    private fun readFromDownloadsMediaStore(): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return runCatching {
+            val uri = findDownloadsMediaStoreUri() ?: return null
+            context.contentResolver.openInputStream(uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            }
+        }.getOrNull()
+    }
+
+    private fun findDownloadsMediaStoreUri(): Uri? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val projection = arrayOf(MediaStore.Downloads._ID)
+        val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ?"
+        val args = arrayOf(fileName)
+        val sort = "${MediaStore.Downloads.DATE_MODIFIED} DESC"
+        return context.contentResolver.query(collection, projection, selection, args, sort)?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val id = cursor.getLong(0)
+            Uri.withAppendedPath(collection, id.toString())
+        }
+    }
+
     private fun readFromDirectPath(): String? = runCatching {
         val file = File(
-            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             fileName
         )
         if (file.exists() && file.canRead()) file.readText() else null

@@ -9,12 +9,15 @@ import com.zahri.lighttodo.R
 import com.zahri.lighttodo.calendar.CalendarSync
 import com.zahri.lighttodo.data.BackupBundle
 import com.zahri.lighttodo.data.BackupManager
+import com.zahri.lighttodo.data.DatabaseSnapshotExporter
 import com.zahri.lighttodo.data.Repository
 import com.zahri.lighttodo.data.UserPrefs
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -52,30 +55,61 @@ class SettingsViewModel(
     }
 
     fun syncCalendarNow(context: Context, onDone: (String) -> Unit) = viewModelScope.launch {
-        val n = CalendarSync.runOnce(context, force = true)
-        onDone(if (n >= 0) context.getString(R.string.settings_sync_success, n) else context.getString(R.string.settings_sync_failed))
+        val message = withContext(Dispatchers.IO) {
+            runCatching {
+                val n = CalendarSync.runOnce(context, force = true)
+                if (n >= 0) {
+                    context.getString(R.string.settings_sync_success, n)
+                } else {
+                    context.getString(R.string.settings_sync_failed)
+                }
+            }.getOrElse {
+                context.getString(R.string.settings_sync_failed)
+            }
+        }
+        onDone(message)
     }
 
     fun exportTo(context: Context, uri: Uri, onDone: (String) -> Unit) = viewModelScope.launch {
-        runCatching {
-            val bundle = backupManager.buildBackupBundle()
-            val json = Json { prettyPrint = true; encodeDefaults = true }
-            val text = json.encodeToString(bundle)
-            context.contentResolver.openOutputStream(uri, "wt")?.use { os ->
-                os.write(text.toByteArray(Charsets.UTF_8))
-            }
-            onDone(context.getString(R.string.settings_export_success, bundle.todos.size + bundle.notes.size))
-        }.onFailure { onDone(context.getString(R.string.settings_export_failed, it.message)) }
+        val message = withContext(Dispatchers.IO) {
+            runCatching {
+                val bundle = backupManager.buildBackupBundle()
+                val json = Json { prettyPrint = true; encodeDefaults = true }
+                val text = json.encodeToString(bundle)
+                val output = context.contentResolver.openOutputStream(uri, "wt")
+                    ?: error(context.getString(R.string.settings_cannot_write))
+                output.use { os ->
+                    os.write(text.toByteArray(Charsets.UTF_8))
+                }
+                context.getString(R.string.settings_export_success, bundle.todos.size + bundle.notes.size)
+            }.getOrElse { context.getString(R.string.settings_export_failed, it.message) }
+        }
+        onDone(message)
     }
 
     fun importFrom(context: Context, uri: Uri, onDone: (String) -> Unit) = viewModelScope.launch {
+        val message = withContext(Dispatchers.IO) {
+            runCatching {
+                val text = context.contentResolver.openInputStream(uri)?.use {
+                    it.readBytes().toString(Charsets.UTF_8)
+                } ?: error(context.getString(R.string.settings_cannot_read))
+                val bundle = Json { ignoreUnknownKeys = true }.decodeFromString(BackupBundle.serializer(), text)
+                backupManager.restoreFromBundle(bundle)
+                context.getString(R.string.settings_import_success, bundle.todos.size + bundle.notes.size)
+            }.getOrElse { context.getString(R.string.settings_import_failed, it.message) }
+        }
+        onDone(message)
+    }
+
+    fun exportDatabaseSnapshot(context: Context, onDone: (String) -> Unit) = viewModelScope.launch {
         runCatching {
-            val text = context.contentResolver.openInputStream(uri)?.use {
-                it.readBytes().toString(Charsets.UTF_8)
-            } ?: error(context.getString(R.string.settings_cannot_read))
-            val bundle = Json { ignoreUnknownKeys = true }.decodeFromString(BackupBundle.serializer(), text)
-            backupManager.restoreFromBundle(bundle)
-            onDone(context.getString(R.string.settings_import_success, bundle.todos.size + bundle.notes.size))
-        }.onFailure { onDone(context.getString(R.string.settings_import_failed, it.message)) }
+            withContext(Dispatchers.IO) {
+                DatabaseSnapshotExporter.export(context, app.db)
+            }
+        }.onSuccess { dir ->
+            onDone(context.getString(R.string.settings_db_snapshot_success, dir.absolutePath))
+        }.onFailure {
+            onDone(context.getString(R.string.settings_db_snapshot_failed, it.message))
+        }
     }
 }
