@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -109,10 +110,16 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
             // Size strike line to match measured text width
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                textSize = 14f * appCtx.resources.displayMetrics.scaledDensity
+                textSize = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP,
+                    14f,
+                    appCtx.resources.displayMetrics
+                )
             }
             val textWidthDp = paint.measureText(titleText) / appCtx.resources.displayMetrics.density
-            rv.setViewLayoutWidth(STRIKE_IDS[rowIndex], textWidthDp, TypedValue.COMPLEX_UNIT_DIP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                rv.setViewLayoutWidth(STRIKE_IDS[rowIndex], textWidthDp, TypedValue.COMPLEX_UNIT_DIP)
+            }
             rv.setViewVisibility(STRIKE_IDS[rowIndex], View.VISIBLE)
         }
         rv.setTextColor(TITLE_IDS[rowIndex], 0xFFE8C96A.toInt()) // pale yellow
@@ -153,8 +160,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)
 
             // Force square: use the shorter dimension
-            val sdkInt = android.os.Build.VERSION.SDK_INT
-            if (sdkInt >= android.os.Build.VERSION_CODES.S && options != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && options != null) {
                 val minW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
                 val maxW = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
                 val minH = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
