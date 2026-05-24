@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LightTodo</string>
+    <string name="app_name">LightTodo Lab</string>
 
     <!-- Home -->
     <string name="home_title">Today</string>
@@ -12,6 +12,8 @@
     <string name="home_add">New</string>
     <string name="home_selected_count">%d selected</string>
     <string name="home_delete_selected">Delete</string>
+    <string name="home_mark_done">Mark done: %1$s</string>
+    <string name="home_mark_active">Mark active: %1$s</string>
 
     <!-- Edit -->
     <string name="edit_title_new">New Task</string>
@@ -65,6 +67,10 @@
     <string name="settings_import_success">Imported %1$d item(s)</string>
     <string name="settings_import_failed">Import failed: %1$s</string>
     <string name="settings_cannot_read">Cannot read file</string>
+    <string name="settings_cannot_write">Cannot write file</string>
+    <string name="settings_save_db_snapshot">Save database snapshot</string>
+    <string name="settings_db_snapshot_success">Database saved to: %1$s</string>
+    <string name="settings_db_snapshot_failed">Database save failed: %1$s</string>
 
     <!-- Notifications -->
     <string name="notif_channel_reminder">Task Reminder</string>

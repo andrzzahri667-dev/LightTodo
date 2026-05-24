@@ -10,13 +10,15 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.zahri.lighttodo"
+        applicationId = "com.zahri.lighttodo.lab"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.1.0-lab"
 
         vectorDrawables { useSupportLibrary = true }
+        buildConfigField("String", "DB_NAME", "\"lighttodo-lab.db\"")
+        buildConfigField("String", "BACKUP_FILE_NAME", "\"lighttodo-lab-auto-backup.json\"")
     }
 
     buildTypes {
@@ -38,6 +40,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

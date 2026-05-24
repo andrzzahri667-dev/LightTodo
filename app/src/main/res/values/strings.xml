@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">轻待办</string>
+    <string name="app_name">轻待办 Lab</string>
 
     <!-- Home -->
     <string name="home_title">今日安排</string>
@@ -12,6 +12,8 @@
     <string name="home_add">新建</string>
     <string name="home_selected_count">已选 %d 项</string>
     <string name="home_delete_selected">删除</string>
+    <string name="home_mark_done">标记完成：%1$s</string>
+    <string name="home_mark_active">恢复未完成：%1$s</string>
 
     <!-- Edit -->
     <string name="edit_title_new">新建任务</string>
@@ -65,6 +67,10 @@
     <string name="settings_import_success">导入成功，共 %1$d 条</string>
     <string name="settings_import_failed">导入失败：%1$s</string>
     <string name="settings_cannot_read">无法读取</string>
+    <string name="settings_cannot_write">无法写入</string>
+    <string name="settings_save_db_snapshot">保存数据库快照</string>
+    <string name="settings_db_snapshot_success">数据库已保存到：%1$s</string>
+    <string name="settings_db_snapshot_failed">数据库保存失败：%1$s</string>
 
     <!-- Notifications -->
     <string name="notif_channel_reminder">任务提醒</string>
