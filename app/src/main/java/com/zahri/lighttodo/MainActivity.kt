@@ -16,7 +16,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -37,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
+import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.note.NoteEditScreen
 import com.zahri.lighttodo.ui.note.NoteRouteTransitionPolicy
 import com.zahri.lighttodo.ui.settings.SettingsScreen
@@ -142,10 +142,6 @@ private fun AppNavHost(
     noteTransitionRootSize: () -> IntSize,
     onNoteEdit: (Long?, Rect?) -> Unit
 ) {
-    // Gentle non-linear curve: slow ease-out with longer duration
-    val iosEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
-    val noteEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-    val duration = 400
     NavHost(
         navController = nav,
         startDestination = Routes.Home,
@@ -155,40 +151,40 @@ private fun AppNavHost(
                     sourceBounds = noteTransitionSourceBounds(),
                     rootSize = noteTransitionRootSize()
                 )
-                fadeIn(tween(140, easing = noteEasing)) +
+                fadeIn(tween(AppMotion.NoteEnterFadeMillis, easing = AppMotion.EmphasizedEasing)) +
                     slideIn(
-                        animationSpec = tween(360, easing = noteEasing),
+                        animationSpec = AppMotion.noteEnterTween(),
                         initialOffset = { spec.sourceCenterOffset }
                     ) +
                     scaleIn(
-                        animationSpec = tween(360, easing = noteEasing),
+                        animationSpec = AppMotion.noteEnterTween(),
                         initialScale = spec.sourceScale,
                         transformOrigin = spec.transformOrigin
                     )
             } else {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
-                    tween(duration, easing = iosEasing)
+                    AppMotion.routeTween()
                 )
             }
         },
         exitTransition = {
             if (targetState.destination.route == Routes.NoteEditWithId) {
-                fadeOut(tween(90, easing = noteEasing))
+                fadeOut(tween(AppMotion.NoteBackgroundFadeMillis, easing = AppMotion.EmphasizedEasing))
             } else {
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.Start,
-                    tween(duration, easing = iosEasing)
+                    AppMotion.routeTween()
                 )
             }
         },
         popEnterTransition = {
             if (initialState.destination.route == Routes.NoteEditWithId) {
-                fadeIn(tween(90, easing = noteEasing))
+                fadeIn(tween(AppMotion.NoteBackgroundFadeMillis, easing = AppMotion.EmphasizedEasing))
             } else {
                 slideIntoContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(duration, easing = iosEasing)
+                    AppMotion.routeTween()
                 )
             }
         },
@@ -198,20 +194,20 @@ private fun AppNavHost(
                     sourceBounds = noteTransitionSourceBounds(),
                     rootSize = noteTransitionRootSize()
                 )
-                fadeOut(tween(120, easing = noteEasing)) +
+                fadeOut(tween(AppMotion.NoteExitFadeMillis, easing = AppMotion.EmphasizedEasing)) +
                     slideOut(
-                        animationSpec = tween(300, easing = noteEasing),
+                        animationSpec = AppMotion.noteExitTween(),
                         targetOffset = { spec.sourceCenterOffset }
                     ) +
                     scaleOut(
-                        animationSpec = tween(300, easing = noteEasing),
+                        animationSpec = AppMotion.noteExitTween(),
                         targetScale = spec.sourceScale,
                         transformOrigin = spec.transformOrigin
                     )
             } else {
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(duration, easing = iosEasing)
+                    AppMotion.routeTween()
                 )
             }
         }

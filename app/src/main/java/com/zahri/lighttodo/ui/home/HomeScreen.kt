@@ -2,9 +2,6 @@ package com.zahri.lighttodo.ui.home
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
+import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 import kotlinx.coroutines.launch
@@ -93,7 +91,7 @@ fun HomeScreen(
                 val pressed by interaction.collectIsPressedAsState()
                 val scale by animateFloatAsState(
                     targetValue = if (pressed) 0.92f else 1f,
-                    animationSpec = spring(dampingRatio = 0.55f, stiffness = 800f),
+                    animationSpec = AppMotion.pressSpring(),
                     label = "fab-scale"
                 )
                 FloatingActionButton(
@@ -117,7 +115,11 @@ fun HomeScreen(
         },
         bottomBar = {
             // Todo selection bar
-            AnimatedVisibility(visible = inSelection && currentPage == HomePagerPages.TODO, enter = fadeIn(), exit = fadeOut()) {
+            AnimatedVisibility(
+                visible = inSelection && currentPage == HomePagerPages.TODO,
+                enter = AppMotion.transientSurfaceEnter(),
+                exit = AppMotion.transientSurfaceExit()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -140,7 +142,11 @@ fun HomeScreen(
                 }
             }
             // Note selection bar
-            AnimatedVisibility(visible = noteInSelection && currentPage == HomePagerPages.NOTE, enter = fadeIn(), exit = fadeOut()) {
+            AnimatedVisibility(
+                visible = noteInSelection && currentPage == HomePagerPages.NOTE,
+                enter = AppMotion.transientSurfaceEnter(),
+                exit = AppMotion.transientSurfaceExit()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

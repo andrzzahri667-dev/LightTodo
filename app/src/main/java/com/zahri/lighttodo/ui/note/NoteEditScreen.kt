@@ -85,6 +85,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -459,7 +460,11 @@ fun NoteEditScreen(
                 )
             }
 
-            AnimatedVisibility(visible = toolbarVisible) {
+            AnimatedVisibility(
+                visible = toolbarVisible,
+                enter = AppMotion.transientSurfaceEnter(),
+                exit = AppMotion.transientSurfaceExit()
+            ) {
                 NoteToolbar(
                     formatMode = formatMode,
                     styleState = styleState,

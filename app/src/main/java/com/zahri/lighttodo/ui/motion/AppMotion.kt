@@ -1,0 +1,76 @@
+package com.zahri.lighttodo.ui.motion
+
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+
+object AppMotion {
+    val StandardEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
+    val EmphasizedEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    const val RouteDurationMillis = 400
+    const val NoteBackgroundFadeMillis = 90
+    const val NoteEnterFadeMillis = 140
+    const val NoteEnterTransformMillis = 360
+    const val NoteExitFadeMillis = 120
+    const val NoteExitTransformMillis = 300
+
+    const val SurfaceVisibilityFadeMillis = 140
+    const val SurfaceVisibilitySlideMillis = 180
+
+    const val PressSpringDampingRatio = 0.62f
+    const val PressSpringStiffness = 760f
+
+    const val ListPlacementDampingRatio = 0.86f
+    const val ListPlacementStiffness = 500f
+    const val SectionArrowDampingRatio = 0.78f
+    const val SectionArrowStiffness = 520f
+    const val CheckOvershootDampingRatio = 0.42f
+    const val CheckOvershootStiffness = 480f
+    const val CheckSettleDampingRatio = 0.72f
+    const val CheckSettleStiffness = 360f
+
+    const val SelectionColorMillis = 160
+    const val CheckmarkFadeMillis = 180
+    const val TodoContentSettleMillis = 240
+
+    fun <T> routeTween(): TweenSpec<T> =
+        tween(RouteDurationMillis, easing = StandardEasing)
+
+    fun <T> noteEnterTween(): TweenSpec<T> =
+        tween(NoteEnterTransformMillis, easing = EmphasizedEasing)
+
+    fun <T> noteExitTween(): TweenSpec<T> =
+        tween(NoteExitTransformMillis, easing = EmphasizedEasing)
+
+    fun <T> pressSpring(): SpringSpec<T> =
+        spring(dampingRatio = PressSpringDampingRatio, stiffness = PressSpringStiffness)
+
+    fun <T> listPlacementSpring(): SpringSpec<T> =
+        spring(dampingRatio = ListPlacementDampingRatio, stiffness = ListPlacementStiffness)
+
+    fun <T> sectionArrowSpring(): SpringSpec<T> =
+        spring(dampingRatio = SectionArrowDampingRatio, stiffness = SectionArrowStiffness)
+
+    fun <T> checkOvershootSpring(): SpringSpec<T> =
+        spring(dampingRatio = CheckOvershootDampingRatio, stiffness = CheckOvershootStiffness)
+
+    fun <T> checkSettleSpring(): SpringSpec<T> =
+        spring(dampingRatio = CheckSettleDampingRatio, stiffness = CheckSettleStiffness)
+
+    fun transientSurfaceEnter(): EnterTransition =
+        fadeIn(tween(SurfaceVisibilityFadeMillis, easing = EmphasizedEasing)) +
+            slideInVertically(tween(SurfaceVisibilitySlideMillis, easing = EmphasizedEasing)) { it / 3 }
+
+    fun transientSurfaceExit(): ExitTransition =
+        fadeOut(tween(SurfaceVisibilityFadeMillis, easing = EmphasizedEasing)) +
+            slideOutVertically(tween(SurfaceVisibilitySlideMillis, easing = EmphasizedEasing)) { it / 3 }
+}

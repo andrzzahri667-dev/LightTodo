@@ -2,7 +2,6 @@ package com.zahri.lighttodo.ui.home
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -50,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 import kotlinx.coroutines.launch
@@ -116,7 +116,7 @@ fun TodoPage(
                             }
                         },
                         modifier = Modifier.animateItemPlacement(
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)
+                            animationSpec = AppMotion.listPlacementSpring()
                         )
                     )
                 }
@@ -136,7 +136,7 @@ fun TodoPage(
                         animating = todo.id in pendingCompleteIds,
                         showDivider = item.showDivider,
                         modifier = Modifier.animateItemPlacement(
-                            animationSpec = spring(dampingRatio = 0.86f, stiffness = 520f)
+                            animationSpec = AppMotion.listPlacementSpring()
                         )
                     )
                 }
@@ -155,7 +155,7 @@ private fun SectionHeader(
 ) {
     val arrowRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = 520f),
+        animationSpec = AppMotion.sectionArrowSpring(),
         label = "section-arrow"
     )
 
@@ -209,7 +209,7 @@ private fun TodoRow(
     val isOverdue = todo.isOverdueDate()
     val selectedBackground by animateColorAsState(
         targetValue = if (selected) AppColors.Brand.copy(alpha = 0.12f) else Color.Transparent,
-        animationSpec = tween(160),
+        animationSpec = tween(AppMotion.SelectionColorMillis),
         label = "todo-selection-bg"
     )
 
@@ -224,20 +224,20 @@ private fun TodoRow(
                 launch {
                     checkScale.snapTo(0.6f)
                     checkmarkAlpha.snapTo(0f)
-                    launch { checkmarkAlpha.animateTo(1f, tween(180)) }
+                    launch { checkmarkAlpha.animateTo(1f, tween(AppMotion.CheckmarkFadeMillis)) }
                     checkScale.animateTo(
                         1.15f,
-                        spring(dampingRatio = 0.4f, stiffness = 480f)
+                        AppMotion.checkOvershootSpring()
                     )
                     checkScale.animateTo(
                         1f,
-                        spring(dampingRatio = 0.7f, stiffness = 360f)
+                        AppMotion.checkSettleSpring()
                     )
                 }
                 launch {
                     kotlinx.coroutines.delay(110)
-                    launch { contentAlpha.animateTo(0.45f, tween(240)) }
-                    contentTranslateX.animateTo(6f, tween(240))
+                    launch { contentAlpha.animateTo(0.45f, tween(AppMotion.TodoContentSettleMillis)) }
+                    contentTranslateX.animateTo(6f, tween(AppMotion.TodoContentSettleMillis))
                 }
             }
         } else {
