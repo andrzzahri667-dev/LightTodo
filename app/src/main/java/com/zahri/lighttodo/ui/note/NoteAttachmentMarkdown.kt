@@ -1,8 +1,9 @@
 package com.zahri.lighttodo.ui.note
 
 object NoteAttachmentMarkdown {
-    private val ImageRegex = Regex("^!\\[image]\\(([^)]+)\\)$")
-    private val AudioRegex = Regex("^\\[audio ([0-9]{2}:[0-9]{2})]\\(([^)]+)\\)$")
+    private const val IMAGE_PREFIX = "![image]("
+    private const val AUDIO_PREFIX = "[audio "
+    private const val MARKER_MIDDLE = "]("
 
     enum class Kind { Image, Audio }
 
@@ -22,12 +23,24 @@ object NoteAttachmentMarkdown {
 
     fun parseLine(line: String): Attachment? {
         val trimmed = line.trim()
-        ImageRegex.matchEntire(trimmed)?.let { match ->
-            return Attachment(Kind.Image, ref = match.groupValues[1], label = "Image")
+
+        if (trimmed.startsWith(IMAGE_PREFIX) && trimmed.endsWith(")")) {
+            val ref = trimmed.substring(IMAGE_PREFIX.length, trimmed.lastIndex)
+            return ref.takeIf { it.isNotEmpty() }
+                ?.let { Attachment(Kind.Image, ref = it, label = "Image") }
         }
-        AudioRegex.matchEntire(trimmed)?.let { match ->
-            return Attachment(Kind.Audio, ref = match.groupValues[2], label = match.groupValues[1])
+
+        if (trimmed.startsWith(AUDIO_PREFIX) && trimmed.endsWith(")")) {
+            val middle = trimmed.indexOf(MARKER_MIDDLE, startIndex = AUDIO_PREFIX.length)
+            if (middle != -1) {
+                val label = trimmed.substring(AUDIO_PREFIX.length, middle)
+                val ref = trimmed.substring(middle + MARKER_MIDDLE.length, trimmed.lastIndex)
+                if (label.isValidDurationLabel() && ref.isNotEmpty()) {
+                    return Attachment(Kind.Audio, ref = ref, label = label)
+                }
+            }
         }
+
         return null
     }
 
@@ -56,5 +69,15 @@ object NoteAttachmentMarkdown {
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
         return "%02d:%02d".format(minutes, seconds)
+    }
+
+    private fun String.isValidDurationLabel(): Boolean {
+        val colon = indexOf(':')
+        if (colon <= 0 || colon != lastIndexOf(':')) return false
+        val minutes = substring(0, colon)
+        val seconds = substring(colon + 1)
+        if (minutes.any { !it.isDigit() }) return false
+        if (seconds.length != 2 || seconds.any { !it.isDigit() }) return false
+        return seconds.toInt() in 0..59
     }
 }

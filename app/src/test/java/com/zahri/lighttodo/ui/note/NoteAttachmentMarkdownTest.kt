@@ -23,6 +23,21 @@ class NoteAttachmentMarkdownTest {
     }
 
     @Test
+    fun audio_buildsParseableMarkdownMarkerForLongDuration() {
+        val marker = NoteAttachmentMarkdown.audio(
+            "lighttodo://attachment/audio/long.m4a",
+            6_000_000L
+        )
+
+        val parsed = NoteAttachmentMarkdown.parseLine(marker)
+
+        assertEquals("[audio 100:00](lighttodo://attachment/audio/long.m4a)", marker)
+        assertEquals(NoteAttachmentMarkdown.Kind.Audio, parsed?.kind)
+        assertEquals("100:00", parsed?.label)
+        assertEquals("lighttodo://attachment/audio/long.m4a", parsed?.ref)
+    }
+
+    @Test
     fun parseLine_recognizesImageMarker() {
         val parsed = NoteAttachmentMarkdown.parseLine(
             "![image](lighttodo://attachment/image/photo.jpg)"
@@ -46,6 +61,13 @@ class NoteAttachmentMarkdownTest {
     @Test
     fun parseLine_ignoresRegularMarkdownLink() {
         assertNull(NoteAttachmentMarkdown.parseLine("[site](https://example.com)"))
+    }
+
+    @Test
+    fun parseLine_ignoresMalformedAudioDuration() {
+        assertNull(NoteAttachmentMarkdown.parseLine("[audio 10:7](lighttodo://attachment/audio/clip.m4a)"))
+        assertNull(NoteAttachmentMarkdown.parseLine("[audio xx:07](lighttodo://attachment/audio/clip.m4a)"))
+        assertNull(NoteAttachmentMarkdown.parseLine("[audio 10:99](lighttodo://attachment/audio/clip.m4a)"))
     }
 
     @Test

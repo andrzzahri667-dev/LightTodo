@@ -10,6 +10,7 @@ import com.zahri.lighttodo.App
 import com.zahri.lighttodo.data.NoteDao
 import com.zahri.lighttodo.data.NoteEntity
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -103,7 +104,7 @@ class NoteEditViewModel(
                 saveAgainAfterCurrentJob = false
                 // 非取消块：防止按返回时 viewModelScope 被取消导致
                 // 内容（含录音/图片引用）未写入数据库，造成文件被错误清理而丢失
-                withContext(NonCancellable) {
+                withContext(NonCancellable + Dispatchers.IO) {
                     val t = _title.value.trim()
                     val c = _content.value
                     if (t.isEmpty() && c.isBlank()) return@withContext
@@ -130,7 +131,7 @@ class NoteEditViewModel(
     fun delete(onDone: () -> Unit) {
         val id = noteId ?: run { onDone(); return }
         viewModelScope.launch {
-            withContext(NonCancellable) {
+            withContext(NonCancellable + Dispatchers.IO) {
                 val content = noteDao.findById(id)?.content ?: _content.value
                 NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(content))
                 noteDao.delete(id)
