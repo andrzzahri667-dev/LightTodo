@@ -31,6 +31,8 @@ object AppMotion {
 
     const val ListPlacementDampingRatio = 0.86f
     const val ListPlacementStiffness = 500f
+    const val NoteGridPlacementDampingRatio = 0.84f
+    const val NoteGridPlacementStiffness = 500f
     const val SectionArrowDampingRatio = 0.78f
     const val SectionArrowStiffness = 520f
     const val CheckOvershootDampingRatio = 0.42f
@@ -39,6 +41,7 @@ object AppMotion {
     const val CheckSettleStiffness = 360f
 
     const val SelectionColorMillis = 160
+    const val NoteCardSelectionColorMillis = 160
     const val CheckmarkFadeMillis = 180
     const val TodoContentSettleMillis = 240
 
@@ -56,6 +59,9 @@ object AppMotion {
 
     fun <T> listPlacementSpring(): SpringSpec<T> =
         spring(dampingRatio = ListPlacementDampingRatio, stiffness = ListPlacementStiffness)
+
+    fun <T> noteGridPlacementSpring(): SpringSpec<T> =
+        spring(dampingRatio = NoteGridPlacementDampingRatio, stiffness = NoteGridPlacementStiffness)
 
     fun <T> sectionArrowSpring(): SpringSpec<T> =
         spring(dampingRatio = SectionArrowDampingRatio, stiffness = SectionArrowStiffness)

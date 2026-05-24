@@ -36,4 +36,11 @@ class AppMotionTest {
         assertTrue(AppMotion.TodoContentSettleMillis <= 240)
         assertTrue(AppMotion.SelectionColorMillis <= 180)
     }
+
+    @Test
+    fun noteGridMotion_handlesCardReorderWithoutFeelingSlow() {
+        assertTrue(AppMotion.NoteGridPlacementStiffness in 420f..560f)
+        assertTrue(AppMotion.NoteGridPlacementDampingRatio in 0.78f..0.92f)
+        assertTrue(AppMotion.NoteCardSelectionColorMillis <= 180)
+    }
 }

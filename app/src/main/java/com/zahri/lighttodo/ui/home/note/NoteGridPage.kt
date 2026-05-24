@@ -1,5 +1,7 @@
 package com.zahri.lighttodo.ui.home.note
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -19,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,12 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
+import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
 private val CARD_HEIGHT = 160.dp
 private const val GRID_COLUMNS = 2
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteGridPage(
     notes: List<NoteEntity>,
@@ -77,7 +82,10 @@ fun NoteGridPage(
                 note = note,
                 selected = note.id in selectedIds,
                 onClick = { sourceBounds -> onNoteClick(note.id, sourceBounds) },
-                onLongClick = { onNoteLongClick(note.id) }
+                onLongClick = { onNoteLongClick(note.id) },
+                modifier = Modifier.animateItemPlacement(
+                    animationSpec = AppMotion.noteGridPlacementSpring()
+                )
             )
         }
     }
@@ -89,19 +97,23 @@ private fun NoteCard(
     note: NoteGridItem,
     selected: Boolean,
     onClick: (Rect?) -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val sourceBounds = remember { NoteSourceBounds() }
+    val cardBackground by animateColorAsState(
+        targetValue = if (selected) AppColors.Brand.copy(alpha = 0.15f)
+        else MaterialTheme.colorScheme.surface,
+        animationSpec = tween(AppMotion.NoteCardSelectionColorMillis),
+        label = "note-card-selection-bg"
+    )
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(CARD_HEIGHT)
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (selected) AppColors.Brand.copy(alpha = 0.15f)
-                else MaterialTheme.colorScheme.surface
-            )
+            .background(cardBackground)
             .onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }
             .combinedClickable(onLongClick = onLongClick, onClick = { onClick(sourceBounds.bounds) })
             .padding(12.dp)
