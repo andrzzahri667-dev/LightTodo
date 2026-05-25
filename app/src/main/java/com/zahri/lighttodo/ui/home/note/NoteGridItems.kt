@@ -12,18 +12,41 @@ data class NoteGridItem(
 )
 
 fun buildNoteGridItems(notes: List<NoteEntity>): List<NoteGridItem> =
-    notes.map { note ->
-        val title = note.title?.takeIf { it.isNotBlank() }
-        val preview = note.content
-            .takeIf { it.isNotBlank() }
-            ?.let { MarkdownSpanApplier.stripMarkdown(it) }
-            ?.takeIf { it.isNotBlank() }
+    notes.map(::buildNoteGridItem)
 
-        NoteGridItem(
-            id = note.id,
-            title = title,
-            preview = preview,
-            previewMaxLines = if (title != null) 5 else 7,
-            showEmptyPlaceholder = title == null && preview == null
-        )
+class NoteGridItemMemoizer {
+    private val cache = mutableMapOf<NoteGridItemCacheKey, NoteGridItem>()
+
+    fun itemsFor(notes: List<NoteEntity>): List<NoteGridItem> {
+        val liveKeys = notes.map { it.cacheKey() }.toSet()
+        cache.keys.retainAll(liveKeys)
+        return notes.map { note ->
+            cache.getOrPut(note.cacheKey()) { buildNoteGridItem(note) }
+        }
     }
+}
+
+private fun buildNoteGridItem(note: NoteEntity): NoteGridItem {
+    val title = note.title?.takeIf { it.isNotBlank() }
+    val preview = note.content
+        .takeIf { it.isNotBlank() }
+        ?.let { MarkdownSpanApplier.stripMarkdown(it) }
+        ?.takeIf { it.isNotBlank() }
+
+    return NoteGridItem(
+        id = note.id,
+        title = title,
+        preview = preview,
+        previewMaxLines = if (title != null) 5 else 7,
+        showEmptyPlaceholder = title == null && preview == null
+    )
+}
+
+private data class NoteGridItemCacheKey(
+    val id: Long,
+    val title: String?,
+    val content: String
+)
+
+private fun NoteEntity.cacheKey(): NoteGridItemCacheKey =
+    NoteGridItemCacheKey(id = id, title = title, content = content)

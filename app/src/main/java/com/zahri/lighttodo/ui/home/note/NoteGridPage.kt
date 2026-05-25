@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,7 +42,7 @@ import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
-private val CARD_HEIGHT = 160.dp
+private val CARD_MIN_HEIGHT = 160.dp
 private const val GRID_COLUMNS = 2
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -53,7 +54,8 @@ fun NoteGridPage(
     onNoteClick: (Long, Rect?) -> Unit,
     onNoteLongClick: (Long) -> Unit
 ) {
-    val noteItems = remember(notes) { buildNoteGridItems(notes) }
+    val noteItemMemoizer = remember { NoteGridItemMemoizer() }
+    val noteItems = remember(notes) { noteItemMemoizer.itemsFor(notes) }
 
     if (notes.isEmpty()) {
         Box(
@@ -116,7 +118,7 @@ private fun NoteCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(CARD_HEIGHT)
+            .defaultMinSize(minHeight = CARD_MIN_HEIGHT)
             .clip(RoundedCornerShape(12.dp))
             .background(cardBackground)
             .onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }
@@ -140,11 +142,10 @@ private fun NoteCard(
                 style = AppType.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = note.previewMaxLines,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                overflow = TextOverflow.Ellipsis
             )
         } else if (note.showEmptyPlaceholder) {
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(48.dp))
             Text(
                 text = stringResource(R.string.note_no_title),
                 style = AppType.body,
