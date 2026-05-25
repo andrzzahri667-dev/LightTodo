@@ -694,7 +694,9 @@ private fun NoteAudioBlock(
     ) {
         Icon(
             imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = null,
+            contentDescription = stringResource(
+                if (playing) R.string.note_audio_pause else R.string.note_audio_play
+            ),
             tint = Color(0xFFFF9F0A),
             modifier = Modifier.size(24.dp)
         )

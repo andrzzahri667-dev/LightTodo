@@ -12,6 +12,9 @@
     <string name="home_add">New</string>
     <string name="home_selected_count">%d selected</string>
     <string name="home_delete_selected">Delete</string>
+    <string name="home_clear_selection">Exit selection</string>
+    <string name="home_selected_indicator">Selected: %1$s</string>
+    <string name="home_not_selected_indicator">Not selected: %1$s</string>
     <string name="home_mark_done">Mark done: %1$s</string>
     <string name="home_mark_active">Mark active: %1$s</string>
 
@@ -136,5 +139,7 @@
     <string name="note_image_insert_failed">Image insert failed</string>
     <string name="note_record_failed">Recording failed</string>
     <string name="note_audio_play_failed">Playback failed</string>
+    <string name="note_audio_play">Play audio</string>
+    <string name="note_audio_pause">Pause audio</string>
     <string name="note_audio_permission_denied">Audio permission denied</string>
 </resources>

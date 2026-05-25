@@ -136,7 +136,11 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { vm.clearSelection() }) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.home_clear_selection),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     Text(
                         stringResource(R.string.home_selected_count, selectedIds.size),
@@ -163,7 +167,11 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { vm.clearNoteSelection() }) {
-                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.home_clear_selection),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     Text(
                         stringResource(R.string.note_selected_count, noteSelectedIds.size),

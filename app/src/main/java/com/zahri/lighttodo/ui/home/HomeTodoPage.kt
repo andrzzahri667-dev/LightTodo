@@ -270,7 +270,17 @@ private fun TodoRow(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                        .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                        .semantics {
+                            contentDescription = context.getString(
+                                if (selected) {
+                                    R.string.home_selected_indicator
+                                } else {
+                                    R.string.home_not_selected_indicator
+                                },
+                                titleText
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     if (selected) Text("✓", color = Color.Black, fontSize = 13.sp)
