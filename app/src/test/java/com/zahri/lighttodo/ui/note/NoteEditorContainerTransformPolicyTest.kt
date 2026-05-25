@@ -57,4 +57,73 @@ class NoteEditorContainerTransformPolicyTest {
         assertEquals(0f, frame.translationY, 0.0001f)
         assertEquals(0f, frame.cornerRadiusPx, 0.0001f)
     }
+
+    @Test
+    fun contentPhaseFor_keepsSourcePreviewUntilMidpoint() {
+        assertEquals(
+            NoteEditorTransformContentPhase.SourcePreview,
+            NoteEditorContainerTransformPolicy.contentPhaseFor(0f)
+        )
+        assertEquals(
+            NoteEditorTransformContentPhase.SourcePreview,
+            NoteEditorContainerTransformPolicy.contentPhaseFor(0.49f)
+        )
+        assertEquals(
+            NoteEditorTransformContentPhase.Editor,
+            NoteEditorContainerTransformPolicy.contentPhaseFor(0.5f)
+        )
+        assertEquals(
+            NoteEditorTransformContentPhase.Editor,
+            NoteEditorContainerTransformPolicy.contentPhaseFor(1f)
+        )
+    }
+
+    @Test
+    fun sourcePreviewFrameFor_startKeepsSourceContentUnscaled() {
+        val frame = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
+            rootWidth = 1000,
+            rootHeight = 2000,
+            sourceLeft = 120,
+            sourceTop = 320,
+            sourceWidth = 250,
+            sourceHeight = 180,
+            sourceCornerRadiusPx = 36,
+            progress = 0f
+        )
+
+        assertEquals(1f, frame.scaleX, 0.0001f)
+        assertEquals(1f, frame.scaleY, 0.0001f)
+        assertEquals(120f, frame.translationX, 0.0001f)
+        assertEquals(320f, frame.translationY, 0.0001f)
+        assertEquals(36f, frame.cornerRadiusPx, 0.0001f)
+    }
+
+    @Test
+    fun sourcePreviewFrameFor_matchesContainerOuterBoundsWhileGrowing() {
+        val container = NoteEditorContainerTransformPolicy.frameFor(
+            rootWidth = 1000,
+            rootHeight = 2000,
+            sourceLeft = 120,
+            sourceTop = 320,
+            sourceWidth = 250,
+            sourceHeight = 200,
+            sourceCornerRadiusPx = 36,
+            progress = 0.5f
+        )
+        val preview = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
+            rootWidth = 1000,
+            rootHeight = 2000,
+            sourceLeft = 120,
+            sourceTop = 320,
+            sourceWidth = 250,
+            sourceHeight = 200,
+            sourceCornerRadiusPx = 36,
+            progress = 0.5f
+        )
+
+        assertEquals(container.translationX, preview.translationX, 0.0001f)
+        assertEquals(container.translationY, preview.translationY, 0.0001f)
+        assertEquals(1000f * container.scaleX, 250f * preview.scaleX, 0.0001f)
+        assertEquals(2000f * container.scaleY, 200f * preview.scaleY, 0.0001f)
+    }
 }

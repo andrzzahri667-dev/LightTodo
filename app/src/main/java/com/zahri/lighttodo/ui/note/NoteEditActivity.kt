@@ -14,14 +14,28 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -30,10 +44,14 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.theme.AppColors
+import com.zahri.lighttodo.ui.theme.AppType
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 
 class NoteEditActivity : ComponentActivity() {
@@ -51,7 +69,8 @@ class NoteEditActivity : ComponentActivity() {
             forceTransparentWindow()
         }
         val editingId = intent.noteIdExtra()
-        noteEditViewModel.load(editingId, intent.noteLaunchSeedExtra())
+        val launchSeed = intent.noteLaunchSeedExtra()
+        noteEditViewModel.load(editingId, launchSeed)
         val transitionBounds = intent.noteTransitionBoundsExtra()
 
         setContent {
@@ -62,7 +81,13 @@ class NoteEditActivity : ComponentActivity() {
                         launchMode == NoteEditorLaunchAnimationMode.CustomContainerTransform
                     },
                     exitRequested = exitRequested,
-                    onExitFinished = { finishWithoutWindowAnimation() }
+                    onExitFinished = { finishWithoutWindowAnimation() },
+                    sourcePreview = {
+                        NoteEditorSourcePreview(
+                            editingId = editingId,
+                            launchSeed = launchSeed
+                        )
+                    }
                 ) {
                     Surface(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                         NoteEditScreen(
@@ -181,6 +206,7 @@ private fun NoteEditorContainerTransformHost(
     transitionBounds: NoteEditorTransitionBounds?,
     exitRequested: Boolean,
     onExitFinished: () -> Unit,
+    sourcePreview: @Composable () -> Unit,
     content: @Composable () -> Unit
 ) {
     if (transitionBounds == null) {
@@ -255,6 +281,11 @@ private fun NoteEditorContainerTransformHost(
                 progress = progress.value
             )
             val cornerRadius = with(density) { frame.cornerRadiusPx.toDp() }
+            val contentPhase = NoteEditorContainerTransformPolicy.contentPhaseFor(progress.value)
+            val editorAlpha = if (contentPhase == NoteEditorTransformContentPhase.Editor) 1f else 0f
+            val sourcePreviewAlpha =
+                if (contentPhase == NoteEditorTransformContentPhase.SourcePreview) 1f else 0f
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -264,12 +295,106 @@ private fun NoteEditorContainerTransformHost(
                         translationY = frame.translationY
                         scaleX = frame.scaleX
                         scaleY = frame.scaleY
+                        alpha = editorAlpha
                         clip = cornerRadius > 0.dp
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(cornerRadius)
+                        shape = RoundedCornerShape(cornerRadius)
                     }
             ) {
                 content()
             }
+
+            val previewFrame = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
+                rootWidth = rootSize.width,
+                rootHeight = rootSize.height,
+                sourceLeft = transitionBounds.screenLeft - rootScreenOffset.x,
+                sourceTop = transitionBounds.screenTop - rootScreenOffset.y,
+                sourceWidth = transitionBounds.width,
+                sourceHeight = transitionBounds.height,
+                sourceCornerRadiusPx = transitionBounds.cornerRadiusPx,
+                progress = progress.value
+            )
+            val previewCornerRadius = with(density) { previewFrame.cornerRadiusPx.toDp() }
+            Box(
+                modifier = Modifier
+                    .width(with(density) { transitionBounds.width.toDp() })
+                    .height(with(density) { transitionBounds.height.toDp() })
+                    .graphicsLayer {
+                        transformOrigin = TransformOrigin(0f, 0f)
+                        translationX = previewFrame.translationX
+                        translationY = previewFrame.translationY
+                        scaleX = previewFrame.scaleX
+                        scaleY = previewFrame.scaleY
+                        alpha = sourcePreviewAlpha
+                        clip = previewCornerRadius > 0.dp
+                        shape = RoundedCornerShape(previewCornerRadius)
+                    }
+            ) {
+                sourcePreview()
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoteEditorSourcePreview(
+    editingId: Long?,
+    launchSeed: NoteEditLaunchSeed?
+) {
+    if (editingId == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppColors.Brand, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+        return
+    }
+
+    val title = launchSeed?.title?.takeIf { it.isNotBlank() }
+    val preview = launchSeed?.content
+        ?.takeIf { it.isNotBlank() }
+        ?.let { MarkdownSpanApplier.stripMarkdown(it) }
+        ?.takeIf { it.isNotBlank() }
+    val noteBackground = MaterialTheme.colorScheme.surface
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(noteBackground)
+            .padding(12.dp)
+    ) {
+        if (title != null) {
+            Text(
+                text = title,
+                style = AppType.headline,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+        if (preview != null) {
+            Text(
+                text = preview,
+                style = AppType.body,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = if (title != null) 5 else 7,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else if (title == null) {
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = stringResource(R.string.note_no_title),
+                style = AppType.body,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
         }
     }
 }
