@@ -6,7 +6,6 @@ import android.content.Intent
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.calendar.CalendarSync
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -19,7 +18,7 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as App
         val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
+        app.appScope.launch(Dispatchers.IO) {
             try {
                 app.repository.rescheduleAllAlarms()
                 val snap = app.prefs.snapshot()

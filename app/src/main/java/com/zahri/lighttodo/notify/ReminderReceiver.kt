@@ -11,7 +11,6 @@ import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.displayTitle
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -23,10 +22,10 @@ class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = ReminderScheduler.extractTodoId(intent) ?: return
         val isStart = ReminderScheduler.isStartReminder(intent)
+        val app = context.applicationContext as App
         val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
+        app.appScope.launch(Dispatchers.IO) {
             try {
-                val app = context.applicationContext as App
                 val todo = app.db.todoDao().findById(id) ?: return@launch
                 if (todo.done) return@launch
 
