@@ -42,7 +42,7 @@ object ReminderScheduler {
         intent.getBooleanExtra(EXTRA_IS_START, false)
 
     private fun pendingIntentFor(context: Context, id: Long, isStart: Boolean): PendingIntent {
-        val requestCode = if (isStart) (id * 10).toInt() else (id * 10 + 1).toInt()
+        val requestCode = ReminderRequestCodePolicy.requestCodeFor(id, isStart)
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra(EXTRA_TODO_ID, id)
             putExtra(EXTRA_IS_START, isStart)

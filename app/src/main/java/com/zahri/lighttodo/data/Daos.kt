@@ -63,6 +63,12 @@ interface TodoDao {
     """)
     suspend fun listWithReminders(): List<TodoEntity>
 
+    @Query("""
+        SELECT * FROM todo
+        WHERE done = 1 AND (remindStartAtMillis IS NOT NULL OR remindAtMillis IS NOT NULL)
+    """)
+    suspend fun listDoneWithReminders(): List<TodoEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(todo: TodoEntity): Long
 

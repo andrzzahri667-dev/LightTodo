@@ -133,25 +133,29 @@ class Repository(
     }
 
     suspend fun delete(id: Long) {
-        ReminderScheduler.cancel(context, id)
         todoDao.delete(id)
+        ReminderScheduler.cancel(context, id)
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
 
     suspend fun deleteMany(ids: List<Long>) {
         if (ids.isEmpty()) return
-        ids.forEach { id -> ReminderScheduler.cancel(context, id) }
         todoDao.deleteByIds(ids)
+        ids.forEach { id -> ReminderScheduler.cancel(context, id) }
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
 
     suspend fun clearDone() {
+        val doneReminderIds = todoDao.listDoneWithReminders().map { it.id }
         todoDao.deleteAllDone()
+        doneReminderIds.forEach { id -> ReminderScheduler.cancel(context, id) }
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
 
     suspend fun rescheduleAllAlarms() {
-        val list = todoDao.listWithReminders().filter { it.hasAnyReminder() }
+        val allTodos = todoDao.listAll()
+        allTodos.forEach { t -> ReminderScheduler.cancel(context, t.id) }
+        val list = allTodos.filter { !it.done && it.hasAnyReminder() }
         val now = System.currentTimeMillis()
         list.forEach { t ->
             if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
