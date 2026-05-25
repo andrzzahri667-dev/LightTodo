@@ -3,6 +3,7 @@ package com.zahri.lighttodo.widget
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.BroadcastReceiver.PendingResult
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -10,12 +11,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
@@ -24,8 +22,11 @@ import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.dateLabel
 import com.zahri.lighttodo.ui.home.displayTitle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.Objects
 
 /**
  * 2x2 暗色圆角小组件。
@@ -42,9 +43,12 @@ import kotlinx.coroutines.runBlocking
 class TodoWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        for (id in appWidgetIds) {
-            val options = appWidgetManager.getAppWidgetOptions(id)
-            updateWidget(context, appWidgetManager, id, options)
+        val pending = goAsync()
+        launchAsync(context, pending) { appContext ->
+            for (id in appWidgetIds) {
+                val options = appWidgetManager.getAppWidgetOptions(id)
+                updateWidget(appContext, appWidgetManager, id, options)
+            }
         }
     }
 
@@ -54,12 +58,10 @@ class TodoWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle
     ) {
-        val minW = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
-        val maxW = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
-        val minH = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
-        val maxH = newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)
-        Log.d("Widget", "W: $minW~${maxW}dp  H: $minH~${maxH}dp")
-        updateWidget(context, appWidgetManager, appWidgetId, newOptions)
+        val pending = goAsync()
+        launchAsync(context, pending) { appContext ->
+            updateWidget(appContext, appWidgetManager, appWidgetId, newOptions)
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -74,66 +76,111 @@ class TodoWidgetProvider : AppWidgetProvider() {
                 val todoId = intent.getLongExtra(EXTRA_TODO_ID, -1L)
                 val isCheck = intent.getBooleanExtra(EXTRA_IS_CHECK, false)
                 val rowIndex = intent.getIntExtra(EXTRA_ROW_INDEX, -1)
-                if (todoId > 0 && isCheck && rowIndex >= 0) {
-                    startCompleteAnimation(context, todoId, rowIndex)
+                val widgetId = intent.getIntExtra(EXTRA_WIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                if (
+                    todoId > 0 &&
+                    isCheck &&
+                    rowIndex >= 0 &&
+                    widgetId != AppWidgetManager.INVALID_APPWIDGET_ID
+                ) {
+                    val pending = goAsync()
+                    startCompleteAnimation(context, todoId, rowIndex, widgetId, pending)
                 } else {
                     val open = Intent(context, MainActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(open)
                 }
             }
-            ACTION_REFRESH -> notifyAllWidgetsDataChanged(context)
+            ACTION_REFRESH -> {
+                val pending = goAsync()
+                launchAsync(context, pending) { appContext ->
+                    updateAllWidgets(appContext)
+                }
+            }
             else -> super.onReceive(context, intent)
         }
     }
 
     // ---- Animation ----
 
-    private fun startCompleteAnimation(context: Context, todoId: Long, rowIndex: Int) {
-        if (WidgetAnimation.isAnimating(todoId)) return
-
-        val appCtx = context.applicationContext
-        WidgetAnimation.start(todoId, rowIndex)
-
-        // Step 1: checkbox yellow + gray strikethrough + gray text (partial update, only this row).
-        val rv = RemoteViews(appCtx.packageName, R.layout.widget_2x2)
-        val item = runBlocking(Dispatchers.IO) { (appCtx as App).db.todoDao().findByIdSync(todoId) }
-        if (item != null) {
-            val titleText = item.displayTitle(appCtx)
-            val titleSpanned = SpannableString(titleText)
-            titleSpanned.setSpan(
-                StrikethroughSpan(), 0, titleSpanned.length,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            rv.setTextViewText(TITLE_IDS[rowIndex], titleSpanned)
-
-            // Size strike line to match measured text width
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                textSize = TypedValue.applyDimension(
-                    TypedValue.COMPLEX_UNIT_SP,
-                    14f,
-                    appCtx.resources.displayMetrics
-                )
-            }
-            val textWidthDp = paint.measureText(titleText) / appCtx.resources.displayMetrics.density
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                rv.setViewLayoutWidth(STRIKE_IDS[rowIndex], textWidthDp, TypedValue.COMPLEX_UNIT_DIP)
-            }
-            rv.setViewVisibility(STRIKE_IDS[rowIndex], View.VISIBLE)
+    private fun startCompleteAnimation(
+        context: Context,
+        todoId: Long,
+        rowIndex: Int,
+        widgetId: Int,
+        pendingResult: PendingResult
+    ) {
+        if (WidgetAnimation.isAnimating(todoId)) {
+            pendingResult.finish()
+            return
         }
-        rv.setTextColor(TITLE_IDS[rowIndex], 0xFFE8C96A.toInt()) // pale yellow
-        rv.setImageViewResource(CHECK_IDS[rowIndex], R.drawable.widget_checkbox_checked)
-        applyPartialUpdate(appCtx, rv)
 
-        // Step 2: persist done and remove the row.
-        mainHandler.postDelayed({
-            val app = appCtx as App
-            runBlocking(Dispatchers.IO) {
-                app.repository.setDone(todoId, true)
+        val appCtx = context.applicationContext as App
+        WidgetAnimation.start(todoId, rowIndex)
+        appCtx.appScope.launch(Dispatchers.IO) {
+            var savedDone = false
+            try {
+                // Step 1: checkbox yellow + gray strikethrough + gray text.
+                val rv = RemoteViews(appCtx.packageName, R.layout.widget_2x2)
+                val item = appCtx.db.todoDao().findByIdSync(todoId)
+                if (item != null) {
+                    val titleText = item.displayTitle(appCtx)
+                    val titleSpanned = SpannableString(titleText)
+                    titleSpanned.setSpan(
+                        StrikethroughSpan(), 0, titleSpanned.length,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                    rv.setTextViewText(TITLE_IDS[rowIndex], titleSpanned)
+
+                    // Size strike line to match measured text width.
+                    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        textSize = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_SP,
+                            14f,
+                            appCtx.resources.displayMetrics
+                        )
+                    }
+                    val textWidthDp = paint.measureText(titleText) / appCtx.resources.displayMetrics.density
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        rv.setViewLayoutWidth(STRIKE_IDS[rowIndex], textWidthDp, TypedValue.COMPLEX_UNIT_DIP)
+                    }
+                    rv.setViewVisibility(STRIKE_IDS[rowIndex], View.VISIBLE)
+                }
+                rv.setTextColor(TITLE_IDS[rowIndex], 0xFFE8C96A.toInt()) // pale yellow
+                rv.setImageViewResource(CHECK_IDS[rowIndex], R.drawable.widget_checkbox_checked)
+                applyPartialUpdate(appCtx, widgetId, rv)
+
+                // Step 2: persist done and remove the row.
+                delay(STRIKE_DISPLAY_MS)
+                appCtx.repository.setDone(todoId, true)
+                savedDone = true
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            } finally {
+                WidgetAnimation.clear(todoId)
+                if (!savedDone) {
+                    notifyAllWidgetsDataChanged(appCtx)
+                }
+                pendingResult.finish()
             }
-            WidgetAnimation.clear(todoId)
-            notifyAllWidgetsDataChanged(appCtx)
-        }, STRIKE_DISPLAY_MS)
+        }
+    }
+
+    private fun launchAsync(
+        context: Context,
+        pendingResult: PendingResult,
+        block: suspend (Context) -> Unit
+    ) {
+        val app = context.applicationContext as App
+        app.appScope.launch(Dispatchers.IO) {
+            try {
+                block(app)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 
     companion object {
@@ -143,6 +190,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
         const val EXTRA_TODO_ID = "todo_id"
         const val EXTRA_IS_CHECK = "is_check"
         const val EXTRA_ROW_INDEX = "row_index"
+        const val EXTRA_WIDGET_ID = "widget_id"
 
         private const val STRIKE_DISPLAY_MS = 350L // how long the strikethrough is visible before removal
 
@@ -153,9 +201,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
         private val CHECK_IDS = intArrayOf(R.id.check_0, R.id.check_1, R.id.check_2)
         private val STRIKE_IDS = intArrayOf(R.id.strike_0, R.id.strike_1, R.id.strike_2)
 
-        private val mainHandler = Handler(Looper.getMainLooper())
-
-        fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int, options: Bundle? = null) {
+        private fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int, options: Bundle? = null) {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)
 
             // Force square: use the shorter dimension
@@ -168,7 +214,6 @@ class TodoWidgetProvider : AppWidgetProvider() {
                 val h = if (maxH > 0) maxH else minH
                 val side = minOf(w, h).takeIf { it > 0 }
                 if (side != null) {
-                    Log.d("Widget", "forcing square: ${side}dp (original W=$w H=$h)")
                     views.setViewLayoutWidth(
                         R.id.square_container,
                         side.toFloat(),
@@ -192,9 +237,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
             // Query data
             val app = context.applicationContext as App
-            val items = runBlocking(Dispatchers.IO) {
-                app.db.todoDao().listAllUndoneSync(nowMillis = System.currentTimeMillis(), limit = 3)
-            }
+            val items = app.db.todoDao().listAllUndoneSync(nowMillis = System.currentTimeMillis(), limit = 3)
             val clock = TodoWidgetDisplayPolicy.clockAt()
 
             // Populate rows
@@ -234,9 +277,10 @@ class TodoWidgetProvider : AppWidgetProvider() {
                         putExtra(EXTRA_TODO_ID, item.id)
                         putExtra(EXTRA_IS_CHECK, true)
                         putExtra(EXTRA_ROW_INDEX, i)
+                        putExtra(EXTRA_WIDGET_ID, widgetId)
                     }
                     val checkPi = PendingIntent.getBroadcast(
-                        context, (item.id * 10 + i).toInt(),
+                        context, widgetRequestCode(widgetId, item.id, i, 0),
                         checkIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
@@ -247,9 +291,10 @@ class TodoWidgetProvider : AppWidgetProvider() {
                         action = ACTION_ITEM_CLICK
                         putExtra(EXTRA_TODO_ID, item.id)
                         putExtra(EXTRA_IS_CHECK, false)
+                        putExtra(EXTRA_WIDGET_ID, widgetId)
                     }
                     val openPi = PendingIntent.getBroadcast(
-                        context, (item.id * 10 + i + 100).toInt(),
+                        context, widgetRequestCode(widgetId, item.id, i, 100),
                         openIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                     )
@@ -266,18 +311,24 @@ class TodoWidgetProvider : AppWidgetProvider() {
         }
 
         fun notifyAllWidgetsDataChanged(context: Context) {
+            val app = context.applicationContext as App
+            app.appScope.launch(Dispatchers.IO) {
+                updateAllWidgets(app)
+            }
+        }
+
+        private fun updateAllWidgets(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(ComponentName(context, TodoWidgetProvider::class.java))
             for (id in ids) updateWidget(context, mgr, id)
         }
 
-        private fun applyPartialUpdate(context: Context, rv: RemoteViews) {
+        private fun applyPartialUpdate(context: Context, widgetId: Int, rv: RemoteViews) {
             val mgr = AppWidgetManager.getInstance(context)
-            val ids = mgr.getAppWidgetIds(ComponentName(context, TodoWidgetProvider::class.java))
-            for (id in ids) {
-                mgr.partiallyUpdateAppWidget(id, rv)
-            }
+            mgr.partiallyUpdateAppWidget(widgetId, rv)
         }
 
+        private fun widgetRequestCode(widgetId: Int, itemId: Long, rowIndex: Int, offset: Int): Int =
+            Objects.hash(widgetId, itemId, rowIndex, offset)
     }
 }
