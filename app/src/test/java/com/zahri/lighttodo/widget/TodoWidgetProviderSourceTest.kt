@@ -34,6 +34,16 @@ class TodoWidgetProviderSourceTest {
         assertFalse(source.contains("Log.d("))
     }
 
+    @Test
+    fun dataChangeWidgetUpdatesAreDebounced() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+            .readText()
+
+        assertTrue(source.contains("WidgetUpdateDebouncer"))
+        assertTrue(source.contains("widgetUpdateDebouncer(app).submit"))
+        assertFalse(source.contains("fun notifyAllWidgetsDataChanged(context: Context) {\n            val app = context.applicationContext as App\n            app.appScope.launch(Dispatchers.IO)"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val userDir = requireNotNull(System.getProperty("user.dir"))
         var dir = File(userDir).absoluteFile

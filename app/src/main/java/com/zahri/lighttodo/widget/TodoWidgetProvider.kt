@@ -200,6 +200,9 @@ class TodoWidgetProvider : AppWidgetProvider() {
         private val SUBTITLE_IDS = intArrayOf(R.id.subtitle_0, R.id.subtitle_1, R.id.subtitle_2)
         private val CHECK_IDS = intArrayOf(R.id.check_0, R.id.check_1, R.id.check_2)
         private val STRIKE_IDS = intArrayOf(R.id.strike_0, R.id.strike_1, R.id.strike_2)
+        private const val WIDGET_UPDATE_DEBOUNCE_MS = 180L
+        private val widgetUpdateLock = Any()
+        private var widgetUpdateDebouncer: WidgetUpdateDebouncer? = null
 
         private fun updateWidget(context: Context, mgr: AppWidgetManager, widgetId: Int, options: Bundle? = null) {
             val views = RemoteViews(context.packageName, R.layout.widget_2x2)
@@ -312,10 +315,19 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
         fun notifyAllWidgetsDataChanged(context: Context) {
             val app = context.applicationContext as App
-            app.appScope.launch(Dispatchers.IO) {
+            widgetUpdateDebouncer(app).submit {
                 updateAllWidgets(app)
             }
         }
+
+        private fun widgetUpdateDebouncer(app: App): WidgetUpdateDebouncer =
+            synchronized(widgetUpdateLock) {
+                widgetUpdateDebouncer ?: WidgetUpdateDebouncer(
+                    scope = app.appScope,
+                    dispatcher = Dispatchers.IO,
+                    delayMillis = WIDGET_UPDATE_DEBOUNCE_MS
+                ).also { widgetUpdateDebouncer = it }
+            }
 
         private fun updateAllWidgets(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
