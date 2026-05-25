@@ -6,8 +6,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.zahri.lighttodo.BuildConfig
-
 @Database(
     entities = [TodoEntity::class, TagEntity::class, NoteEntity::class],
     version = 5,
@@ -19,7 +17,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
     companion object {
-        val databaseName: String = BuildConfig.DB_NAME
 
         @Volatile private var INSTANCE: AppDatabase? = null
 
@@ -123,7 +120,7 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    databaseName
+                    "lighttodo.db"
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build().also { INSTANCE = it }

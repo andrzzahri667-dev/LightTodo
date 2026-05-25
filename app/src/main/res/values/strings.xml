@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">轻待办 Lab</string>
+    <string name="app_name">轻待办</string>
 
     <!-- Home -->
     <string name="home_title">今日安排</string>

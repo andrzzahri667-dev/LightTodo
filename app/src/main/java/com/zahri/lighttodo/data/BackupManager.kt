@@ -8,7 +8,6 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import androidx.room.withTransaction
-import com.zahri.lighttodo.BuildConfig
 import com.zahri.lighttodo.notify.ReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +33,7 @@ class BackupManager(
     private val repository: Repository,
     private val scope: CoroutineScope
 ) {
-    private val fileName = BuildConfig.BACKUP_FILE_NAME
+    private val fileName = "lighttodo-auto-backup.json"
 
     suspend fun buildBackupBundle(): BackupBundle {
         val tags = db.tagDao().listAll()
