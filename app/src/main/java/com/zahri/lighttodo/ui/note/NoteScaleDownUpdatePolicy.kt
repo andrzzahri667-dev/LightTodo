@@ -2,16 +2,19 @@ package com.zahri.lighttodo.ui.note
 
 enum class NoteScaleDownUpdateAction {
     None,
-    UpdateData,
+    KeepSystemReturn,
     DisableAnimation
 }
 
 object NoteScaleDownUpdatePolicy {
-    fun actionFor(editorWasLaunched: Boolean, hasScaleDownData: Boolean): NoteScaleDownUpdateAction =
+    fun actionFor(
+        editorWasLaunched: Boolean,
+        miuiReturnAnimationPrepared: Boolean
+    ): NoteScaleDownUpdateAction =
         if (!editorWasLaunched) {
             NoteScaleDownUpdateAction.None
-        } else if (hasScaleDownData) {
-            NoteScaleDownUpdateAction.UpdateData
+        } else if (miuiReturnAnimationPrepared) {
+            NoteScaleDownUpdateAction.KeepSystemReturn
         } else {
             NoteScaleDownUpdateAction.DisableAnimation
         }

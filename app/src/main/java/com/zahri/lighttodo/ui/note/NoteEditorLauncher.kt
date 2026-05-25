@@ -29,7 +29,7 @@ object NoteEditorLauncher {
         val launchBounds = sourceBounds?.toLaunchBounds(rootView)
         if (launchBounds == null) {
             activity.startActivity(intent)
-            return NoteEditorLaunchResult(scaleDownData = null)
+            return NoteEditorLaunchResult(miuiReturnAnimationPrepared = false)
         }
 
         val spec = NoteLaunchAnimationPolicy.specFor(
@@ -46,58 +46,36 @@ object NoteEditorLauncher {
         }
         val transitionColor = if (noteId == null) createSourceColor else targetBackgroundColor
 
-        var retainSnapshotForScaleDown = false
-        var scaleDownData: NoteScaleDownData? = null
+        val miuiReturnAnimationPrepared: Boolean
         try {
-            val options = MiuiScaleUpDownOptions.makeBundle(
+            val miuiOptions = MiuiScaleUpDownOptions.makeBundle(
                 anchor = rootView,
                 snapshot = snapshot,
                 boundsInRoot = launchBounds,
                 spec = spec,
                 targetColor = transitionColor,
                 onSourceHiddenChange = onSourceHiddenChange
-            ) ?: platformFallbackOptions(rootView, snapshot, launchBounds)
+            )
+            val options = miuiOptions ?: platformFallbackOptions(rootView, snapshot, launchBounds)
+            miuiReturnAnimationPrepared = miuiOptions != null
 
             if (options != null) {
-                scaleDownData = NoteScaleDownData(
-                    bitmap = snapshot,
-                    screenX = launchBounds.screenX(rootView),
-                    screenY = launchBounds.screenY(rootView),
-                    color = transitionColor
-                )
-                retainSnapshotForScaleDown = true
                 activity.startActivity(intent, options)
             } else {
                 activity.startActivity(intent)
             }
         } finally {
-            if (!retainSnapshotForScaleDown) {
-                snapshot?.recycle()
-            }
+            snapshot?.recycle()
         }
-        return NoteEditorLaunchResult(scaleDownData = scaleDownData)
+        return NoteEditorLaunchResult(miuiReturnAnimationPrepared = miuiReturnAnimationPrepared)
     }
-
-    fun updateScaleDownData(activity: Activity, data: NoteScaleDownData): Boolean =
-        MiuiScaleUpDownOptions.updateScaleDownData(activity, data)
 
     fun disableScaleDownAnimation(activity: Activity): Boolean =
         MiuiScaleUpDownOptions.disableScaleDownAnimation(activity)
 
     data class NoteEditorLaunchResult(
-        val scaleDownData: NoteScaleDownData?
+        val miuiReturnAnimationPrepared: Boolean
     )
-
-    data class NoteScaleDownData(
-        val bitmap: Bitmap?,
-        val screenX: Int,
-        val screenY: Int,
-        val color: Int
-    ) {
-        fun recycle() {
-            bitmap?.takeUnless { it.isRecycled }?.recycle()
-        }
-    }
 
     private fun platformFallbackOptions(rootView: View, snapshot: Bitmap?, bounds: LaunchBounds): Bundle? =
         runCatching {
@@ -263,22 +241,6 @@ object NoteEditorLauncher {
                 onReturnEnd = showSource
             )
         }
-
-        fun updateScaleDownData(activity: Activity, data: NoteScaleDownData): Boolean =
-            runCatching {
-                val method = updateScaleUpDownDataMethod ?: return false
-                method.invoke(
-                    activity,
-                    Bundle().apply {
-                        data.bitmap?.let { putParcelable("scaleDownBitmap", it) }
-                        putInt("scaleDownColor", data.color)
-                        putInt("xInScreen", data.screenX)
-                        putInt("yInScreen", data.screenY)
-                        putBoolean("disableBackAnimation", false)
-                    }
-                )
-                true
-            }.getOrDefault(false)
 
         fun disableScaleDownAnimation(activity: Activity): Boolean =
             runCatching {

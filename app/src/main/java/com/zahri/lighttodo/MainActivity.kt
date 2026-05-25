@@ -46,8 +46,8 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val sourceAnimationResetHandler = Handler(Looper.getMainLooper())
     private var hiddenNoteSource by mutableStateOf<NoteSourceAnimationKey?>(null)
-    private var pendingNoteScaleDownData: NoteEditorLauncher.NoteScaleDownData? = null
     private var noteEditorWasLaunched = false
+    private var noteEditorMiuiReturnAnimationPrepared = false
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
@@ -116,8 +116,8 @@ class MainActivity : ComponentActivity() {
                                     setNoteSourceHidden(sourceKey, hidden)
                                 }
                             )
-                            replacePendingScaleDownData(result.scaleDownData)
                             noteEditorWasLaunched = true
+                            noteEditorMiuiReturnAnimationPrepared = result.miuiReturnAnimationPrepared
                         },
                         hiddenNoteSource = hiddenNoteSource
                     )
@@ -131,35 +131,24 @@ class MainActivity : ComponentActivity() {
         when (
             NoteScaleDownUpdatePolicy.actionFor(
                 editorWasLaunched = noteEditorWasLaunched,
-                hasScaleDownData = pendingNoteScaleDownData != null
+                miuiReturnAnimationPrepared = noteEditorMiuiReturnAnimationPrepared
             )
         ) {
             NoteScaleDownUpdateAction.None -> Unit
-            NoteScaleDownUpdateAction.UpdateData -> {
-                pendingNoteScaleDownData?.let {
-                    NoteEditorLauncher.updateScaleDownData(this, it)
-                }
-            }
+            NoteScaleDownUpdateAction.KeepSystemReturn -> Unit
             NoteScaleDownUpdateAction.DisableAnimation -> {
                 NoteEditorLauncher.disableScaleDownAnimation(this)
             }
         }
         if (noteEditorWasLaunched) {
             noteEditorWasLaunched = false
+            noteEditorMiuiReturnAnimationPrepared = false
         }
     }
 
     override fun onDestroy() {
         sourceAnimationResetHandler.removeCallbacksAndMessages(null)
-        replacePendingScaleDownData(null)
         super.onDestroy()
-    }
-
-    private fun replacePendingScaleDownData(data: NoteEditorLauncher.NoteScaleDownData?) {
-        if (pendingNoteScaleDownData !== data) {
-            pendingNoteScaleDownData?.recycle()
-        }
-        pendingNoteScaleDownData = data
     }
 
     private fun setNoteSourceHidden(sourceKey: NoteSourceAnimationKey, hidden: Boolean) {

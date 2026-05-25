@@ -8,23 +8,23 @@ class NoteScaleDownUpdatePolicyTest {
     fun actionFor_idleHostDoesNothing() {
         assertEquals(
             NoteScaleDownUpdateAction.None,
-            NoteScaleDownUpdatePolicy.actionFor(editorWasLaunched = false, hasScaleDownData = true)
+            NoteScaleDownUpdatePolicy.actionFor(editorWasLaunched = false, miuiReturnAnimationPrepared = true)
         )
     }
 
     @Test
-    fun actionFor_launchedEditorWithScaleDataUpdatesSystemReturnTarget() {
+    fun actionFor_launchedEditorWithMiuiReturnDataLetsSystemRunOriginalReturnAnimation() {
         assertEquals(
-            NoteScaleDownUpdateAction.UpdateData,
-            NoteScaleDownUpdatePolicy.actionFor(editorWasLaunched = true, hasScaleDownData = true)
+            NoteScaleDownUpdateAction.KeepSystemReturn,
+            NoteScaleDownUpdatePolicy.actionFor(editorWasLaunched = true, miuiReturnAnimationPrepared = true)
         )
     }
 
     @Test
-    fun actionFor_launchedEditorWithoutScaleDataDisablesStaleBackAnimation() {
+    fun actionFor_launchedEditorWithoutMiuiReturnDataDisablesStaleBackAnimation() {
         assertEquals(
             NoteScaleDownUpdateAction.DisableAnimation,
-            NoteScaleDownUpdatePolicy.actionFor(editorWasLaunched = true, hasScaleDownData = false)
+            NoteScaleDownUpdatePolicy.actionFor(editorWasLaunched = true, miuiReturnAnimationPrepared = false)
         )
     }
 }
