@@ -13,6 +13,7 @@ import com.zahri.lighttodo.util.DateUtils
 import com.zahri.lighttodo.widget.TodoWidgetProvider
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.util.Calendar
 
@@ -32,15 +33,18 @@ import java.util.Calendar
  */
 object CalendarSync {
 
-    private val EXCLUDED_NAME_KEYWORDS = listOf("节日", "假期", "假日", "Holidays", "节假日")
-
     /** Serializes concurrent runOnce calls (e.g. App.onCreate + BootReceiver at boot). */
     private val syncMutex = Mutex()
 
     /**
      * @return 同步导入的任务条数；-1 表示失败/没权限
      */
-    suspend fun runOnce(context: Context, force: Boolean = false): Int = syncMutex.withLock {
+    suspend fun runOnce(context: Context, force: Boolean = false): Int =
+        withTimeoutOrNull(CalendarSyncPolicy.SyncTimeoutMillis) {
+            runOnceLocked(context, force)
+        } ?: -1
+
+    private suspend fun runOnceLocked(context: Context, force: Boolean): Int = syncMutex.withLock {
         val app = context.applicationContext as App
         val prefs = app.prefs.snapshot()
         if (!force && !prefs.calendarSyncEnabled) return@withLock -1
@@ -56,9 +60,22 @@ object CalendarSync {
         val to = DateUtils.endOfDayMillis(now.plusDays(60))
 
         val events = queryEvents(context, calendarIds, from, to)
+        val eventIds = events.map { it.id }
+
+        val orphanEventIds = CalendarSyncPolicy.orphanEventIds(
+            importedEventIds = app.db.todoDao().listCalendarEventIds(),
+            providerEventIds = eventIds
+        )
+        if (orphanEventIds.isNotEmpty()) {
+            app.db.todoDao().deleteByCalendarEventIds(orphanEventIds)
+        }
 
         // Insert new + update existing entities by calendarEventId
-        val existingEntities = app.db.todoDao().findByCalendarEventIds(events.map { it.id })
+        val existingEntities = if (eventIds.isEmpty()) {
+            emptyList()
+        } else {
+            app.db.todoDao().findByCalendarEventIds(eventIds)
+        }
         val existingMap = existingEntities.associateBy { it.calendarEventId }
         val now2 = System.currentTimeMillis()
 
@@ -93,7 +110,7 @@ object CalendarSync {
         }
 
         // Refresh widget(s) when data changed
-        if (toUpsert.isNotEmpty()) {
+        if (toUpsert.isNotEmpty() || orphanEventIds.isNotEmpty()) {
             TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
         }
         toUpsert.size
@@ -119,24 +136,14 @@ object CalendarSync {
                 val displayName = it.getString(3).orEmpty()
 
                 // Skip Holidays / festivals
-                if (EXCLUDED_NAME_KEYWORDS.any { kw -> displayName.contains(kw, ignoreCase = true) }) continue
+                if (CalendarSyncPolicy.shouldExcludeCalendarName(displayName)) continue
 
-                if (matchesAccount(acctName, userFilter)) {
+                if (CalendarSyncPolicy.matchesAccount(acctName, userFilter)) {
                     ids += id
                 }
             }
         }
         return ids
-    }
-
-    private fun matchesAccount(acctName: String, userFilter: String): Boolean {
-        val f = userFilter.trim()
-        return if (f.isNotEmpty()) {
-            acctName.equals(f, ignoreCase = true) || acctName.contains(f, ignoreCase = true)
-        } else {
-            // 无过滤条件时匹配所有非节日日历
-            true
-        }
     }
 
     private fun queryEvents(

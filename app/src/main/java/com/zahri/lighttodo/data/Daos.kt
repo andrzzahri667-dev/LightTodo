@@ -81,6 +81,9 @@ interface TodoDao {
     @Query("DELETE FROM todo WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<Long>)
 
+    @Query("DELETE FROM todo WHERE calendarEventId IN (:eventIds)")
+    suspend fun deleteByCalendarEventIds(eventIds: List<Long>): Int
+
     @Query("DELETE FROM todo WHERE done = 1")
     suspend fun deleteAllDone()
 
