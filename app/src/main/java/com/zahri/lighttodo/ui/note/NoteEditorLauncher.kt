@@ -211,8 +211,22 @@ object NoteEditorLauncher {
             if (snapshot == null) return null
             val screenX = boundsInRoot.screenX(anchor)
             val screenY = boundsInRoot.screenY(anchor)
-            val hideSource = Runnable { onSourceHiddenChange(true) }
-            val showSource = Runnable { onSourceHiddenChange(false) }
+            val onSourceExitStart = sourceVisibilityCallback(
+                phase = NoteSourceVisibilityCallbackPhase.SourceExitStarted,
+                onSourceHiddenChange = onSourceHiddenChange
+            )
+            val onSourceExitEnd = sourceVisibilityCallback(
+                phase = NoteSourceVisibilityCallbackPhase.SourceExitFinished,
+                onSourceHiddenChange = onSourceHiddenChange
+            )
+            val onSourceReenterStart = sourceVisibilityCallback(
+                phase = NoteSourceVisibilityCallbackPhase.SourceReenterStarted,
+                onSourceHiddenChange = onSourceHiddenChange
+            )
+            val onSourceReenterEnd = sourceVisibilityCallback(
+                phase = NoteSourceVisibilityCallbackPhase.SourceReenterFinished,
+                onSourceHiddenChange = onSourceHiddenChange
+            )
 
             return makeScaleUpDown(
                 anchor = anchor,
@@ -223,10 +237,10 @@ object NoteEditorLauncher {
                 targetColor = targetColor,
                 sourceScale = spec.sourceScale,
                 animationType = spec.miuiAnimationType,
-                onLaunchStart = hideSource,
-                onLaunchEnd = showSource,
-                onReturnStart = hideSource,
-                onReturnEnd = showSource
+                onLaunchStart = onSourceExitStart,
+                onLaunchEnd = onSourceExitEnd,
+                onReturnStart = onSourceReenterStart,
+                onReturnEnd = onSourceReenterEnd
             ) ?: makeScaleUpAnimationFromRoundedView(
                 anchor = anchor,
                 snapshot = snapshot,
@@ -235,10 +249,10 @@ object NoteEditorLauncher {
                 radiusPx = spec.sourceCornerRadiusPx,
                 targetColor = targetColor,
                 sourceScale = spec.sourceScale,
-                onLaunchStart = hideSource,
-                onLaunchEnd = showSource,
-                onReturnStart = hideSource,
-                onReturnEnd = showSource
+                onLaunchStart = onSourceExitStart,
+                onLaunchEnd = onSourceExitEnd,
+                onReturnStart = onSourceReenterStart,
+                onReturnEnd = onSourceReenterEnd
             )
         }
 
@@ -321,5 +335,17 @@ object NoteEditorLauncher {
                 ) as? ActivityOptions
                 options?.toBundle()
             }.getOrNull()
+
+        private fun sourceVisibilityCallback(
+            phase: NoteSourceVisibilityCallbackPhase,
+            onSourceHiddenChange: (Boolean) -> Unit
+        ): Runnable =
+            Runnable {
+                when (NoteSourceVisibilityCallbackPolicy.actionFor(phase)) {
+                    NoteSourceVisibilityAction.Hide -> onSourceHiddenChange(true)
+                    NoteSourceVisibilityAction.Show -> onSourceHiddenChange(false)
+                    NoteSourceVisibilityAction.Keep -> Unit
+                }
+            }
     }
 }
