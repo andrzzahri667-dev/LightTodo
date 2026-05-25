@@ -53,6 +53,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.note.NoteEditActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.LightTodo" />
+
         <!-- Quick-add transparent activity, opened from the persistent notification -->
         <activity
             android:name=".notify.QuickAddActivity"

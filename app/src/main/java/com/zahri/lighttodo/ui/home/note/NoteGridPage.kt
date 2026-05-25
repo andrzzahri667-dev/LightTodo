@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
@@ -47,6 +49,7 @@ private const val GRID_COLUMNS = 2
 fun NoteGridPage(
     notes: List<NoteEntity>,
     selectedIds: Set<Long>,
+    hiddenNoteSource: NoteSourceAnimationKey?,
     onNoteClick: (Long, Rect?) -> Unit,
     onNoteLongClick: (Long) -> Unit
 ) {
@@ -81,6 +84,7 @@ fun NoteGridPage(
             NoteCard(
                 note = note,
                 selected = note.id in selectedIds,
+                hidden = hiddenNoteSource?.matches(note.id) == true,
                 onClick = { sourceBounds -> onNoteClick(note.id, sourceBounds) },
                 onLongClick = { onNoteLongClick(note.id) },
                 modifier = Modifier.animateItemPlacement(
@@ -96,6 +100,7 @@ fun NoteGridPage(
 private fun NoteCard(
     note: NoteGridItem,
     selected: Boolean,
+    hidden: Boolean,
     onClick: (Rect?) -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -115,6 +120,7 @@ private fun NoteCard(
             .clip(RoundedCornerShape(12.dp))
             .background(cardBackground)
             .onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }
+            .graphicsLayer { alpha = if (hidden) 0f else 1f }
             .combinedClickable(onLongClick = onLongClick, onClick = { onClick(sourceBounds.bounds) })
             .padding(12.dp)
     ) {

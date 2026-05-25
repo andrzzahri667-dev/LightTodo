@@ -6,12 +6,8 @@ import org.junit.Test
 
 class AppMotionTest {
     @Test
-    fun routeDurations_keepNoteMotionComfortableAndBounded() {
+    fun routeDurations_keepAppNavigationComfortableAndBounded() {
         assertEquals(400, AppMotion.RouteDurationMillis)
-        assertEquals(360, AppMotion.NoteEnterTransformMillis)
-        assertEquals(300, AppMotion.NoteExitTransformMillis)
-        assertTrue(AppMotion.NoteExitTransformMillis < AppMotion.NoteEnterTransformMillis)
-        assertTrue(AppMotion.NoteEnterTransformMillis <= AppMotion.RouteDurationMillis)
     }
 
     @Test

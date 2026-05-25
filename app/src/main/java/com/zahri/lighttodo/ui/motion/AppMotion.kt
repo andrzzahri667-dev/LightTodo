@@ -17,11 +17,6 @@ object AppMotion {
     val EmphasizedEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
     const val RouteDurationMillis = 400
-    const val NoteEnterFadeMillis = 140
-    const val NoteEnterTransformMillis = 360
-    const val NoteCoverRevealFadeMillis = 110
-    const val NoteExitFadeMillis = 120
-    const val NoteExitTransformMillis = 300
 
     const val SurfaceVisibilityFadeMillis = 140
     const val SurfaceVisibilitySlideMillis = 180
@@ -49,12 +44,6 @@ object AppMotion {
 
     fun <T> routeTween(): TweenSpec<T> =
         tween(RouteDurationMillis, easing = StandardEasing)
-
-    fun <T> noteEnterTween(): TweenSpec<T> =
-        tween(NoteEnterTransformMillis, easing = EmphasizedEasing)
-
-    fun <T> noteExitTween(): TweenSpec<T> =
-        tween(NoteExitTransformMillis, easing = EmphasizedEasing)
 
     fun <T> pressSpring(): SpringSpec<T> =
         spring(dampingRatio = PressSpringDampingRatio, stiffness = PressSpringStiffness)

@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 import kotlinx.coroutines.launch
@@ -65,8 +66,9 @@ private object HomePagerPages {
 fun HomeScreen(
     onAdd: () -> Unit,
     onEdit: (Long) -> Unit,
-    onNoteEdit: (Long?, Rect?) -> Unit,
+    onNoteEdit: (Long?, Rect?, Float) -> Unit,
     onSettings: () -> Unit,
+    hiddenNoteSource: NoteSourceAnimationKey? = null,
     vm: HomeViewModel = viewModel()
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -97,7 +99,7 @@ fun HomeScreen(
                 FloatingActionButton(
                     onClick = {
                         when (currentPage) {
-                            HomePagerPages.NOTE -> onNoteEdit(null, noteSourceBounds.bounds)
+                            HomePagerPages.NOTE -> onNoteEdit(null, noteSourceBounds.bounds, scale)
                             HomePagerPages.TODO -> onAdd()
                         }
                     },
@@ -107,7 +109,11 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(56.dp)
                         .onGloballyPositioned { noteSourceBounds.bounds = it.boundsInRoot() }
-                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            alpha = if (hiddenNoteSource?.matches(null) == true) 0f else 1f
+                        }
                 ) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
                 }
@@ -228,9 +234,10 @@ fun HomeScreen(
                     HomePagerPages.NOTE -> NoteGridPage(
                         notes = notes,
                         selectedIds = noteSelectedIds,
+                        hiddenNoteSource = hiddenNoteSource,
                         onNoteClick = { id, sourceBounds ->
                             if (noteInSelection) vm.toggleNoteSelection(id)
-                            else onNoteEdit(id, sourceBounds)
+                            else onNoteEdit(id, sourceBounds, 1f)
                         },
                         onNoteLongClick = { id -> vm.toggleNoteSelection(id) }
                     )
