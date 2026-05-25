@@ -7,8 +7,8 @@ fun buildHomeUiState(
     data: HomeData,
     uncategorizedTitle: String
 ): HomeUiState {
-    val undone = data.todos.filter { !it.done }
-    val done = data.todos.filter { it.done }.sortedByDescending { it.doneAtMillis ?: 0L }
+    val (done, undone) = data.todos.partition { it.done }
+    val doneItems = done.sortedByDescending { it.doneAtMillis ?: 0L }
     val byTag: Map<Long?, List<TodoEntity>> = undone.groupBy { it.tagId }
     val itemOrder = compareBy<TodoEntity>({ it.dateMillis == null }, { it.createdAtMillis })
     val groups = mutableListOf<TagGroup>()
@@ -25,7 +25,7 @@ fun buildHomeUiState(
 
     return HomeUiState(
         groups = groups,
-        doneItems = done,
+        doneItems = doneItems,
         collapsedTagIds = data.prefs.collapsedTagIds,
         doneExpanded = data.prefs.doneSectionExpanded
     )

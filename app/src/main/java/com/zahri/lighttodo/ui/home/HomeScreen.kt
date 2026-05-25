@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,7 +84,7 @@ fun HomeScreen(
 
     val pagerState = rememberPagerState(initialPage = HomePagerPages.NOTE) { HomePagerPages.COUNT }
     val scope = rememberCoroutineScope()
-    val currentPage = pagerState.currentPage
+    val currentPage by remember { derivedStateOf { pagerState.currentPage } }
 
     Scaffold(
         floatingActionButton = {
