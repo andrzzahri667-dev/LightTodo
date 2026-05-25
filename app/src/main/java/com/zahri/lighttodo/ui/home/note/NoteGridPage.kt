@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.boundsInRoot
@@ -50,6 +51,7 @@ fun NoteGridPage(
     notes: List<NoteEntity>,
     selectedIds: Set<Long>,
     hiddenNoteSource: NoteSourceAnimationKey?,
+    backgroundColor: Color,
     onNoteClick: (Long, Rect?) -> Unit,
     onNoteLongClick: (Long) -> Unit
 ) {
@@ -57,7 +59,9 @@ fun NoteGridPage(
 
     if (notes.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundColor),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -75,7 +79,9 @@ fun NoteGridPage(
 
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(GRID_COLUMNS),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundColor),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalItemSpacing = 10.dp

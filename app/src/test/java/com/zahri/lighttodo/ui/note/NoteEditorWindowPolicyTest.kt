@@ -19,4 +19,11 @@ class NoteEditorWindowPolicyTest {
             NoteEditorWindowPolicy.shouldForceTransparentWindow(NoteEditorLaunchAnimationMode.Plain)
         )
     }
+
+    @Test
+    fun shouldUseEdgeToEdgeWindow_forEveryEditorLaunchMode() {
+        NoteEditorLaunchAnimationMode.entries.forEach { mode ->
+            assertEquals(true, NoteEditorWindowPolicy.shouldUseEdgeToEdgeWindow(mode))
+        }
+    }
 }

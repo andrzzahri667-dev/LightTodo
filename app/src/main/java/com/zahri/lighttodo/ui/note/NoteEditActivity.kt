@@ -2,6 +2,7 @@ package com.zahri.lighttodo.ui.note
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -13,6 +14,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -49,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
@@ -65,6 +68,9 @@ class NoteEditActivity : ComponentActivity() {
             setTheme(R.style.Theme_LightTodo)
         }
         super.onCreate(savedInstanceState)
+        if (NoteEditorWindowPolicy.shouldUseEdgeToEdgeWindow(launchMode)) {
+            configureEdgeToEdgeWindow()
+        }
         if (NoteEditorWindowPolicy.shouldForceTransparentWindow(launchMode)) {
             forceTransparentWindow()
         }
@@ -124,6 +130,19 @@ class NoteEditActivity : ComponentActivity() {
         window.decorView.setBackgroundColor(AndroidColor.TRANSPARENT)
         window.statusBarColor = AndroidColor.TRANSPARENT
         window.navigationBarColor = AndroidColor.TRANSPARENT
+    }
+
+    private fun configureEdgeToEdgeWindow() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = AndroidColor.TRANSPARENT
+        window.navigationBarColor = AndroidColor.TRANSPARENT
+        val isDark =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = !isDark
+            isAppearanceLightNavigationBars = !isDark
+        }
     }
 
     companion object {
@@ -362,7 +381,7 @@ private fun NoteEditorSourcePreview(
         ?.takeIf { it.isNotBlank() }
         ?.let { MarkdownSpanApplier.stripMarkdown(it) }
         ?.takeIf { it.isNotBlank() }
-    val noteBackground = MaterialTheme.colorScheme.surface
+    val noteBackground = NoteSurfaceColors.background(isSystemInDarkTheme())
 
     Column(
         modifier = Modifier
