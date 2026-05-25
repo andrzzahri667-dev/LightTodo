@@ -150,15 +150,11 @@ class MainActivity : ComponentActivity() {
                         hiddenNoteSource = null
                     }
                 },
-                SourceAnimationResetDelayMillis
+                AppMotion.NoteSourceAnimationResetDelayMillis
             )
         } else if (hiddenNoteSource == sourceKey) {
             hiddenNoteSource = null
         }
-    }
-
-    private companion object {
-        const val SourceAnimationResetDelayMillis = 1_200L
     }
 
     private fun hasCalendarPermission(): Boolean =

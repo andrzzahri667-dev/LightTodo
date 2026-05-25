@@ -44,4 +44,9 @@ class AppMotionTest {
         assertTrue(AppMotion.NoteContentSizeDampingRatio in 0.78f..0.92f)
         assertTrue(AppMotion.NoteContentSizeStiffness in 420f..560f)
     }
+
+    @Test
+    fun noteSourceResetDelay_isCentralizedWithMotionTiming() {
+        assertEquals(1_200L, AppMotion.NoteSourceAnimationResetDelayMillis)
+    }
 }

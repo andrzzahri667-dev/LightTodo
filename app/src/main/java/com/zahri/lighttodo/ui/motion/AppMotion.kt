@@ -41,6 +41,7 @@ object AppMotion {
     const val NoteCardSelectionColorMillis = 160
     const val CheckmarkFadeMillis = 180
     const val TodoContentSettleMillis = 240
+    const val NoteSourceAnimationResetDelayMillis = 1_200L
 
     fun <T> routeTween(): TweenSpec<T> =
         tween(RouteDurationMillis, easing = StandardEasing)
