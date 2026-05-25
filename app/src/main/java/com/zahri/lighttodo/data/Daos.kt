@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -102,12 +101,6 @@ interface TodoDao {
 
     @Query("SELECT * FROM todo WHERE calendarEventId IN (:eventIds)")
     suspend fun findByCalendarEventIds(eventIds: List<Long>): List<TodoEntity>
-
-    @Transaction
-    suspend fun replaceAll(tags: List<TagEntity>, todos: List<TodoEntity>) {
-        deleteAll()
-        upsertAll(todos)
-    }
 }
 
 @Dao
