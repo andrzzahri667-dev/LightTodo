@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.room.withTransaction
 import com.zahri.lighttodo.BuildConfig
 import com.zahri.lighttodo.notify.ReminderScheduler
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 /**
@@ -43,16 +45,17 @@ class BackupManager(
 
     suspend fun restoreFromBundle(bundle: BackupBundle) {
         val entities = BackupDtoMapper.toEntities(bundle)
-        val oldReminderIds = db.todoDao().listWithReminders().map { it.id }
-        oldReminderIds.forEach { id -> ReminderScheduler.cancel(context, id) }
-        db.withTransaction {
+        val oldTodoIds = db.withTransaction {
+            val oldTodoIds = db.todoDao().listAll().map { it.id }
             db.noteDao().deleteAll()
             db.todoDao().deleteAll()
             db.tagDao().deleteAll()
             db.tagDao().upsertAll(entities.tags)
             db.todoDao().upsertAll(entities.todos)
             db.noteDao().upsertAll(entities.notes)
+            oldTodoIds
         }
+        oldTodoIds.forEach { id -> ReminderScheduler.cancel(context, id) }
         repository.rescheduleAllAlarms()
     }
 
@@ -87,6 +90,8 @@ class BackupManager(
                 val bundle = Json { ignoreUnknownKeys = true }
                     .decodeFromString(BackupBundle.serializer(), text)
                 restoreFromBundle(bundle)
+            }.onFailure {
+                Log.w("BackupManager", "Auto restore failed", it)
             }
         }
     }
@@ -151,7 +156,7 @@ class BackupManager(
     private fun readFromAppExternal(): String? = runCatching {
         val dir = context.getExternalFilesDir(null) ?: return null
         val f = File(dir, fileName)
-        if (f.exists()) f.readText() else null
+        if (f.exists() && BackupReadPolicy.canReadBackupSize(f.length())) f.readText() else null
     }.getOrNull()
 
     private fun readFromPublicDownloads(): String? =
@@ -163,24 +168,32 @@ class BackupManager(
     private fun readFromDownloadsMediaStore(): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         return runCatching {
-            val uri = findDownloadsMediaStoreUri() ?: return null
-            context.contentResolver.openInputStream(uri)?.use {
-                it.readBytes().toString(Charsets.UTF_8)
+            val entry = findDownloadsMediaStoreEntry() ?: return null
+            if (!BackupReadPolicy.canReadBackupSize(entry.sizeBytes)) return null
+            context.contentResolver.openInputStream(entry.uri)?.use {
+                it.readUtf8WithLimit()
             }
         }.getOrNull()
     }
 
     private fun findDownloadsMediaStoreUri(): Uri? {
+        return findDownloadsMediaStoreEntry()?.uri
+    }
+
+    private fun findDownloadsMediaStoreEntry(): BackupMediaStoreEntry? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val projection = arrayOf(MediaStore.Downloads._ID)
+        val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.MediaColumns.SIZE)
         val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ?"
         val args = arrayOf(fileName)
         val sort = "${MediaStore.Downloads.DATE_MODIFIED} DESC"
         return context.contentResolver.query(collection, projection, selection, args, sort)?.use { cursor ->
             if (!cursor.moveToFirst()) return@use null
             val id = cursor.getLong(0)
-            Uri.withAppendedPath(collection, id.toString())
+            BackupMediaStoreEntry(
+                uri = Uri.withAppendedPath(collection, id.toString()),
+                sizeBytes = if (cursor.isNull(1)) 0L else cursor.getLong(1)
+            )
         }
     }
 
@@ -189,6 +202,33 @@ class BackupManager(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             fileName
         )
-        if (file.exists() && file.canRead()) file.readText() else null
+        if (
+            file.exists() &&
+            file.canRead() &&
+            BackupReadPolicy.canReadBackupSize(file.length())
+        ) {
+            file.readText()
+        } else {
+            null
+        }
     }.getOrNull()
+
+    private fun java.io.InputStream.readUtf8WithLimit(): String? {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var total = 0L
+        while (true) {
+            val read = read(buffer)
+            if (read == -1) break
+            total += read
+            if (!BackupReadPolicy.canReadBackupSize(total)) return null
+            out.write(buffer, 0, read)
+        }
+        return out.toString(Charsets.UTF_8.name())
+    }
+
+    private data class BackupMediaStoreEntry(
+        val uri: Uri,
+        val sizeBytes: Long
+    )
 }
