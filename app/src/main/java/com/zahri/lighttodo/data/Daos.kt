@@ -95,9 +95,14 @@ interface TodoDao {
     @Query("DELETE FROM todo")
     suspend fun deleteAll()
 
-    /** For calendar sync: existing event ids we already imported. */
-    @Query("SELECT calendarEventId FROM todo WHERE calendarEventId IS NOT NULL")
-    suspend fun listCalendarEventIds(): List<Long>
+    /** Calendar orphan cleanup only compares events inside the same sync window. */
+    @Query("""
+        SELECT calendarEventId FROM todo
+        WHERE calendarEventId IS NOT NULL
+          AND dateMillis >= :fromMillis
+          AND dateMillis <= :toMillis
+    """)
+    suspend fun listCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long>
 
     @Query("SELECT * FROM todo WHERE calendarEventId IN (:eventIds)")
     suspend fun findByCalendarEventIds(eventIds: List<Long>): List<TodoEntity>

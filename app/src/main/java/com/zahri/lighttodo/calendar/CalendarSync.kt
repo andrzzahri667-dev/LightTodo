@@ -63,7 +63,7 @@ object CalendarSync {
         val eventIds = events.map { it.id }
 
         val orphanEventIds = CalendarSyncPolicy.orphanEventIds(
-            importedEventIds = app.db.todoDao().listCalendarEventIds(),
+            importedEventIds = app.db.todoDao().listCalendarEventIdsInWindow(from, to),
             providerEventIds = eventIds
         )
         if (orphanEventIds.isNotEmpty()) {
