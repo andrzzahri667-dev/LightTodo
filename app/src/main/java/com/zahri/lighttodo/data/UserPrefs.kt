@@ -37,7 +37,7 @@ class UserPrefs(private val context: Context) {
         val quickAddNotifEnabled: Boolean = false,
         /** Collapsed group keys; empty = all expanded (the default). */
         val collapsedTagIds: Set<String> = emptySet(),
-        val doneSectionExpanded: Boolean = false
+        val doneSectionExpanded: Boolean = true
     )
 
     val flow: Flow<Snapshot> = context.userPrefsDataStore.data.map { p ->
@@ -49,7 +49,7 @@ class UserPrefs(private val context: Context) {
             calendarAccountName = p[Keys.CALENDAR_ACCOUNT_NAME].orEmpty(),
             quickAddNotifEnabled = p[Keys.QUICK_ADD_NOTIF_ENABLED] ?: false,
             collapsedTagIds = (p[Keys.EXPANDED_TAG_IDS]?.split('|')?.filter { it.isNotEmpty() }?.toSet()) ?: emptySet(),
-            doneSectionExpanded = p[Keys.DONE_SECTION_EXPANDED] ?: false
+            doneSectionExpanded = p[Keys.DONE_SECTION_EXPANDED] ?: true
         )
     }
 
