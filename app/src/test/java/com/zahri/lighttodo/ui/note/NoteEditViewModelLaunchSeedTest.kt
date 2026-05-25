@@ -29,6 +29,24 @@ class NoteEditViewModelLaunchSeedTest {
         assertEquals(2_000L, vm.updatedAt.value)
         assertEquals(0, noteDao.findByIdCalls)
     }
+
+    @Test
+    fun editingLoadedNoteDoesNotMutateUpdatedAtUntilSave() {
+        val vm = NoteEditViewModel(app = App(), noteDao = CountingNoteDao())
+        val seed = NoteEditLaunchSeed(
+            id = 7L,
+            title = "Seed title",
+            content = "Seed content",
+            createdAtMillis = 1_000L,
+            updatedAtMillis = 2_000L
+        )
+
+        vm.load(id = 7L, launchSeed = seed)
+        vm.updateTitle("Changed title")
+        vm.updateContent("Changed content")
+
+        assertEquals(2_000L, vm.updatedAt.value)
+    }
 }
 
 private class CountingNoteDao : NoteDao {

@@ -85,13 +85,11 @@ class NoteEditViewModel(
     fun updateTitle(value: String) {
         if (_title.value == value) return
         _title.value = value
-        _updatedAt.value = System.currentTimeMillis()
     }
 
     fun updateContent(value: String) {
         if (_content.value == value) return
         _content.value = value
-        _updatedAt.value = System.currentTimeMillis()
     }
 
     /** 自动保存：有内容时写库 */
@@ -121,6 +119,7 @@ class NoteEditViewModel(
                     )
                     val newId = noteDao.upsert(entity)
                     if (noteId == null) noteId = newId
+                    _updatedAt.value = now
                     NoteAttachmentStore.deleteRemovedRefs(app, lastSavedContent, c)
                     lastSavedTitle = t
                     lastSavedContent = c
