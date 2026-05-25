@@ -22,6 +22,15 @@ class BroadcastReceiverScopeSourceTest {
         assertTrue(source.contains("app.appScope.launch(Dispatchers.IO)"))
     }
 
+    @Test
+    fun reminderReceiverFallsBackWhenFullScreenIntentIsUnavailable() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/notify/ReminderReceiver.kt").readText()
+
+        assertTrue(source.contains("ReminderFullScreenPolicy.shouldAttachFullScreenIntent"))
+        assertTrue(source.contains("if (attachFullScreenIntent)"))
+        assertTrue(source.contains("setFullScreenIntent(fullScreenPi, true)"))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val userDir = requireNotNull(System.getProperty("user.dir"))
         var dir = File(userDir).absoluteFile

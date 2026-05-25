@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
@@ -45,7 +46,15 @@ class ReminderReceiver : BroadcastReceiver() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
-                val notif = NotificationCompat.Builder(context, NotificationChannels.REMINDER_ID)
+                val nm = context.getSystemService(NotificationManager::class.java)
+                val canUseFullScreenIntent =
+                    Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+                        nm?.canUseFullScreenIntent() == true
+                val attachFullScreenIntent = ReminderFullScreenPolicy.shouldAttachFullScreenIntent(
+                    canUseFullScreenIntent = canUseFullScreenIntent
+                )
+
+                val builder = NotificationCompat.Builder(context, NotificationChannels.REMINDER_ID)
                     .setSmallIcon(android.R.drawable.ic_popup_reminder)
                     .setContentTitle(todo.displayTitle(context))
                     .setContentText(buildSubtitle(context, todo, isStart))
@@ -53,9 +62,10 @@ class ReminderReceiver : BroadcastReceiver() {
                     .setCategory(NotificationCompat.CATEGORY_ALARM)
                     .setAutoCancel(true)
                     .setContentIntent(contentPi)
-                    .setFullScreenIntent(fullScreenPi, true)
-                    .build()
-                val nm = context.getSystemService(NotificationManager::class.java)
+                if (attachFullScreenIntent) {
+                    builder.setFullScreenIntent(fullScreenPi, true)
+                }
+                val notif = builder.build()
                 val notifId = ReminderRequestCodePolicy.notificationIdFor(id, isStart)
                 nm?.notify(notifId, notif)
             } catch (e: Exception) {
