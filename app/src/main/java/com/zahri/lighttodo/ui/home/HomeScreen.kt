@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,7 +50,6 @@ import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
-import com.zahri.lighttodo.ui.note.NoteSurfaceColors
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
@@ -86,12 +84,6 @@ fun HomeScreen(
     val pagerState = rememberPagerState(initialPage = HomePagerPages.NOTE) { HomePagerPages.COUNT }
     val scope = rememberCoroutineScope()
     val currentPage = pagerState.currentPage
-    val notesPageBackground = NoteSurfaceColors.notesPageBackground(isSystemInDarkTheme())
-    val homeBackground = if (currentPage == HomePagerPages.NOTE) {
-        notesPageBackground
-    } else {
-        MaterialTheme.colorScheme.background
-    }
 
     Scaffold(
         floatingActionButton = {
@@ -184,12 +176,11 @@ fun HomeScreen(
                 }
             }
         },
-        containerColor = homeBackground
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(homeBackground)
                 .padding(top = padding.calculateTopPadding())
         ) {
             // ── Header with indicator ────────────────────────────
@@ -245,7 +236,6 @@ fun HomeScreen(
                         notes = notes,
                         selectedIds = noteSelectedIds,
                         hiddenNoteSource = hiddenNoteSource,
-                        backgroundColor = notesPageBackground,
                         onNoteClick = { id, sourceBounds ->
                             if (noteInSelection) vm.toggleNoteSelection(id)
                             else {

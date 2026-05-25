@@ -116,7 +116,7 @@ fun NoteEditScreen(
     val scope = rememberCoroutineScope()
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
     val contentHint = stringResource(R.string.note_content_hint)
-    val noteBackground = NoteSurfaceColors.editorBackground(isDark)
+    val noteBackground = NoteEditorColors.editorBackground(isDark)
     val contentBlocks = remember(content) { NoteContentBlocks.parse(content) }
     val keyboardVisible = WindowInsets.ime.getBottom(density) > 0
 

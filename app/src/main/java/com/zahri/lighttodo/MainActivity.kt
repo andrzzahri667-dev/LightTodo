@@ -35,10 +35,10 @@ import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
+import com.zahri.lighttodo.ui.note.NoteEditorColors
 import com.zahri.lighttodo.ui.note.NoteEditorLauncher
 import com.zahri.lighttodo.ui.note.NoteScaleDownUpdateAction
 import com.zahri.lighttodo.ui.note.NoteScaleDownUpdatePolicy
-import com.zahri.lighttodo.ui.note.NoteSurfaceColors
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
                     val nav: NavHostController = rememberNavController()
                     val rootView = LocalView.current
                     val density = LocalDensity.current
-                    val noteTargetBackground = NoteSurfaceColors.editorBackground(isSystemInDarkTheme())
+                    val noteTargetBackground = NoteEditorColors.editorBackground(isSystemInDarkTheme())
 
                     AppNavHost(
                         nav = nav,

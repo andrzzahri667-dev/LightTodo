@@ -381,7 +381,7 @@ private fun NoteEditorSourcePreview(
         ?.takeIf { it.isNotBlank() }
         ?.let { MarkdownSpanApplier.stripMarkdown(it) }
         ?.takeIf { it.isNotBlank() }
-    val noteBackground = NoteSurfaceColors.background(isSystemInDarkTheme())
+    val noteBackground = NoteEditorColors.transformPreviewBackground(isSystemInDarkTheme())
 
     Column(
         modifier = Modifier

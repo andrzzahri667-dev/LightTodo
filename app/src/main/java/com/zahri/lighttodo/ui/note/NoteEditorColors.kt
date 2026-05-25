@@ -2,7 +2,7 @@ package com.zahri.lighttodo.ui.note
 
 import androidx.compose.ui.graphics.Color
 
-object NoteSurfaceColors {
+object NoteEditorColors {
     private val LightPaper = Color(0xFFFFFCF6)
     private val DarkPaper = Color.Black
 
@@ -12,6 +12,6 @@ object NoteSurfaceColors {
     fun editorBackground(isDark: Boolean): Color =
         background(isDark)
 
-    fun notesPageBackground(isDark: Boolean): Color =
+    fun transformPreviewBackground(isDark: Boolean): Color =
         background(isDark)
 }
