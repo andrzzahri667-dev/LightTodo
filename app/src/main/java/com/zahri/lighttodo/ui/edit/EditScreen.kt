@@ -49,6 +49,7 @@ fun EditScreen(
     editingId: Long?,
     onBack: () -> Unit,
     initialTitle: String? = null,
+    onRequestExactAlarmPermission: (Boolean) -> Unit = {},
     vm: EditViewModel = viewModel()
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
@@ -77,7 +78,11 @@ fun EditScreen(
                 }
             }
             if (!state.readOnly) {
-                IconButton(onClick = { vm.save(); onBack() }) {
+                IconButton(onClick = {
+                    onRequestExactAlarmPermission(state.hasReminder)
+                    vm.save()
+                    onBack()
+                }) {
                     Icon(Icons.Default.Check, contentDescription = stringResource(R.string.edit_save), tint = MaterialTheme.colorScheme.onSurface)
                 }
             }

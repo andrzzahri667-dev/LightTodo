@@ -78,20 +78,6 @@ class MainActivity : ComponentActivity() {
             (application as App).retryRestore()
         }
 
-        // Hint user to enable exact alarms on Android 12+
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            val am = getSystemService(android.app.AlarmManager::class.java)
-            if (am != null && !am.canScheduleExactAlarms()) {
-                runCatching {
-                    startActivity(
-                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                            .setData(Uri.parse("package:$packageName"))
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
-                }
-            }
-        }
-
         setContent {
             LightTodoTheme {
                 Surface(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
@@ -122,7 +108,8 @@ class MainActivity : ComponentActivity() {
                             noteEditorWasLaunched = true
                             noteEditorMiuiReturnAnimationPrepared = result.miuiReturnAnimationPrepared
                         },
-                        hiddenNoteSource = hiddenNoteSource
+                        hiddenNoteSource = hiddenNoteSource,
+                        onRequestExactAlarmPermission = ::requestExactAlarmPermissionForReminder
                     )
                 }
             }
@@ -184,6 +171,27 @@ class MainActivity : ComponentActivity() {
         val app = application as App
         app.appScope.launch { app.prefs.setCalendarSyncEnabled(true) }
     }
+
+    private fun requestExactAlarmPermissionForReminder(hasReminder: Boolean) {
+        val am = getSystemService(android.app.AlarmManager::class.java)
+        val canScheduleExactAlarms =
+            android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S ||
+                am?.canScheduleExactAlarms() == true
+        if (
+            ExactAlarmPermissionPolicy.shouldRequestSettings(
+                canScheduleExactAlarms = canScheduleExactAlarms,
+                hasReminder = hasReminder
+            )
+        ) {
+            runCatching {
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        .setData(Uri.parse("package:$packageName"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
+    }
 }
 
 object Routes {
@@ -198,7 +206,8 @@ object Routes {
 private fun AppNavHost(
     nav: NavHostController,
     onNoteEdit: (Long?, Rect?, Float, NoteEditLaunchSeed?) -> Unit,
-    hiddenNoteSource: NoteSourceAnimationKey?
+    hiddenNoteSource: NoteSourceAnimationKey?,
+    onRequestExactAlarmPermission: (Boolean) -> Unit
 ) {
     NavHost(
         navController = nav,
@@ -242,7 +251,11 @@ private fun AppNavHost(
             arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null })
         ) { entry ->
             val id = entry.arguments?.getString("id")?.toLongOrNull()
-            EditScreen(editingId = id, onBack = { nav.popBackStack() })
+            EditScreen(
+                editingId = id,
+                onBack = { nav.popBackStack() },
+                onRequestExactAlarmPermission = onRequestExactAlarmPermission
+            )
         }
         composable(Routes.Settings) {
             SettingsScreen(onBack = { nav.popBackStack() })

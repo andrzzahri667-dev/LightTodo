@@ -34,7 +34,10 @@ data class EditUiState(
     val tagName: String = "",
     val allTags: List<TagEntity> = emptyList(),
     val readOnly: Boolean = false
-)
+) {
+    val hasReminder: Boolean
+        get() = date != null
+}
 
 class EditViewModel(
     private val repo: Repository = App.instance.repository,
