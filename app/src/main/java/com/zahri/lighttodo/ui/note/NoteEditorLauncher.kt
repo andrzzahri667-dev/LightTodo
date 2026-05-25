@@ -47,6 +47,7 @@ object NoteEditorLauncher {
         val transitionColor = if (noteId == null) createSourceColor else targetBackgroundColor
 
         val miuiReturnAnimationPrepared: Boolean
+        var sourceHiddenBeforeLaunch = false
         try {
             val miuiOptions = MiuiScaleUpDownOptions.makeBundle(
                 anchor = rootView,
@@ -56,7 +57,21 @@ object NoteEditorLauncher {
                 targetColor = transitionColor,
                 onSourceHiddenChange = onSourceHiddenChange
             )
-            val options = miuiOptions ?: platformFallbackOptions(rootView, snapshot, launchBounds)
+            val fallbackOptions = if (miuiOptions == null) {
+                platformFallbackOptions(rootView, snapshot, launchBounds)
+            } else {
+                null
+            }
+            if (
+                NoteLaunchSourceVisibilityPolicy.actionFor(
+                    miuiOptionsAvailable = miuiOptions != null,
+                    platformFallbackOptionsAvailable = fallbackOptions != null
+                ) == NoteLaunchSourceVisibilityAction.HideBeforeLaunch
+            ) {
+                sourceHiddenBeforeLaunch = true
+                onSourceHiddenChange(true)
+            }
+            val options = miuiOptions ?: fallbackOptions
             miuiReturnAnimationPrepared = miuiOptions != null
 
             if (options != null) {
@@ -64,6 +79,11 @@ object NoteEditorLauncher {
             } else {
                 activity.startActivity(intent)
             }
+        } catch (throwable: RuntimeException) {
+            if (sourceHiddenBeforeLaunch) {
+                onSourceHiddenChange(false)
+            }
+            throw throwable
         } finally {
             snapshot?.recycle()
         }
