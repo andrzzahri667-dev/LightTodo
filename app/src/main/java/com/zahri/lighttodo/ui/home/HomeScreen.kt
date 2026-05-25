@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
@@ -66,7 +67,7 @@ private object HomePagerPages {
 fun HomeScreen(
     onAdd: () -> Unit,
     onEdit: (Long) -> Unit,
-    onNoteEdit: (Long?, Rect?, Float) -> Unit,
+    onNoteEdit: (Long?, Rect?, Float, NoteEditLaunchSeed?) -> Unit,
     onSettings: () -> Unit,
     hiddenNoteSource: NoteSourceAnimationKey? = null,
     vm: HomeViewModel = viewModel()
@@ -99,7 +100,7 @@ fun HomeScreen(
                 FloatingActionButton(
                     onClick = {
                         when (currentPage) {
-                            HomePagerPages.NOTE -> onNoteEdit(null, noteSourceBounds.bounds, scale)
+                            HomePagerPages.NOTE -> onNoteEdit(null, noteSourceBounds.bounds, scale, null)
                             HomePagerPages.TODO -> onAdd()
                         }
                     },
@@ -237,7 +238,12 @@ fun HomeScreen(
                         hiddenNoteSource = hiddenNoteSource,
                         onNoteClick = { id, sourceBounds ->
                             if (noteInSelection) vm.toggleNoteSelection(id)
-                            else onNoteEdit(id, sourceBounds, 1f)
+                            else {
+                                val launchSeed = notes
+                                    .firstOrNull { it.id == id }
+                                    ?.let(NoteEditLaunchSeed::from)
+                                onNoteEdit(id, sourceBounds, 1f, launchSeed)
+                            }
                         },
                         onNoteLongClick = { id -> vm.toggleNoteSelection(id) }
                     )

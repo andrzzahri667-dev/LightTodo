@@ -18,6 +18,7 @@ object NoteEditorLauncher {
         activity: Activity,
         rootView: View,
         noteId: Long?,
+        launchSeed: NoteEditLaunchSeed? = null,
         sourceBounds: Rect?,
         density: Float,
         sourceScale: Float,
@@ -25,7 +26,7 @@ object NoteEditorLauncher {
         createSourceColor: Int,
         onSourceHiddenChange: (Boolean) -> Unit
     ): NoteEditorLaunchResult {
-        val intent = NoteEditActivity.intent(activity, noteId)
+        val intent = NoteEditActivity.intent(activity, noteId, launchSeed)
         val launchBounds = sourceBounds?.toLaunchBounds(rootView)
         if (launchBounds == null) {
             activity.startActivity(intent)

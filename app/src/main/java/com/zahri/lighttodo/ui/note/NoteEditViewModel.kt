@@ -60,7 +60,7 @@ class NoteEditViewModel(
     private var recordingStartedAt: Long = 0L
     private var player: MediaPlayer? = null
 
-    fun load(id: Long?) {
+    fun load(id: Long?, launchSeed: NoteEditLaunchSeed? = null) {
         if (loaded) return
         loaded = true
         if (id == null) {
@@ -70,14 +70,15 @@ class NoteEditViewModel(
             return
         }
         noteId = id
+        if (launchSeed?.id == id) {
+            applyLaunchSeed(launchSeed)
+            return
+        }
         viewModelScope.launch {
-            val note = noteDao.findById(id) ?: return@launch
-            _title.value = note.title.orEmpty()
-            _content.value = note.content
-            _createdAt.value = note.createdAtMillis
-            _updatedAt.value = note.updatedAtMillis
-            lastSavedTitle = _title.value.trim()
-            lastSavedContent = _content.value
+            val note = withContext(Dispatchers.IO) {
+                noteDao.findById(id)
+            } ?: return@launch
+            applyNote(note)
         }
     }
 
@@ -223,6 +224,24 @@ class NoteEditViewModel(
         recordingFile = null
         stopAudioPlayback()
         super.onCleared()
+    }
+
+    private fun applyLaunchSeed(seed: NoteEditLaunchSeed) {
+        _title.value = seed.title.orEmpty()
+        _content.value = seed.content
+        _createdAt.value = seed.createdAtMillis
+        _updatedAt.value = seed.updatedAtMillis
+        lastSavedTitle = _title.value.trim()
+        lastSavedContent = _content.value
+    }
+
+    private fun applyNote(note: NoteEntity) {
+        _title.value = note.title.orEmpty()
+        _content.value = note.content
+        _createdAt.value = note.createdAtMillis
+        _updatedAt.value = note.updatedAtMillis
+        lastSavedTitle = _title.value.trim()
+        lastSavedContent = _content.value
     }
 
     private suspend fun cleanupUnreferencedAttachments() {

@@ -34,6 +34,7 @@ import androidx.navigation.navArgument
 import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
 import com.zahri.lighttodo.ui.note.NoteEditorLauncher
 import com.zahri.lighttodo.ui.note.NoteScaleDownUpdateAction
 import com.zahri.lighttodo.ui.note.NoteScaleDownUpdatePolicy
@@ -100,13 +101,14 @@ class MainActivity : ComponentActivity() {
 
                     AppNavHost(
                         nav = nav,
-                        onNoteEdit = { id, sourceBounds, sourceScale ->
+                        onNoteEdit = { id, sourceBounds, sourceScale, launchSeed ->
                             val sourceKey = id?.let(NoteSourceAnimationKey::forExistingNote)
                                 ?: NoteSourceAnimationKey.forNewNote()
                             val result = NoteEditorLauncher.launch(
                                 activity = this@MainActivity,
                                 rootView = rootView,
                                 noteId = id,
+                                launchSeed = launchSeed,
                                 sourceBounds = sourceBounds,
                                 density = density.density,
                                 sourceScale = sourceScale,
@@ -194,7 +196,7 @@ object Routes {
 @androidx.compose.runtime.Composable
 private fun AppNavHost(
     nav: NavHostController,
-    onNoteEdit: (Long?, Rect?, Float) -> Unit,
+    onNoteEdit: (Long?, Rect?, Float, NoteEditLaunchSeed?) -> Unit,
     hiddenNoteSource: NoteSourceAnimationKey?
 ) {
     NavHost(
