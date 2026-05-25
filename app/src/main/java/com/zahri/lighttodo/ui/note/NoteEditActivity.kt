@@ -15,6 +15,7 @@ import com.zahri.lighttodo.ui.theme.LightTodoTheme
 
 class NoteEditActivity : ComponentActivity() {
     private val noteEditViewModel: NoteEditViewModel by viewModels()
+    private var finishingWithNoteExit = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +27,7 @@ class NoteEditActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
                     NoteEditScreen(
                         editingId = editingId,
-                        onBack = { finish() },
+                        onBack = { finishWithNoteExitAnimation() },
                         vm = noteEditViewModel
                     )
                 }
@@ -34,8 +35,29 @@ class NoteEditActivity : ComponentActivity() {
         }
     }
 
+    @Suppress("DEPRECATION")
+    private fun finishWithNoteExitAnimation() {
+        if (finishingWithNoteExit) return
+        finishingWithNoteExit = true
+        when (
+            NoteEditExitPolicy.actionFor(
+                miuiReturnAnimationPrepared = intent.miuiReturnAnimationPreparedExtra()
+            )
+        ) {
+            NoteEditExitAction.SystemScaleDown -> {
+                finish()
+            }
+            NoteEditExitAction.FadeFallback -> {
+                finish()
+                overridePendingTransition(0, android.R.anim.fade_out)
+            }
+        }
+    }
+
     companion object {
         private const val ExtraNoteId = "com.zahri.lighttodo.extra.NOTE_ID"
+        private const val ExtraMiuiReturnAnimationPrepared =
+            "com.zahri.lighttodo.extra.MIUI_RETURN_ANIMATION_PREPARED"
         private const val ExtraSeedId = "com.zahri.lighttodo.extra.NOTE_SEED_ID"
         private const val ExtraSeedTitle = "com.zahri.lighttodo.extra.NOTE_SEED_TITLE"
         private const val ExtraSeedContent = "com.zahri.lighttodo.extra.NOTE_SEED_CONTENT"
@@ -54,8 +76,15 @@ class NoteEditActivity : ComponentActivity() {
                 }
             }
 
+        fun setMiuiReturnAnimationPrepared(intent: Intent, prepared: Boolean) {
+            intent.putExtra(ExtraMiuiReturnAnimationPrepared, prepared)
+        }
+
         private fun Intent.noteIdExtra(): Long? =
             if (hasExtra(ExtraNoteId)) getLongExtra(ExtraNoteId, 0L) else null
+
+        private fun Intent.miuiReturnAnimationPreparedExtra(): Boolean =
+            getBooleanExtra(ExtraMiuiReturnAnimationPrepared, false)
 
         private fun Intent.noteLaunchSeedExtra(): NoteEditLaunchSeed? =
             if (!hasExtra(ExtraSeedId)) {

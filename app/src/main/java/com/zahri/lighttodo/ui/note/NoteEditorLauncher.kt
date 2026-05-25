@@ -74,6 +74,7 @@ object NoteEditorLauncher {
             }
             val options = miuiOptions ?: fallbackOptions
             miuiReturnAnimationPrepared = miuiOptions != null
+            NoteEditActivity.setMiuiReturnAnimationPrepared(intent, miuiReturnAnimationPrepared)
 
             if (options != null) {
                 activity.startActivity(intent, options)
