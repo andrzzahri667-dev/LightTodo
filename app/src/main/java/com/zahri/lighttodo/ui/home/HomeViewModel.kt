@@ -154,16 +154,13 @@ class HomeViewModel(
     }
 }
 
-// helper available outside
-fun TodoEntity.displayTitle(): String =
+fun TodoEntity.displayTitle(fallback: String): String =
     title?.takeIf { it.isNotBlank() }
         ?: note?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
-        ?: "无标题"
+        ?: fallback
 
 fun TodoEntity.displayTitle(context: android.content.Context): String =
-    title?.takeIf { it.isNotBlank() }
-        ?: note?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
-        ?: context.getString(R.string.home_no_title)
+    displayTitle(fallback = context.getString(R.string.home_no_title))
 
 fun TodoEntity.dateLabel(): String = DateUtils.displayDateOrEmpty(date)
 fun TodoEntity.isOverdueDate(): Boolean = !done && DateUtils.isOverdueOrFalse(date)
