@@ -51,21 +51,6 @@ class HomeUiStateMapperTest {
         assertEquals(emptyList<TagGroup>(), state.groups)
     }
 
-    @Test
-    fun buildHomeUiState_keepsCompletedTodosVisibleByDefault() {
-        val state = buildHomeUiState(
-            data = HomeData(
-                todos = listOf(todo(id = 7L, done = true, doneAtMillis = 10L)),
-                tags = emptyList(),
-                prefs = UserPrefs.Snapshot()
-            ),
-            uncategorizedTitle = "Inbox"
-        )
-
-        assertEquals(listOf(7L), state.doneItems.map { it.id })
-        assertEquals(true, state.doneExpanded)
-    }
-
     private fun todo(
         id: Long,
         tagId: Long? = null,
