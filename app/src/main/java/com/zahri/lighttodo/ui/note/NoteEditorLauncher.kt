@@ -39,47 +39,67 @@ object NoteEditorLauncher {
             density = density,
             sourceScale = sourceScale
         )
-        val snapshot = when (spec.snapshotMode) {
-            NoteLaunchSnapshotMode.CaptureSource ->
-                rootView.captureSourceSnapshot(launchBounds) ?: solidBitmap(launchBounds, targetBackgroundColor)
-            NoteLaunchSnapshotMode.SolidColor ->
-                solidBitmap(launchBounds, createSourceColor)
+        val miuiScaleUpDownSupported = MiuiScaleUpDownOptions.isSupported()
+        val snapshot = if (miuiScaleUpDownSupported) {
+            when (spec.snapshotMode) {
+                NoteLaunchSnapshotMode.CaptureSource ->
+                    rootView.captureSourceSnapshot(launchBounds) ?: solidBitmap(launchBounds, targetBackgroundColor)
+                NoteLaunchSnapshotMode.SolidColor ->
+                    solidBitmap(launchBounds, createSourceColor)
+            }
+        } else {
+            null
         }
         val transitionColor = if (noteId == null) createSourceColor else targetBackgroundColor
 
         val miuiReturnAnimationPrepared: Boolean
         var sourceHiddenBeforeLaunch = false
         try {
-            val miuiOptions = MiuiScaleUpDownOptions.makeBundle(
-                anchor = rootView,
-                snapshot = snapshot,
-                boundsInRoot = launchBounds,
-                spec = spec,
-                targetColor = transitionColor,
-                onSourceHiddenChange = onSourceHiddenChange
-            )
-            val fallbackOptions = if (miuiOptions == null) {
-                platformFallbackOptions(rootView, snapshot, launchBounds)
+            val miuiOptions = if (miuiScaleUpDownSupported) {
+                MiuiScaleUpDownOptions.makeBundle(
+                    anchor = rootView,
+                    snapshot = snapshot,
+                    boundsInRoot = launchBounds,
+                    spec = spec,
+                    targetColor = transitionColor,
+                    onSourceHiddenChange = onSourceHiddenChange
+                )
             } else {
                 null
             }
-            if (
-                NoteLaunchSourceVisibilityPolicy.actionFor(
-                    miuiOptionsAvailable = miuiOptions != null,
-                    platformFallbackOptionsAvailable = fallbackOptions != null
-                ) == NoteLaunchSourceVisibilityAction.HideBeforeLaunch
-            ) {
+            val launchMode = NoteEditorLaunchAnimationModePolicy.modeFor(
+                miuiOptionsAvailable = miuiOptions != null,
+                sourceBoundsAvailable = true
+            )
+            NoteEditActivity.setLaunchAnimationMode(intent, launchMode)
+            NoteEditActivity.setTransitionBounds(
+                intent,
+                launchBounds.toTransitionBounds(rootView, spec.sourceCornerRadiusPx)
+            )
+            if (launchMode == NoteEditorLaunchAnimationMode.CustomContainerTransform) {
                 sourceHiddenBeforeLaunch = true
                 onSourceHiddenChange(true)
             }
-            val options = miuiOptions ?: fallbackOptions
             miuiReturnAnimationPrepared = miuiOptions != null
-            NoteEditActivity.setMiuiReturnAnimationPrepared(intent, miuiReturnAnimationPrepared)
 
-            if (options != null) {
-                activity.startActivity(intent, options)
-            } else {
-                activity.startActivity(intent)
+            when (launchMode) {
+                NoteEditorLaunchAnimationMode.MiuiSystemScaleUpDown -> {
+                    activity.startActivity(intent, miuiOptions)
+                }
+                NoteEditorLaunchAnimationMode.CustomContainerTransform -> {
+                    activity.startActivity(intent)
+                    activity.disablePendingTransition()
+                    rootView.postDelayed(
+                        { onSourceHiddenChange(false) },
+                        (
+                            NoteEditorContainerTransformPolicy.EntryDurationMillis +
+                                NoteEditorContainerTransformPolicy.SourceRevealAfterEntryDelayMillis
+                            ).toLong()
+                    )
+                }
+                NoteEditorLaunchAnimationMode.Plain -> {
+                    activity.startActivity(intent)
+                }
             }
         } catch (throwable: RuntimeException) {
             if (sourceHiddenBeforeLaunch) {
@@ -98,26 +118,6 @@ object NoteEditorLauncher {
     data class NoteEditorLaunchResult(
         val miuiReturnAnimationPrepared: Boolean
     )
-
-    private fun platformFallbackOptions(rootView: View, snapshot: Bitmap?, bounds: LaunchBounds): Bundle? =
-        runCatching {
-            if (snapshot != null) {
-                ActivityOptions.makeThumbnailScaleUpAnimation(
-                    rootView,
-                    snapshot,
-                    bounds.left,
-                    bounds.top
-                ).toBundle()
-            } else {
-                ActivityOptions.makeScaleUpAnimation(
-                    rootView,
-                    bounds.left,
-                    bounds.top,
-                    bounds.width,
-                    bounds.height
-                ).toBundle()
-            }
-        }.getOrNull()
 
     private fun View.captureSourceSnapshot(bounds: LaunchBounds): Bitmap? {
         if (bounds.width.toLong() * bounds.height.toLong() > MaxSourceSnapshotPixels) return null
@@ -167,10 +167,24 @@ object NoteEditorLauncher {
         fun screenX(rootView: View): Int = rootView.screenLocation()[0] + left
 
         fun screenY(rootView: View): Int = rootView.screenLocation()[1] + top
+
+        fun toTransitionBounds(rootView: View, cornerRadiusPx: Int): NoteEditorTransitionBounds =
+            NoteEditorTransitionBounds(
+                screenLeft = screenX(rootView),
+                screenTop = screenY(rootView),
+                width = width,
+                height = height,
+                cornerRadiusPx = cornerRadiusPx
+            )
     }
 
     private fun View.screenLocation(): IntArray =
         IntArray(2).also { getLocationOnScreen(it) }
+
+    @Suppress("DEPRECATION")
+    private fun Activity.disablePendingTransition() {
+        overridePendingTransition(0, 0)
+    }
 
     private object MiuiScaleUpDownOptions {
         private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(Looper.getMainLooper()) }
@@ -221,6 +235,9 @@ object NoteEditorLauncher {
                 ).apply { isAccessible = true }
             }.getOrNull()
         }
+
+        fun isSupported(): Boolean =
+            scaleUpDownMethod != null || roundedViewMethod != null
 
         fun makeBundle(
             anchor: View,

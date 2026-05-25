@@ -1,0 +1,65 @@
+package com.zahri.lighttodo.ui.note
+
+import kotlin.math.max
+
+data class NoteEditorContainerTransformFrame(
+    val scaleX: Float,
+    val scaleY: Float,
+    val translationX: Float,
+    val translationY: Float,
+    val cornerRadiusPx: Float
+)
+
+data class NoteEditorTransitionBounds(
+    val screenLeft: Int,
+    val screenTop: Int,
+    val width: Int,
+    val height: Int,
+    val cornerRadiusPx: Int
+)
+
+data class NoteEditorContainerTransformEasing(
+    val x1: Float,
+    val y1: Float,
+    val x2: Float,
+    val y2: Float
+)
+
+object NoteEditorContainerTransformPolicy {
+    const val EntryDurationMillis = 640
+    const val ExitDurationMillis = 480
+    const val SourceRevealAfterEntryDelayMillis = 40
+
+    val EntryEasing = NoteEditorContainerTransformEasing(0.4f, 0f, 0.2f, 1f)
+    val ExitEasing = NoteEditorContainerTransformEasing(0.4f, 0f, 0.2f, 1f)
+
+    fun shouldRender(rootWidth: Int, rootHeight: Int): Boolean =
+        rootWidth > 0 && rootHeight > 0
+
+    fun frameFor(
+        rootWidth: Int,
+        rootHeight: Int,
+        sourceLeft: Int,
+        sourceTop: Int,
+        sourceWidth: Int,
+        sourceHeight: Int,
+        sourceCornerRadiusPx: Int,
+        progress: Float
+    ): NoteEditorContainerTransformFrame {
+        val safeProgress = progress.coerceIn(0f, 1f)
+        val safeRootWidth = max(rootWidth, 1).toFloat()
+        val safeRootHeight = max(rootHeight, 1).toFloat()
+        val startScaleX = max(sourceWidth, 1) / safeRootWidth
+        val startScaleY = max(sourceHeight, 1) / safeRootHeight
+        return NoteEditorContainerTransformFrame(
+            scaleX = lerp(startScaleX, 1f, safeProgress),
+            scaleY = lerp(startScaleY, 1f, safeProgress),
+            translationX = lerp(sourceLeft.toFloat(), 0f, safeProgress),
+            translationY = lerp(sourceTop.toFloat(), 0f, safeProgress),
+            cornerRadiusPx = lerp(sourceCornerRadiusPx.toFloat(), 0f, safeProgress)
+        )
+    }
+
+    private fun lerp(start: Float, end: Float, progress: Float): Float =
+        start + (end - start) * progress
+}
