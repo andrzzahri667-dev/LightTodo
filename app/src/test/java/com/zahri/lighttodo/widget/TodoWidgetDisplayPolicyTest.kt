@@ -3,6 +3,8 @@ package com.zahri.lighttodo.widget
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
 import java.time.LocalDateTime
+import java.util.Locale
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -100,5 +102,18 @@ class TodoWidgetDisplayPolicyTest {
         assertTrue(TodoWidgetDisplayPolicy.deadlineSuffix(ranged).contains("09:00-10:30"))
         assertTrue(TodoWidgetDisplayPolicy.deadlineSuffix(allDay).isEmpty())
         assertTrue(TodoWidgetDisplayPolicy.deadlineSuffix(undated).isEmpty())
+    }
+
+    @Test
+    fun deadlineSuffix_usesAsciiDigitsInEveryLocale() {
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ar-EG"))
+            val todo = TodoEntity(startHour = 9, startMinute = 5, deadlineHour = 10, deadlineMinute = 30)
+
+            assertEquals(" 09:05-10:30", TodoWidgetDisplayPolicy.deadlineSuffix(todo))
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
     }
 }

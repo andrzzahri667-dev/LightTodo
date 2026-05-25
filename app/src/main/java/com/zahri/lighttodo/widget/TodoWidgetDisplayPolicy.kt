@@ -3,6 +3,7 @@ package com.zahri.lighttodo.widget
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
 import java.time.LocalDateTime
+import java.util.Locale
 
 object TodoWidgetDisplayPolicy {
     data class Clock(
@@ -32,7 +33,14 @@ object TodoWidgetDisplayPolicy {
 
     fun deadlineSuffix(item: TodoEntity): String =
         item.timeRange()?.let { range ->
-            " %02d:%02d-%02d:%02d".format(range.startHour, range.startMinute, range.endHour, range.endMinute)
+            String.format(
+                Locale.ROOT,
+                " %02d:%02d-%02d:%02d",
+                range.startHour,
+                range.startMinute,
+                range.endHour,
+                range.endMinute
+            )
         }.orEmpty()
 
     private fun TodoEntity.timeRange(): TimeRange? {
