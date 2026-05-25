@@ -406,11 +406,7 @@ private fun NoteEditorSourcePreview(
             )
         } else if (title == null) {
             Spacer(Modifier.weight(1f))
-            Text(
-                text = stringResource(R.string.note_no_title),
-                style = AppType.body,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
+            NoteEmptyPlaceholder()
         }
     }
 }

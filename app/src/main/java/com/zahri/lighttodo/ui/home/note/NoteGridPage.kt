@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.note.NoteEmptyPlaceholder
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
@@ -146,11 +147,7 @@ private fun NoteCard(
             )
         } else if (note.showEmptyPlaceholder) {
             Spacer(Modifier.height(48.dp))
-            Text(
-                text = stringResource(R.string.note_no_title),
-                style = AppType.body,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
+            NoteEmptyPlaceholder()
         }
     }
 }
