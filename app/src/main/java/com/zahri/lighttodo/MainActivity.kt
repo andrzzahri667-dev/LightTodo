@@ -35,6 +35,8 @@ import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.note.NoteEditorLauncher
+import com.zahri.lighttodo.ui.note.NoteScaleDownUpdateAction
+import com.zahri.lighttodo.ui.note.NoteScaleDownUpdatePolicy
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -126,10 +128,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (noteEditorWasLaunched) {
-            pendingNoteScaleDownData?.let {
-                NoteEditorLauncher.updateScaleDownData(this, it)
+        when (
+            NoteScaleDownUpdatePolicy.actionFor(
+                editorWasLaunched = noteEditorWasLaunched,
+                hasScaleDownData = pendingNoteScaleDownData != null
+            )
+        ) {
+            NoteScaleDownUpdateAction.None -> Unit
+            NoteScaleDownUpdateAction.UpdateData -> {
+                pendingNoteScaleDownData?.let {
+                    NoteEditorLauncher.updateScaleDownData(this, it)
+                }
             }
+            NoteScaleDownUpdateAction.DisableAnimation -> {
+                NoteEditorLauncher.disableScaleDownAnimation(this)
+            }
+        }
+        if (noteEditorWasLaunched) {
             noteEditorWasLaunched = false
         }
     }
