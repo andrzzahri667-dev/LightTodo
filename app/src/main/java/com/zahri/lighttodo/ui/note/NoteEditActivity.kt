@@ -2,6 +2,8 @@ package com.zahri.lighttodo.ui.note
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color as AndroidColor
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -39,10 +41,15 @@ class NoteEditActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val launchMode = intent.noteLaunchAnimationModeExtra()
-        if (launchMode == NoteEditorLaunchAnimationMode.CustomContainerTransform) {
+        if (NoteEditorWindowPolicy.shouldForceTransparentWindow(launchMode)) {
             setTheme(R.style.Theme_LightTodo_NoteTransform)
+        } else {
+            setTheme(R.style.Theme_LightTodo)
         }
         super.onCreate(savedInstanceState)
+        if (NoteEditorWindowPolicy.shouldForceTransparentWindow(launchMode)) {
+            forceTransparentWindow()
+        }
         val editingId = intent.noteIdExtra()
         noteEditViewModel.load(editingId, intent.noteLaunchSeedExtra())
         val transitionBounds = intent.noteTransitionBoundsExtra()
@@ -85,6 +92,13 @@ class NoteEditActivity : ComponentActivity() {
     private fun finishWithoutWindowAnimation() {
         finish()
         overridePendingTransition(0, 0)
+    }
+
+    private fun forceTransparentWindow() {
+        window.setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
+        window.decorView.setBackgroundColor(AndroidColor.TRANSPARENT)
+        window.statusBarColor = AndroidColor.TRANSPARENT
+        window.navigationBarColor = AndroidColor.TRANSPARENT
     }
 
     companion object {

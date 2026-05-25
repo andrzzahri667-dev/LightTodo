@@ -12,11 +12,16 @@
         <item name="android:backgroundDimEnabled">true</item>
     </style>
 
-    <style name="Theme.LightTodo.NoteTransform" parent="android:Theme.Translucent.NoTitleBar">
+    <style name="Theme.LightTodo.NoteTransform" parent="Theme.LightTodo">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
         <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowContentTransitions">false</item>
+        <item name="android:windowActivityTransitions">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
     </style>

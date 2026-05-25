@@ -1,0 +1,22 @@
+package com.zahri.lighttodo.ui.note
+
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class NoteEditorWindowPolicyTest {
+    @Test
+    fun shouldForceTransparentWindow_onlyForCustomContainerTransform() {
+        assertEquals(
+            false,
+            NoteEditorWindowPolicy.shouldForceTransparentWindow(NoteEditorLaunchAnimationMode.MiuiSystemScaleUpDown)
+        )
+        assertEquals(
+            true,
+            NoteEditorWindowPolicy.shouldForceTransparentWindow(NoteEditorLaunchAnimationMode.CustomContainerTransform)
+        )
+        assertEquals(
+            false,
+            NoteEditorWindowPolicy.shouldForceTransparentWindow(NoteEditorLaunchAnimationMode.Plain)
+        )
+    }
+}
