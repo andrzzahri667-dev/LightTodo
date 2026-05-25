@@ -2,8 +2,6 @@ package com.zahri.lighttodo.ui.note
 
 import android.Manifest
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.content.Intent
 import android.net.Uri
 import android.view.View
@@ -60,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -615,17 +614,25 @@ private fun NoteImageBlock(
             .padding(vertical = 4.dp)
     ) {
         val targetWidthPx = with(density) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
-        val image = remember(ref, targetWidthPx) {
-            loadNoteImage(context, ref, targetWidthPx)
+        val image by produceState<LoadedNoteImage?>(
+            initialValue = null,
+            context,
+            ref,
+            targetWidthPx
+        ) {
+            value = withContext(Dispatchers.IO) {
+                loadNoteImage(context, ref, targetWidthPx)
+            }
         }
 
-        if (image != null) {
+        val loadedImage = image
+        if (loadedImage != null) {
             Image(
-                bitmap = image.bitmap.asImageBitmap(),
+                bitmap = loadedImage.bitmap.asImageBitmap(),
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(image.aspectRatio)
+                    .aspectRatio(loadedImage.aspectRatio)
                     .clip(shape)
                     .then(mediaSelectionModifier(selected, shape))
                     .pointerInput(ref) {
@@ -734,14 +741,12 @@ private fun AudioWaveBars() {
 @Composable
 private fun ImagePreviewDialog(ref: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val bitmap = remember(ref) {
-        NoteAttachmentStore.resolve(context, ref)?.absolutePath?.let(BitmapFactory::decodeFile)
-    }
+    val density = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
@@ -749,9 +754,29 @@ private fun ImagePreviewDialog(ref: String, onDismiss: () -> Unit) {
                 .padding(8.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (bitmap != null) {
+            val targetWidthPx = with(density) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
+            val targetHeightPx = with(density) { maxHeight.toPx() }.roundToInt().coerceAtLeast(1)
+            val image by produceState<LoadedNoteImage?>(
+                initialValue = null,
+                context,
+                ref,
+                targetWidthPx,
+                targetHeightPx
+            ) {
+                value = withContext(Dispatchers.IO) {
+                    loadNoteImage(
+                        context = context,
+                        ref = ref,
+                        targetWidthPx = targetWidthPx,
+                        targetHeightPx = targetHeightPx
+                    )
+                }
+            }
+
+            val loadedImage = image
+            if (loadedImage != null) {
                 Image(
-                    bitmap = bitmap.asImageBitmap(),
+                    bitmap = loadedImage.bitmap.asImageBitmap(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
@@ -759,35 +784,6 @@ private fun ImagePreviewDialog(ref: String, onDismiss: () -> Unit) {
             }
         }
     }
-}
-
-private data class LoadedNoteImage(
-    val bitmap: Bitmap,
-    val aspectRatio: Float
-)
-
-private fun loadNoteImage(context: Context, ref: String, targetWidthPx: Int): LoadedNoteImage? {
-    val file = NoteAttachmentStore.resolve(context, ref) ?: return null
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(file.absolutePath, bounds)
-    val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return null
-    val sourceHeight = bounds.outHeight.takeIf { it > 0 } ?: return null
-    val bitmap = BitmapFactory.decodeFile(
-        file.absolutePath,
-        BitmapFactory.Options().apply {
-            inSampleSize = calculateImageSampleSize(sourceWidth, targetWidthPx)
-        }
-    ) ?: return null
-    return LoadedNoteImage(
-        bitmap = bitmap,
-        aspectRatio = sourceWidth.toFloat() / sourceHeight.toFloat()
-    )
-}
-
-private fun calculateImageSampleSize(width: Int, targetWidth: Int): Int {
-    var sample = 1
-    while (width / sample > targetWidth * 2) sample *= 2
-    return sample
 }
 
 private fun browsableUri(url: String): Uri {
