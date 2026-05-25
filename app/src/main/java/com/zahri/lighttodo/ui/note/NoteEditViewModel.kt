@@ -211,8 +211,12 @@ class NoteEditViewModel(
 
     fun stopAudioPlayback(ref: String? = null) {
         if (ref != null && _mediaState.value.playingAudioRef != ref) return
-        player?.release()
+        val activePlayer = player
         player = null
+        if (activePlayer != null) {
+            activePlayer.runCatching { stop() }
+            activePlayer.release()
+        }
         _mediaState.value = _mediaState.value.copy(playingAudioRef = null)
     }
 
