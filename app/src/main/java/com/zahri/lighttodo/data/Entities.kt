@@ -31,7 +31,14 @@ import kotlinx.serialization.Serializable
             onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index("tagId"), Index("dateMillis"), Index("done"), Index("calendarEventId", unique = true)]
+    indices = [
+        Index("tagId"),
+        Index("dateMillis"),
+        Index("done"),
+        Index(value = ["done", "dateMillis", "createdAtMillis"]),
+        Index(value = ["done", "remindStartAtMillis", "remindAtMillis"]),
+        Index("calendarEventId", unique = true)
+    ]
 )
 data class TodoEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

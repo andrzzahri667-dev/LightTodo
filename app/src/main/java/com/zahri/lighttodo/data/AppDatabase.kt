@@ -10,7 +10,7 @@ import com.zahri.lighttodo.BuildConfig
 
 @Database(
     entities = [TodoEntity::class, TagEntity::class, NoteEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -104,6 +104,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v5：给主页和提醒查询补复合索引，避免 todo 表增长后全表扫描。 */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_todo_done_dateMillis_createdAtMillis " +
+                        "ON todo(done, dateMillis, createdAtMillis)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_todo_done_remindStartAtMillis_remindAtMillis " +
+                        "ON todo(done, remindStartAtMillis, remindAtMillis)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -111,7 +125,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     databaseName
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build().also { INSTANCE = it }
             }
     }
