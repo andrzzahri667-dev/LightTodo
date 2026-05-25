@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -233,9 +234,10 @@ private fun NoteEditorContainerTransformHost(
         return
     }
 
-    val progress = remember { Animatable(0f) }
     val view = LocalView.current
     val density = LocalDensity.current
+    var entryPlayed by rememberSaveable { mutableStateOf(false) }
+    val progress = remember { Animatable(if (entryPlayed) 1f else 0f) }
     var rootSize by remember {
         mutableStateOf(
             if (view.width > 0 && view.height > 0) {
@@ -246,7 +248,6 @@ private fun NoteEditorContainerTransformHost(
         )
     }
     var rootScreenOffset by remember { mutableStateOf(IntOffset.Zero) }
-    var entryPlayed by remember { mutableStateOf(false) }
     val canRender = NoteEditorContainerTransformPolicy.shouldRender(
         rootWidth = rootSize.width,
         rootHeight = rootSize.height
@@ -262,6 +263,8 @@ private fun NoteEditorContainerTransformHost(
                 )
             )
             entryPlayed = true
+        } else if (canRender && entryPlayed && !exitRequested && progress.value < 1f) {
+            progress.snapTo(1f)
         }
     }
 
@@ -300,10 +303,7 @@ private fun NoteEditorContainerTransformHost(
                 progress = progress.value
             )
             val cornerRadius = with(density) { frame.cornerRadiusPx.toDp() }
-            val contentPhase = NoteEditorContainerTransformPolicy.contentPhaseFor(progress.value)
-            val editorAlpha = if (contentPhase == NoteEditorTransformContentPhase.Editor) 1f else 0f
-            val sourcePreviewAlpha =
-                if (contentPhase == NoteEditorTransformContentPhase.SourcePreview) 1f else 0f
+            val contentAlpha = NoteEditorContainerTransformPolicy.contentAlphaFor(progress.value)
 
             Box(
                 modifier = Modifier
@@ -314,7 +314,7 @@ private fun NoteEditorContainerTransformHost(
                         translationY = frame.translationY
                         scaleX = frame.scaleX
                         scaleY = frame.scaleY
-                        alpha = editorAlpha
+                        alpha = contentAlpha.editorAlpha
                         clip = cornerRadius > 0.dp
                         shape = RoundedCornerShape(cornerRadius)
                     }
@@ -323,14 +323,11 @@ private fun NoteEditorContainerTransformHost(
             }
 
             val previewFrame = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
+                containerFrame = frame,
                 rootWidth = rootSize.width,
                 rootHeight = rootSize.height,
-                sourceLeft = transitionBounds.screenLeft - rootScreenOffset.x,
-                sourceTop = transitionBounds.screenTop - rootScreenOffset.y,
                 sourceWidth = transitionBounds.width,
-                sourceHeight = transitionBounds.height,
-                sourceCornerRadiusPx = transitionBounds.cornerRadiusPx,
-                progress = progress.value
+                sourceHeight = transitionBounds.height
             )
             val previewCornerRadius = with(density) { previewFrame.cornerRadiusPx.toDp() }
             Box(
@@ -343,7 +340,7 @@ private fun NoteEditorContainerTransformHost(
                         translationY = previewFrame.translationY
                         scaleX = previewFrame.scaleX
                         scaleY = previewFrame.scaleY
-                        alpha = sourcePreviewAlpha
+                        alpha = contentAlpha.sourcePreviewAlpha
                         clip = previewCornerRadius > 0.dp
                         shape = RoundedCornerShape(previewCornerRadius)
                     }

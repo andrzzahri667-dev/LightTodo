@@ -54,6 +54,7 @@ object NoteEditorLauncher {
 
         val miuiReturnAnimationPrepared: Boolean
         var sourceHiddenBeforeLaunch = false
+        var snapshotHandedToSystem = false
         try {
             val miuiOptions = if (miuiScaleUpDownSupported) {
                 MiuiScaleUpDownOptions.makeBundle(
@@ -80,6 +81,7 @@ object NoteEditorLauncher {
                 sourceHiddenBeforeLaunch = true
                 onSourceHiddenChange(true)
             }
+            snapshotHandedToSystem = miuiOptions != null
             miuiReturnAnimationPrepared = miuiOptions != null
 
             when (launchMode) {
@@ -107,7 +109,9 @@ object NoteEditorLauncher {
             }
             throw throwable
         } finally {
-            snapshot?.recycle()
+            if (!snapshotHandedToSystem) {
+                snapshot?.recycle()
+            }
         }
         return NoteEditorLaunchResult(miuiReturnAnimationPrepared = miuiReturnAnimationPrepared)
     }

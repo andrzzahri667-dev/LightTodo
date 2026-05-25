@@ -79,6 +79,20 @@ class NoteEditorContainerTransformPolicyTest {
     }
 
     @Test
+    fun contentAlphaFor_crossfadesAroundMidpointInsteadOfHardCutting() {
+        val before = NoteEditorContainerTransformPolicy.contentAlphaFor(0.39f)
+        val middle = NoteEditorContainerTransformPolicy.contentAlphaFor(0.5f)
+        val after = NoteEditorContainerTransformPolicy.contentAlphaFor(0.61f)
+
+        assertEquals(1f, before.sourcePreviewAlpha, 0.0001f)
+        assertEquals(0f, before.editorAlpha, 0.0001f)
+        assertEquals(0.5f, middle.sourcePreviewAlpha, 0.0001f)
+        assertEquals(0.5f, middle.editorAlpha, 0.0001f)
+        assertEquals(0f, after.sourcePreviewAlpha, 0.0001f)
+        assertEquals(1f, after.editorAlpha, 0.0001f)
+    }
+
+    @Test
     fun sourcePreviewFrameFor_startKeepsSourceContentUnscaled() {
         val frame = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
             rootWidth = 1000,
@@ -119,6 +133,33 @@ class NoteEditorContainerTransformPolicyTest {
             sourceHeight = 200,
             sourceCornerRadiusPx = 36,
             progress = 0.5f
+        )
+
+        assertEquals(container.translationX, preview.translationX, 0.0001f)
+        assertEquals(container.translationY, preview.translationY, 0.0001f)
+        assertEquals(1000f * container.scaleX, 250f * preview.scaleX, 0.0001f)
+        assertEquals(2000f * container.scaleY, 200f * preview.scaleY, 0.0001f)
+    }
+
+    @Test
+    fun sourcePreviewFrameFor_canReusePrecomputedContainerFrame() {
+        val container = NoteEditorContainerTransformPolicy.frameFor(
+            rootWidth = 1000,
+            rootHeight = 2000,
+            sourceLeft = 120,
+            sourceTop = 320,
+            sourceWidth = 250,
+            sourceHeight = 200,
+            sourceCornerRadiusPx = 36,
+            progress = 0.65f
+        )
+
+        val preview = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
+            containerFrame = container,
+            rootWidth = 1000,
+            rootHeight = 2000,
+            sourceWidth = 250,
+            sourceHeight = 200
         )
 
         assertEquals(container.translationX, preview.translationX, 0.0001f)

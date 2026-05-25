@@ -10,6 +10,11 @@ data class NoteEditorContainerTransformFrame(
     val cornerRadiusPx: Float
 )
 
+data class NoteEditorTransformContentAlpha(
+    val sourcePreviewAlpha: Float,
+    val editorAlpha: Float
+)
+
 data class NoteEditorTransitionBounds(
     val screenLeft: Int,
     val screenTop: Int,
@@ -35,6 +40,8 @@ object NoteEditorContainerTransformPolicy {
     const val ExitDurationMillis = 480
     const val SourceRevealAfterEntryDelayMillis = 40
     const val ContentSwitchProgress = 0.5f
+    const val ContentCrossfadeStartProgress = 0.4f
+    const val ContentCrossfadeEndProgress = 0.6f
 
     val EntryEasing = NoteEditorContainerTransformEasing(0.4f, 0f, 0.2f, 1f)
     val ExitEasing = NoteEditorContainerTransformEasing(0.4f, 0f, 0.2f, 1f)
@@ -49,6 +56,19 @@ object NoteEditorContainerTransformPolicy {
         } else {
             NoteEditorTransformContentPhase.Editor
         }
+    }
+
+    fun contentAlphaFor(progress: Float): NoteEditorTransformContentAlpha {
+        val safeProgress = safeProgress(progress)
+        val rawFadeProgress = (
+            (safeProgress - ContentCrossfadeStartProgress) /
+                (ContentCrossfadeEndProgress - ContentCrossfadeStartProgress)
+            ).coerceIn(0f, 1f)
+        val fadeProgress = smoothStep(rawFadeProgress)
+        return NoteEditorTransformContentAlpha(
+            sourcePreviewAlpha = 1f - fadeProgress,
+            editorAlpha = fadeProgress
+        )
     }
 
     fun frameFor(
@@ -95,6 +115,22 @@ object NoteEditorContainerTransformPolicy {
             sourceCornerRadiusPx = sourceCornerRadiusPx,
             progress = progress
         )
+        return sourcePreviewFrameFor(
+            containerFrame = containerFrame,
+            rootWidth = rootWidth,
+            rootHeight = rootHeight,
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight
+        )
+    }
+
+    fun sourcePreviewFrameFor(
+        containerFrame: NoteEditorContainerTransformFrame,
+        rootWidth: Int,
+        rootHeight: Int,
+        sourceWidth: Int,
+        sourceHeight: Int
+    ): NoteEditorContainerTransformFrame {
         val safeRootWidth = max(rootWidth, 1).toFloat()
         val safeRootHeight = max(rootHeight, 1).toFloat()
         val startScaleX = max(sourceWidth, 1) / safeRootWidth
@@ -114,6 +150,9 @@ object NoteEditorContainerTransformPolicy {
 
     private fun safeProgress(progress: Float): Float =
         if (progress.isNaN()) 0f else progress.coerceIn(0f, 1f)
+
+    private fun smoothStep(progress: Float): Float =
+        progress * progress * (3f - 2f * progress)
 
     private fun lerp(start: Float, end: Float, progress: Float): Float =
         start + (end - start) * progress
