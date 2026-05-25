@@ -28,11 +28,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,169 +60,177 @@ import com.zahri.lighttodo.ui.theme.AppType
 fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
-    val toast = remember { mutableStateOf<String?>(null) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
     var showClearConfirm by remember { mutableStateOf(false) }
     var showRemindTimePicker by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? -> uri?.let { vm.exportTo(context, it) { msg -> toast.value = msg } } }
+    ) { uri: Uri? -> uri?.let { vm.exportTo(context, it) { msg -> feedbackMessage = msg } } }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? -> uri?.let { vm.importFrom(context, it) { msg -> toast.value = msg } } }
+    ) { uri: Uri? -> uri?.let { vm.importFrom(context, it) { msg -> feedbackMessage = msg } } }
 
     val readCalendarLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) vm.setCalendarSyncEnabled(true)
-        else toast.value = context.getString(R.string.settings_no_calendar_permission)
+        else feedbackMessage = context.getString(R.string.settings_no_calendar_permission)
     }
 
-    Column(
+    LaunchedEffect(feedbackMessage) {
+        val message = feedbackMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        feedbackMessage = null
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
     ) {
-        // ── Navigation bar ───────────────────────────────────────
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.settings_back),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+            // ── Navigation bar ───────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.settings_back),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
-        }
 
-        // ── Large title ──────────────────────────────────────────
-        Text(
-            text = stringResource(R.string.settings_title),
-            style = AppType.largeTitle,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // ── Card 1: Reminders ────────────────────────────────────
-        SectionCard {
-            SettingRow(
-                title = stringResource(R.string.settings_default_remind_time),
-                value = "%02d:%02d".format(state.defaultRemindHour, state.defaultRemindMinute),
-                onClick = { showRemindTimePicker = true }
+            // ── Large title ──────────────────────────────────────────
+            Text(
+                text = stringResource(R.string.settings_title),
+                style = AppType.largeTitle,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
-            InsetDivider()
-            SettingRow(
-                title = stringResource(R.string.settings_default_hours_before),
-                trailing = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore - 1) }) {
-                            Text("−", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            stringResource(R.string.settings_hours_unit, state.defaultHoursBefore),
-                            style = AppType.body,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore + 1) }) {
-                            Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+
+            Spacer(Modifier.height(16.dp))
+
+            // ── Card 1: Reminders ────────────────────────────────────
+            SectionCard {
+                SettingRow(
+                    title = stringResource(R.string.settings_default_remind_time),
+                    value = "%02d:%02d".format(state.defaultRemindHour, state.defaultRemindMinute),
+                    onClick = { showRemindTimePicker = true }
+                )
+                InsetDivider()
+                SettingRow(
+                    title = stringResource(R.string.settings_default_hours_before),
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore - 1) }) {
+                                Text("−", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.settings_hours_unit, state.defaultHoursBefore),
+                                style = AppType.body,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = { vm.setDefaultHoursBefore(state.defaultHoursBefore + 1) }) {
+                                Text("+", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
-                }
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // ── Card 2: Calendar Sync ────────────────────────────────
-        SectionCard {
-            SwitchRow(
-                title = stringResource(R.string.settings_calendar_sync),
-                subtitle = stringResource(R.string.settings_calendar_sync_desc),
-                checked = state.calendarSyncEnabled,
-                onCheckedChange = { enabled ->
-                    if (enabled) readCalendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
-                    else vm.setCalendarSyncEnabled(false)
-                }
-            )
-            InsetDivider()
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                OutlinedTextField(
-                    value = state.calendarAccountName,
-                    onValueChange = vm::setCalendarAccount,
-                    label = { Text(stringResource(R.string.settings_calendar_account), style = AppType.footnote) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { vm.syncCalendarNow(context) { toast.value = it } }) {
-                    Text(stringResource(R.string.settings_sync_now), color = AppColors.Brand)
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── Card 2: Calendar Sync ────────────────────────────────
+            SectionCard {
+                SwitchRow(
+                    title = stringResource(R.string.settings_calendar_sync),
+                    subtitle = stringResource(R.string.settings_calendar_sync_desc),
+                    checked = state.calendarSyncEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled) readCalendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+                        else vm.setCalendarSyncEnabled(false)
+                    }
+                )
+                InsetDivider()
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    OutlinedTextField(
+                        value = state.calendarAccountName,
+                        onValueChange = vm::setCalendarAccount,
+                        label = { Text(stringResource(R.string.settings_calendar_account), style = AppType.footnote) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { vm.syncCalendarNow(context) { feedbackMessage = it } }) {
+                        Text(stringResource(R.string.settings_sync_now), color = AppColors.Brand)
+                    }
                 }
             }
-        }
 
-        Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
 
-        // ── Card 3: Quick Add ────────────────────────────────────
-        SectionCard {
-            SwitchRow(
-                title = stringResource(R.string.settings_quick_add_notif),
-                subtitle = stringResource(R.string.settings_quick_add_desc),
-                checked = state.quickAddNotifEnabled,
-                onCheckedChange = vm::setQuickAddNotif
-            )
-        }
+            // ── Card 3: Quick Add ────────────────────────────────────
+            SectionCard {
+                SwitchRow(
+                    title = stringResource(R.string.settings_quick_add_notif),
+                    subtitle = stringResource(R.string.settings_quick_add_desc),
+                    checked = state.quickAddNotifEnabled,
+                    onCheckedChange = vm::setQuickAddNotif
+                )
+            }
 
-        Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
 
-        // ── Card 4: Data ─────────────────────────────────────────
-        SectionCard {
-            ActionRow(
-                title = stringResource(R.string.settings_export),
-                onClick = { exportLauncher.launch("lighttodo-backup.json") }
-            )
-            InsetDivider()
-            ActionRow(
-                title = stringResource(R.string.settings_import),
-                onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
-            )
-            if (BuildConfig.DEBUG) {
+            // ── Card 4: Data ─────────────────────────────────────────
+            SectionCard {
+                ActionRow(
+                    title = stringResource(R.string.settings_export),
+                    onClick = { exportLauncher.launch("lighttodo-backup.json") }
+                )
                 InsetDivider()
                 ActionRow(
-                    title = stringResource(R.string.settings_save_db_snapshot),
-                    onClick = { vm.exportDatabaseSnapshot(context) { toast.value = it } }
+                    title = stringResource(R.string.settings_import),
+                    onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
+                )
+                if (BuildConfig.DEBUG) {
+                    InsetDivider()
+                    ActionRow(
+                        title = stringResource(R.string.settings_save_db_snapshot),
+                        onClick = { vm.exportDatabaseSnapshot(context) { feedbackMessage = it } }
+                    )
+                }
+                InsetDivider()
+                ActionRow(
+                    title = stringResource(R.string.settings_clear_done),
+                    onClick = { showClearConfirm = true },
+                    destructive = true
                 )
             }
-            InsetDivider()
-            ActionRow(
-                title = stringResource(R.string.settings_clear_done),
-                onClick = { showClearConfirm = true },
-                destructive = true
-            )
+
+            Spacer(Modifier.height(24.dp))
         }
 
-        Spacer(Modifier.height(24.dp))
-
-        // ── Toast ────────────────────────────────────────────────
-        toast.value?.let {
-            Text(
-                it,
-                style = AppType.footnote,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
-            Spacer(Modifier.height(16.dp))
-        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
     }
 
     // ── Default reminder time picker ─────────────────────────────
@@ -279,7 +290,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
                     TextButton(
                         onClick = {
                             showClearConfirm = false
-                            vm.clearDone { toast.value = it }
+                            vm.clearDone { feedbackMessage = it }
                         },
                         modifier = Modifier
                             .weight(1f)
