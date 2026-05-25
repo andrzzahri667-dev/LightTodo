@@ -56,7 +56,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     .setFullScreenIntent(fullScreenPi, true)
                     .build()
                 val nm = context.getSystemService(NotificationManager::class.java)
-                val notifId = if (isStart) (id * 10).toInt() else (id * 10 + 1).toInt()
+                val notifId = ReminderRequestCodePolicy.notificationIdFor(id, isStart)
                 nm?.notify(notifId, notif)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
