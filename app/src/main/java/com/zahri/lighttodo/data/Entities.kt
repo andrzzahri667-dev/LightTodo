@@ -19,7 +19,8 @@ import kotlinx.serialization.Serializable
  *  - 截止时间分为两个字段：dateMillis (天) + deadlineHour/deadlineMinute (可空，全天则为 null)
  *  - remindAtMillis 提前算出，AlarmManager 直接用
  *  - tagId 单标签，可空（=未分类）
- *  - sourceCalendarId 非空表示来自系统日历，主页只读显示
+ *  - calendarEventId 非空表示已和系统日历事件关联
+ *  - calendarCreatedByApp=true 表示这个日历事件由本 App 创建，仍允许在 App 内编辑
  */
 @Entity(
     tableName = "todo",
@@ -64,8 +65,10 @@ data class TodoEntity(
     val done: Boolean = false,
     val doneAtMillis: Long? = null,
     val createdAtMillis: Long = System.currentTimeMillis(),
-    /** 来自小米日历的事件 ID；非空表示只读 */
-    val calendarEventId: Long? = null
+    /** 系统日历事件 ID；非空表示已和系统日历关联 */
+    val calendarEventId: Long? = null,
+    /** true = 本 App 创建并镜像到日历；false = 外部日历导入 */
+    val calendarCreatedByApp: Boolean = false
 )
 
 fun TodoEntity.hasAnyReminder(): Boolean =

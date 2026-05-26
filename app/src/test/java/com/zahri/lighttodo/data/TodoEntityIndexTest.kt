@@ -17,10 +17,11 @@ class TodoEntityIndexTest {
     fun databaseMigrationCreatesCompositeTodoIndexesForExistingInstalls() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/AppDatabase.kt").readText()
 
-        assertTrue(source.contains("version = 5"))
+        assertTrue(source.contains("version = 6"))
         assertTrue(source.contains("CREATE INDEX IF NOT EXISTS index_todo_done_dateMillis_createdAtMillis"))
         assertTrue(source.contains("CREATE INDEX IF NOT EXISTS index_todo_done_remindStartAtMillis_remindAtMillis"))
-        assertTrue(source.contains(".addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)"))
+        assertTrue(source.contains("ALTER TABLE todo ADD COLUMN calendarCreatedByApp INTEGER NOT NULL DEFAULT 0"))
+        assertTrue(source.contains("MIGRATION_5_6"))
     }
 
     private fun sourceFile(relativePath: String): File {

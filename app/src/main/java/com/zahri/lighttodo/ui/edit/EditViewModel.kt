@@ -73,7 +73,7 @@ class EditViewModel(
                     defaultRemindLabel = label,
                     tagName = tag?.name.orEmpty(),
                     allTags = tags,
-                    readOnly = t.calendarEventId != null
+                    readOnly = t.calendarEventId != null && !t.calendarCreatedByApp
                 )
             } else {
                 _state.value = EditUiState(
