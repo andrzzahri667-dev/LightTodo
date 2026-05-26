@@ -53,6 +53,9 @@ interface TodoDao {
     @Query("SELECT * FROM todo WHERE id = :id")
     fun findByIdSync(id: Long): TodoEntity?
 
+    @Query("SELECT * FROM todo WHERE id IN (:ids)")
+    suspend fun findByIds(ids: List<Long>): List<TodoEntity>
+
     @Query("SELECT * FROM todo")
     suspend fun listAll(): List<TodoEntity>
 
@@ -80,6 +83,9 @@ interface TodoDao {
     @Query("UPDATE todo SET done = :done, doneAtMillis = :doneAtMillis WHERE id = :id")
     suspend fun setDone(id: Long, done: Boolean, doneAtMillis: Long?)
 
+    @Query("UPDATE todo SET calendarEventId = :eventId, calendarCreatedByApp = :createdByApp WHERE id = :id")
+    suspend fun setCalendarLink(id: Long, eventId: Long?, createdByApp: Boolean)
+
     @Query("DELETE FROM todo WHERE id = :id")
     suspend fun delete(id: Long)
 
@@ -99,13 +105,17 @@ interface TodoDao {
     @Query("""
         SELECT calendarEventId FROM todo
         WHERE calendarEventId IS NOT NULL
+          AND done = 0
           AND dateMillis >= :fromMillis
           AND dateMillis <= :toMillis
     """)
-    suspend fun listCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long>
+    suspend fun listUndoneCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long>
 
     @Query("SELECT * FROM todo WHERE calendarEventId IN (:eventIds)")
     suspend fun findByCalendarEventIds(eventIds: List<Long>): List<TodoEntity>
+
+    @Query("SELECT * FROM todo WHERE done = 1")
+    suspend fun listDone(): List<TodoEntity>
 }
 
 @Dao

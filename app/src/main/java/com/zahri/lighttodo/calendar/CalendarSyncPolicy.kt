@@ -1,7 +1,5 @@
 package com.zahri.lighttodo.calendar
 
-import java.util.Locale
-
 object CalendarSyncPolicy {
     const val SyncTimeoutMillis = 15_000L
 
@@ -10,20 +8,15 @@ object CalendarSyncPolicy {
     fun shouldExcludeCalendarName(displayName: String): Boolean =
         excludedNameKeywords.any { keyword -> displayName.contains(keyword, ignoreCase = true) }
 
-    fun matchesAccount(acctName: String, userFilter: String): Boolean {
+    @Suppress("UNUSED_PARAMETER")
+    fun matchesAccount(acctName: String, acctType: String, userFilter: String): Boolean {
         val filter = userFilter.trim()
         if (filter.isNotEmpty()) {
             return acctName.equals(filter, ignoreCase = true) ||
                 acctName.contains(filter, ignoreCase = true)
         }
-
-        val normalized = acctName.trim().lowercase(Locale.ROOT)
-        return normalized.contains("xiaomi") ||
-            acctName.contains("小米") ||
-            normalized == "mi" ||
-            normalized.startsWith("mi ") ||
-            normalized.endsWith(" mi") ||
-            normalized.contains(" mi ")
+        // 无过滤条件时匹配所有非节日日历
+        return true
     }
 
     fun orphanEventIds(
@@ -34,4 +27,27 @@ object CalendarSyncPolicy {
         val liveIds = providerEventIds.toHashSet()
         return importedEventIds.filterNot { it in liveIds }
     }
+
+    fun mergeDoneState(
+        providerCanceled: Boolean,
+        existingDone: Boolean?,
+        existingDoneAtMillis: Long?,
+        nowMillis: Long
+    ): DoneMerge {
+        if (!providerCanceled) {
+            return DoneMerge(
+                done = existingDone ?: false,
+                doneAtMillis = existingDoneAtMillis
+            )
+        }
+        return DoneMerge(
+            done = true,
+            doneAtMillis = existingDoneAtMillis ?: nowMillis
+        )
+    }
+
+    data class DoneMerge(
+        val done: Boolean,
+        val doneAtMillis: Long?
+    )
 }

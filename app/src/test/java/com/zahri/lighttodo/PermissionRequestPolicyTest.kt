@@ -14,7 +14,8 @@ class PermissionRequestPolicyTest {
         assertEquals(
             listOf(
                 Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.READ_CALENDAR
+                Manifest.permission.READ_CALENDAR,
+                Manifest.permission.WRITE_CALENDAR
             ),
             permissions
         )
@@ -24,7 +25,13 @@ class PermissionRequestPolicyTest {
     fun startupPermissions_includeCalendarOnAndroid10To12() {
         val permissions = PermissionRequestPolicy.startupPermissions(Build.VERSION_CODES.Q)
 
-        assertEquals(listOf(Manifest.permission.READ_CALENDAR), permissions)
+        assertEquals(
+            listOf(
+                Manifest.permission.READ_CALENDAR,
+                Manifest.permission.WRITE_CALENDAR
+            ),
+            permissions
+        )
     }
 
     @Test
@@ -34,6 +41,7 @@ class PermissionRequestPolicyTest {
         assertEquals(
             listOf(
                 Manifest.permission.READ_CALENDAR,
+                Manifest.permission.WRITE_CALENDAR,
                 Manifest.permission.READ_EXTERNAL_STORAGE,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
             ),

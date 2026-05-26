@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.BuildConfig
+import com.zahri.lighttodo.PermissionRequestPolicy
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
@@ -74,9 +75,9 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
     ) { uri: Uri? -> uri?.let { vm.importFrom(context, it) { msg -> feedbackMessage = msg } } }
 
     val readCalendarLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) vm.setCalendarSyncEnabled(true)
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (PermissionRequestPolicy.calendarPermissionsGranted(results)) vm.setCalendarSyncEnabled(true)
         else feedbackMessage = context.getString(R.string.settings_no_calendar_permission)
     }
 
@@ -162,7 +163,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
                     subtitle = stringResource(R.string.settings_calendar_sync_desc),
                     checked = state.calendarSyncEnabled,
                     onCheckedChange = { enabled ->
-                        if (enabled) readCalendarLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+                        if (enabled) readCalendarLauncher.launch(PermissionRequestPolicy.calendarPermissions())
                         else vm.setCalendarSyncEnabled(false)
                     }
                 )

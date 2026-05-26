@@ -33,7 +33,7 @@ class UserPrefs(private val context: Context) {
         val defaultRemindMinute: Int = 0,
         val defaultHoursBefore: Int = 2,
         val calendarSyncEnabled: Boolean = false,
-        val calendarAccountName: String = "", // empty = match any account containing "xiaomi" by default
+        val calendarAccountName: String = "", // empty = match every non-holiday calendar by default
         val quickAddNotifEnabled: Boolean = false,
         /** Collapsed group keys; empty = all expanded (the default). */
         val collapsedTagIds: Set<String> = emptySet(),

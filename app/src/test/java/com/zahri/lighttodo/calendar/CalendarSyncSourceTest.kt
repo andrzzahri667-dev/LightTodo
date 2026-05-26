@@ -8,14 +8,15 @@ import org.junit.Test
 class CalendarSyncSourceTest {
 
     @Test
-    fun orphanCleanupOnlyConsidersImportedEventsInsideSyncWindow() {
+    fun orphanCleanupOnlyConsidersUndoneImportedEventsInsideSyncWindow() {
         val syncSource = sourceFile("app/src/main/java/com/zahri/lighttodo/calendar/CalendarSync.kt")
             .readText()
         val daoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Daos.kt")
             .readText()
 
-        assertTrue(syncSource.contains("listCalendarEventIdsInWindow(from, to)"))
+        assertTrue(syncSource.contains("listUndoneCalendarEventIdsInWindow(from, to)"))
         assertFalse(syncSource.contains("listCalendarEventIds()"))
+        assertTrue(daoSource.contains("done = 0"))
         assertTrue(daoSource.contains("dateMillis >= :fromMillis"))
         assertTrue(daoSource.contains("dateMillis <= :toMillis"))
     }

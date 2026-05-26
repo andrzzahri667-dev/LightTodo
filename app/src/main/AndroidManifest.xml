@@ -16,8 +16,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- Calendar one-way read-only sync (Xiaomi calendar) -->
+    <!-- Calendar two-way sync -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
     <!-- Full-screen reminder -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />

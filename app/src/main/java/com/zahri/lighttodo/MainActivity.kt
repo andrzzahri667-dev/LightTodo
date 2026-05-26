@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
                     it.key == android.Manifest.permission.WRITE_EXTERNAL_STORAGE) && it.value
             }
             if (storageGranted) app.retryRestore()
-            if (results[android.Manifest.permission.READ_CALENDAR] == true) {
+            if (PermissionRequestPolicy.calendarPermissionsGranted(results)) {
                 enableCalendarSync()
             }
         }
@@ -158,10 +158,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun hasCalendarPermission(): Boolean =
-        ContextCompat.checkSelfPermission(
-            this,
-            android.Manifest.permission.READ_CALENDAR
-        ) == PackageManager.PERMISSION_GRANTED
+        PermissionRequestPolicy.calendarPermissions().all { permission ->
+            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        }
 
     private fun enableCalendarSync() {
         val app = application as App

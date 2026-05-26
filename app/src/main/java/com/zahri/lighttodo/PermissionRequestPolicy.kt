@@ -10,9 +10,20 @@ object PermissionRequestPolicy {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
             add(Manifest.permission.READ_CALENDAR)
+            add(Manifest.permission.WRITE_CALENDAR)
             if (sdkInt < Build.VERSION_CODES.Q) {
                 add(Manifest.permission.READ_EXTERNAL_STORAGE)
                 add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
         }
+
+    fun calendarPermissions(): Array<String> =
+        arrayOf(
+            Manifest.permission.READ_CALENDAR,
+            Manifest.permission.WRITE_CALENDAR
+        )
+
+    fun calendarPermissionsGranted(results: Map<String, Boolean>): Boolean =
+        results[Manifest.permission.READ_CALENDAR] == true &&
+            results[Manifest.permission.WRITE_CALENDAR] == true
 }
