@@ -1,7 +1,5 @@
 package com.zahri.lighttodo.ui.home.note
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -38,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.motion.components.rememberMotionSelectionColor
 import com.zahri.lighttodo.ui.note.NoteEmptyPlaceholder
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -90,8 +89,8 @@ fun NoteGridPage(
                 hidden = hiddenNoteSource?.matches(note.id) == true,
                 onClick = { sourceBounds -> onNoteClick(note.id, sourceBounds) },
                 onLongClick = { onNoteLongClick(note.id) },
-                modifier = Modifier.animateItemPlacement(
-                    animationSpec = AppMotion.noteGridPlacementSpring()
+                modifier = Modifier.animateItem(
+                    placementSpec = AppMotion.noteGridPlacementSpring()
                 )
             )
         }
@@ -109,10 +108,11 @@ private fun NoteCard(
     modifier: Modifier = Modifier
 ) {
     val sourceBounds = remember { NoteSourceBounds() }
-    val cardBackground by animateColorAsState(
-        targetValue = if (selected) AppColors.Brand.copy(alpha = 0.15f)
-        else MaterialTheme.colorScheme.surface,
-        animationSpec = tween(AppMotion.NoteCardSelectionColorMillis),
+    val cardBackground by rememberMotionSelectionColor(
+        selected = selected,
+        selectedColor = AppColors.Brand.copy(alpha = 0.15f),
+        unselectedColor = MaterialTheme.colorScheme.surface,
+        durationMillis = AppMotion.NoteCardSelectionColorMillis,
         label = "note-card-selection-bg"
     )
 

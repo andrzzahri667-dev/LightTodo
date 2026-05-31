@@ -28,6 +28,7 @@ class AppMotionTest {
     fun listAndCompletionMotion_keepsRepeatedInteractionsTight() {
         assertTrue(AppMotion.ListPlacementStiffness in 420f..560f)
         assertTrue(AppMotion.SectionArrowStiffness in 420f..560f)
+        assertEquals(180f, AppMotion.SectionExpandedRotationDegrees, 0.0001f)
         assertTrue(AppMotion.SectionItemFadeInMillis in 120..220)
         assertTrue(AppMotion.SectionItemFadeOutMillis in 90..180)
         assertTrue(AppMotion.SectionItemFadeOutMillis < AppMotion.SectionItemFadeInMillis)

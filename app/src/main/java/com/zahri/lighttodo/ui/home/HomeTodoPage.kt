@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.ui.home
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -50,6 +49,8 @@ import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
+import com.zahri.lighttodo.ui.motion.components.rememberMotionExpansionRotation
+import com.zahri.lighttodo.ui.motion.components.rememberMotionSelectionColor
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
@@ -160,11 +161,7 @@ private fun SectionHeader(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val arrowRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = AppMotion.sectionArrowSpring(),
-        label = "section-arrow"
-    )
+    val arrowRotation by rememberMotionExpansionRotation(expanded)
 
     Row(
         modifier = modifier
@@ -214,9 +211,10 @@ private fun TodoRow(
     val context = LocalContext.current
     val titleText = todo.displayTitle(context)
     val isOverdue = todo.isOverdueDate()
-    val selectedBackground by animateColorAsState(
-        targetValue = if (selected) AppColors.Brand.copy(alpha = 0.12f) else Color.Transparent,
-        animationSpec = tween(AppMotion.SelectionColorMillis),
+    val selectedBackground by rememberMotionSelectionColor(
+        selected = selected,
+        selectedColor = AppColors.Brand.copy(alpha = 0.12f),
+        unselectedColor = Color.Transparent,
         label = "todo-selection-bg"
     )
 

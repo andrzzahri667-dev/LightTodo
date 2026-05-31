@@ -35,6 +35,7 @@ object AppMotion {
     const val NoteContentSizeStiffness = 500f
     const val SectionArrowDampingRatio = 0.78f
     const val SectionArrowStiffness = 520f
+    const val SectionExpandedRotationDegrees = 180f
 
     const val SelectionColorMillis = 160
     const val NoteCardSelectionColorMillis = 160

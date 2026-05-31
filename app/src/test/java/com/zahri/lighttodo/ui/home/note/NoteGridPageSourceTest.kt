@@ -29,6 +29,15 @@ class NoteGridPageSourceTest {
         assertFalse(editorSource.contains("stringResource(R.string.note_no_title)"))
     }
 
+    @Test
+    fun noteGridPlacementUsesCurrentLazyItemMotionApi() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
+
+        assertTrue(source.contains("modifier = Modifier.animateItem("))
+        assertTrue(source.contains("placementSpec = AppMotion.noteGridPlacementSpring()"))
+        assertFalse(source.contains("animateItemPlacement("))
+    }
+
     private fun sourceFile(relativePath: String): File {
         val userDir = requireNotNull(System.getProperty("user.dir"))
         var dir = File(userDir).absoluteFile
