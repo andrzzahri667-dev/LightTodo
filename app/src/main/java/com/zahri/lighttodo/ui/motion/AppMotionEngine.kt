@@ -3,6 +3,7 @@ package com.zahri.lighttodo.ui.motion
 enum class AppMotionEngine {
     PlatformActivityOptions,
     MotionLayout,
+    Lottie,
     ComposePrimitive
 }
 
@@ -24,6 +25,9 @@ object AppMotionEnginePolicy {
                 AppMotionEngine.MotionLayout,
                 AppMotionEngine.ComposePrimitive
             )
-            AppMotionUseCase.AssetTimelineAnimation -> emptyList()
+            AppMotionUseCase.AssetTimelineAnimation -> listOf(
+                AppMotionEngine.Lottie,
+                AppMotionEngine.ComposePrimitive
+            )
         }
 }

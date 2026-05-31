@@ -30,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -52,7 +51,6 @@ import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -213,43 +211,18 @@ private fun TodoRow(
         label = "todo-selection-bg"
     )
 
-    val checkScale = remember { androidx.compose.animation.core.Animatable(1f) }
-    val checkmarkAlpha = remember { androidx.compose.animation.core.Animatable(if (todo.done) 1f else 0f) }
-    val contentAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
-    val contentTranslateX = remember { androidx.compose.animation.core.Animatable(0f) }
-
-    LaunchedEffect(animating) {
-        if (animating) {
-            kotlinx.coroutines.coroutineScope {
-                launch {
-                    checkScale.snapTo(0.6f)
-                    checkmarkAlpha.snapTo(0f)
-                    launch { checkmarkAlpha.animateTo(1f, tween(AppMotion.CheckmarkFadeMillis)) }
-                    checkScale.animateTo(
-                        1.15f,
-                        AppMotion.checkOvershootSpring()
-                    )
-                    checkScale.animateTo(
-                        1f,
-                        AppMotion.checkSettleSpring()
-                    )
-                }
-                launch {
-                    kotlinx.coroutines.delay(110)
-                    launch { contentAlpha.animateTo(0.45f, tween(AppMotion.TodoContentSettleMillis)) }
-                    contentTranslateX.animateTo(6f, tween(AppMotion.TodoContentSettleMillis))
-                }
-            }
-        } else {
-            checkScale.snapTo(1f)
-            checkmarkAlpha.snapTo(if (todo.done) 1f else 0f)
-            contentAlpha.snapTo(1f)
-            contentTranslateX.snapTo(0f)
-        }
-    }
-
     val displayDone = todo.done || animating
     val displayStrike = strikeThrough || animating
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (animating) 0.45f else 1f,
+        animationSpec = tween(AppMotion.TodoContentSettleMillis),
+        label = "todo-completion-content-alpha"
+    )
+    val contentTranslateX by animateFloatAsState(
+        targetValue = if (animating) 6f else 0f,
+        animationSpec = tween(AppMotion.TodoContentSettleMillis),
+        label = "todo-completion-content-offset"
+    )
 
     Column(
         modifier = modifier
@@ -286,36 +259,16 @@ private fun TodoRow(
                     if (selected) Text("✓", color = Color.Black, fontSize = 13.sp)
                 }
             } else {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .graphicsLayer {
-                            scaleX = checkScale.value
-                            scaleY = checkScale.value
-                        }
-                        .background(
-                            if (displayDone) AppColors.DoneGreen
-                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        )
-                        .semantics {
-                            contentDescription = context.getString(
-                                if (displayDone) R.string.home_mark_active else R.string.home_mark_done,
-                                titleText
-                            )
-                        }
-                        .clickable(enabled = !animating) { onToggle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (displayDone) {
-                        Text(
-                            "✓",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            modifier = Modifier.graphicsLayer { alpha = checkmarkAlpha.value }
-                        )
-                    }
-                }
+                TodoCompletionIndicator(
+                    displayDone = displayDone,
+                    animating = animating,
+                    enabled = !animating,
+                    contentDescription = context.getString(
+                        if (displayDone) R.string.home_mark_active else R.string.home_mark_done,
+                        titleText
+                    ),
+                    onToggle = onToggle
+                )
             }
 
             Spacer(Modifier.width(12.dp))
@@ -324,8 +277,8 @@ private fun TodoRow(
                 Modifier
                     .weight(1f)
                     .graphicsLayer {
-                        alpha = contentAlpha.value
-                        translationX = contentTranslateX.value * density
+                        alpha = contentAlpha
+                        translationX = contentTranslateX * density
                     }
             ) {
                 Text(

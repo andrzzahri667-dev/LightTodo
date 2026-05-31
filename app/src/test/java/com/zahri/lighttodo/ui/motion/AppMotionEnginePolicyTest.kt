@@ -19,10 +19,28 @@ class AppMotionEnginePolicyTest {
     }
 
     @Test
+    fun assetTimelineAnimationPrefersLottieBeforePrimitiveCompose() {
+        assertEquals(
+            listOf(
+                AppMotionEngine.Lottie,
+                AppMotionEngine.ComposePrimitive
+            ),
+            AppMotionEnginePolicy.preferredEngines(AppMotionUseCase.AssetTimelineAnimation)
+        )
+    }
+
+    @Test
     fun projectIncludesComposeMotionLayoutDependency() {
         val buildFile = sourceFile("app/build.gradle.kts").readText()
 
         assertTrue(buildFile.contains("androidx.constraintlayout:constraintlayout-compose"))
+    }
+
+    @Test
+    fun projectIncludesLottieComposeDependency() {
+        val buildFile = sourceFile("app/build.gradle.kts").readText()
+
+        assertTrue(buildFile.contains("com.airbnb.android:lottie-compose"))
     }
 
     private fun sourceFile(relativePath: String): File {
