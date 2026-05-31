@@ -11,7 +11,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -87,6 +86,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -469,10 +469,8 @@ fun NoteEditScreen(
                 )
             }
 
-            AnimatedVisibility(
-                visible = toolbarVisible,
-                enter = AppMotion.transientSurfaceEnter(),
-                exit = AppMotion.transientSurfaceExit()
+            MotionTransientVisibility(
+                visible = toolbarVisible
             ) {
                 NoteToolbar(
                     formatMode = formatMode,

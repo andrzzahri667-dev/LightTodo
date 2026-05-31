@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.ui.home
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -50,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -123,10 +123,8 @@ fun HomeScreen(
         },
         bottomBar = {
             // Todo selection bar
-            AnimatedVisibility(
-                visible = inSelection && currentPage == HomePagerPages.TODO,
-                enter = AppMotion.transientSurfaceEnter(),
-                exit = AppMotion.transientSurfaceExit()
+            MotionTransientVisibility(
+                visible = inSelection && currentPage == HomePagerPages.TODO
             ) {
                 Row(
                     modifier = Modifier
@@ -154,10 +152,8 @@ fun HomeScreen(
                 }
             }
             // Note selection bar
-            AnimatedVisibility(
-                visible = noteInSelection && currentPage == HomePagerPages.NOTE,
-                enter = AppMotion.transientSurfaceEnter(),
-                exit = AppMotion.transientSurfaceExit()
+            MotionTransientVisibility(
+                visible = noteInSelection && currentPage == HomePagerPages.NOTE
             ) {
                 Row(
                     modifier = Modifier
