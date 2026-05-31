@@ -32,14 +32,10 @@ object AppMotion {
     const val NoteContentSizeStiffness = 500f
     const val SectionArrowDampingRatio = 0.78f
     const val SectionArrowStiffness = 520f
-    const val CheckOvershootDampingRatio = 0.42f
-    const val CheckOvershootStiffness = 480f
-    const val CheckSettleDampingRatio = 0.72f
-    const val CheckSettleStiffness = 360f
 
     const val SelectionColorMillis = 160
     const val NoteCardSelectionColorMillis = 160
-    const val CheckmarkFadeMillis = 180
+    const val PickerItemAlphaMillis = 150
     const val TodoContentSettleMillis = 240
     const val NoteSourceAnimationResetDelayMillis = 1_200L
 
@@ -60,12 +56,6 @@ object AppMotion {
 
     fun <T> sectionArrowSpring(): SpringSpec<T> =
         spring(dampingRatio = SectionArrowDampingRatio, stiffness = SectionArrowStiffness)
-
-    fun <T> checkOvershootSpring(): SpringSpec<T> =
-        spring(dampingRatio = CheckOvershootDampingRatio, stiffness = CheckOvershootStiffness)
-
-    fun <T> checkSettleSpring(): SpringSpec<T> =
-        spring(dampingRatio = CheckSettleDampingRatio, stiffness = CheckSettleStiffness)
 
     fun transientSurfaceEnter(): EnterTransition =
         fadeIn(tween(SurfaceVisibilityFadeMillis, easing = EmphasizedEasing)) +

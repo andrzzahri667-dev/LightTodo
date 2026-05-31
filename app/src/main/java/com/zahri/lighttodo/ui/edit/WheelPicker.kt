@@ -1,6 +1,6 @@
 package com.zahri.lighttodo.ui.edit
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zahri.lighttodo.ui.motion.AppMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
@@ -149,10 +150,11 @@ fun WheelPicker(
 
                 val isSelected = absIndex == centeredAbsIndex
                 val targetAlpha = if (isSelected) 1f else 0.4f
-                val alphaAnim = remember { Animatable(targetAlpha) }
-                LaunchedEffect(targetAlpha) {
-                    alphaAnim.animateTo(targetAlpha, tween(durationMillis = 150))
-                }
+                val alpha by animateFloatAsState(
+                    targetValue = targetAlpha,
+                    animationSpec = tween(AppMotion.PickerItemAlphaMillis),
+                    label = "wheel-picker-item-alpha"
+                )
                 val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
                 val color = if (isSelected) selectedColor else unselectedColor
                 val weight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -161,7 +163,7 @@ fun WheelPicker(
                     modifier = Modifier
                         .height(itemHeight)
                         .fillMaxWidth()
-                        .alpha(alphaAnim.value),
+                        .alpha(alpha),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected && superscript.isNotEmpty()) {

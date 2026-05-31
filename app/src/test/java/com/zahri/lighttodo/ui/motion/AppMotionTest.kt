@@ -27,9 +27,13 @@ class AppMotionTest {
     fun listAndCompletionMotion_keepsRepeatedInteractionsTight() {
         assertTrue(AppMotion.ListPlacementStiffness in 420f..560f)
         assertTrue(AppMotion.SectionArrowStiffness in 420f..560f)
-        assertTrue(AppMotion.CheckmarkFadeMillis <= 190)
         assertTrue(AppMotion.TodoContentSettleMillis <= 240)
         assertTrue(AppMotion.SelectionColorMillis <= 180)
+    }
+
+    @Test
+    fun pickerItemMotion_isCentralizedAndQuick() {
+        assertTrue(AppMotion.PickerItemAlphaMillis in 120..180)
     }
 
     @Test
