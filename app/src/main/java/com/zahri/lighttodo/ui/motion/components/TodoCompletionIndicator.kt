@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home
+package com.zahri.lighttodo.ui.motion.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

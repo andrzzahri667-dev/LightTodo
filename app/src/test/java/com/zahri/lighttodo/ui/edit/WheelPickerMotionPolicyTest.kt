@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.ui.edit
 
+import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

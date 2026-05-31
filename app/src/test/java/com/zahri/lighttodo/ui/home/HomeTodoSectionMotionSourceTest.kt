@@ -9,16 +9,21 @@ class HomeTodoSectionMotionSourceTest {
     @Test
     fun todoSectionRowsAnimateEnterExitAndPlacement() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
+        val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionSectionVisibility.kt").readText()
 
-        assertTrue(source.contains("AnimatedVisibility("))
+        assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility"))
+        assertTrue(source.contains("MotionSectionVisibility("))
         assertTrue(source.contains("visible = item.visible"))
-        assertTrue(source.contains("enter = AppMotion.sectionItemEnter()"))
-        assertTrue(source.contains("exit = AppMotion.sectionItemExit()"))
+        assertFalse(source.contains("import androidx.compose.animation.AnimatedVisibility"))
+        assertFalse(source.contains("AnimatedVisibility("))
         assertTrue(source.contains("Modifier.animateItem("))
         assertTrue(source.contains("fadeInSpec = tween(AppMotion.SectionItemFadeInMillis"))
         assertTrue(source.contains("fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis"))
         assertTrue(source.contains("placementSpec = AppMotion.listPlacementSpring()"))
         assertFalse(source.contains("Modifier.animateItemPlacement("))
+        assertTrue(componentSource.contains("AnimatedVisibility("))
+        assertTrue(componentSource.contains("enter = AppMotion.sectionItemEnter()"))
+        assertTrue(componentSource.contains("exit = AppMotion.sectionItemExit()"))
     }
 
     private fun sourceFile(relativePath: String): File {

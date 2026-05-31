@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.ui.home
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -49,6 +48,8 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
+import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
@@ -121,10 +122,8 @@ fun TodoPage(
                 }
                 is HomeTodoListItem.TodoRow -> {
                     val todo = item.todo
-                    AnimatedVisibility(
+                    MotionSectionVisibility(
                         visible = item.visible,
-                        enter = AppMotion.sectionItemEnter(),
-                        exit = AppMotion.sectionItemExit(),
                         modifier = Modifier.animateItem(
                             fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
                             placementSpec = AppMotion.listPlacementSpring(),

@@ -12,6 +12,7 @@ class WheelPickerMotionSourceTest {
 
         assertTrue(source.contains("import androidx.compose.animation.core.animateFloatAsState"))
         assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.AppMotion"))
+        assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy"))
         assertTrue(source.contains("AppMotion.PickerItemAlphaMillis"))
         assertTrue(source.contains("WheelPickerMotionPolicy.proximityForDistance"))
         assertTrue(source.contains("WheelPickerMotionPolicy.scaleForProximity"))
@@ -19,6 +20,7 @@ class WheelPickerMotionSourceTest {
         assertTrue(source.contains("scaleX = scale"))
         assertTrue(source.contains("scaleY = scale"))
         assertFalse(source.contains("import androidx.compose.animation.core.Animatable"))
+        assertFalse(source.contains("package com.zahri.lighttodo.ui.edit\n\nobject WheelPickerMotionPolicy"))
         assertFalse(source.contains("tween(durationMillis = 150)"))
         assertFalse(source.contains("val targetAlpha = if (isSelected) 1f else 0.4f"))
     }
