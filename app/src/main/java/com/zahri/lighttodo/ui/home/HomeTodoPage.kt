@@ -113,8 +113,10 @@ fun TodoPage(
                                 vm.setGroupExpanded(item.sectionKey, !item.expanded)
                             }
                         },
-                        modifier = Modifier.animateItemPlacement(
-                            animationSpec = AppMotion.listPlacementSpring()
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
+                            placementSpec = AppMotion.listPlacementSpring(),
+                            fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis, easing = AppMotion.StandardEasing)
                         )
                     )
                 }
@@ -133,8 +135,10 @@ fun TodoPage(
                         strikeThrough = item.strikeThrough,
                         animating = todo.id in pendingCompleteIds,
                         showDivider = item.showDivider,
-                        modifier = Modifier.animateItemPlacement(
-                            animationSpec = AppMotion.listPlacementSpring()
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
+                            placementSpec = AppMotion.listPlacementSpring(),
+                            fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis, easing = AppMotion.StandardEasing)
                         )
                     )
                 }

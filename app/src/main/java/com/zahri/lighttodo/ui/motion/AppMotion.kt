@@ -35,7 +35,11 @@ object AppMotion {
 
     const val SelectionColorMillis = 160
     const val NoteCardSelectionColorMillis = 160
+    const val SectionItemFadeInMillis = 170
+    const val SectionItemFadeOutMillis = 120
     const val PickerItemAlphaMillis = 150
+    const val PickerItemScaleMillis = 150
+    const val PickerItemProximityRadiusItems = 1.35f
     const val TodoContentSettleMillis = 240
     const val NoteSourceAnimationResetDelayMillis = 1_200L
 

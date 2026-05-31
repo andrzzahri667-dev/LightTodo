@@ -19,8 +19,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +78,10 @@ fun WheelPicker(
     )
 
     val totalHeight = itemHeight * visibleCount
+    val density = LocalDensity.current
+    val proximityRadiusPx = with(density) {
+        itemHeight.toPx() * AppMotion.PickerItemProximityRadiusItems
+    }
 
     // Absolute centered index in the expanded list
     val centeredAbsIndex by remember {
@@ -149,11 +154,31 @@ fun WheelPicker(
                 } else absIndex
 
                 val isSelected = absIndex == centeredAbsIndex
-                val targetAlpha = if (isSelected) 1f else 0.4f
+                val distanceFromCenter by remember(absIndex) {
+                    derivedStateOf {
+                        val layoutInfo = listState.layoutInfo
+                        val viewportCenter = layoutInfo.viewportStartOffset +
+                            (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2f
+                        val itemInfo = layoutInfo.visibleItemsInfo.firstOrNull { it.index == absIndex + halfVisible }
+                        if (itemInfo == null) {
+                            Float.POSITIVE_INFINITY
+                        } else {
+                            kotlin.math.abs((itemInfo.offset + itemInfo.size / 2f) - viewportCenter)
+                        }
+                    }
+                }
+                val proximity = WheelPickerMotionPolicy.proximityForDistance(distanceFromCenter, proximityRadiusPx)
+                val targetAlpha = WheelPickerMotionPolicy.alphaForProximity(proximity)
+                val targetScale = WheelPickerMotionPolicy.scaleForProximity(proximity)
                 val alpha by animateFloatAsState(
                     targetValue = targetAlpha,
                     animationSpec = tween(AppMotion.PickerItemAlphaMillis),
                     label = "wheel-picker-item-alpha"
+                )
+                val scale by animateFloatAsState(
+                    targetValue = targetScale,
+                    animationSpec = tween(AppMotion.PickerItemScaleMillis),
+                    label = "wheel-picker-item-scale"
                 )
                 val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
                 val color = if (isSelected) selectedColor else unselectedColor
@@ -163,7 +188,11 @@ fun WheelPicker(
                     modifier = Modifier
                         .height(itemHeight)
                         .fillMaxWidth()
-                        .alpha(alpha),
+                        .graphicsLayer {
+                            this.alpha = alpha
+                            scaleX = scale
+                            scaleY = scale
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected && superscript.isNotEmpty()) {
