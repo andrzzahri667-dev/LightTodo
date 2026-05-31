@@ -33,6 +33,8 @@ class AppMotionTest {
         assertTrue(AppMotion.SectionItemFadeOutMillis in 90..180)
         assertTrue(AppMotion.SectionItemFadeOutMillis < AppMotion.SectionItemFadeInMillis)
         assertTrue(AppMotion.TodoContentSettleMillis <= 240)
+        assertTrue(AppMotion.TodoCompletedContentAlpha in 0.4f..0.55f)
+        assertTrue(AppMotion.TodoCompletedContentTranslationX in 4f..8f)
         assertTrue(AppMotion.SelectionColorMillis <= 180)
     }
 

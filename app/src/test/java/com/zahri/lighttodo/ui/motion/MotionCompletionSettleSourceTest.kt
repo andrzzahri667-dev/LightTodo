@@ -1,0 +1,38 @@
+package com.zahri.lighttodo.ui.motion
+
+import java.io.File
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MotionCompletionSettleSourceTest {
+    @Test
+    fun todoCompletionContentSettleIsCentralizedOutsideTodoRow() {
+        val todoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
+        val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionCompletionSettle.kt").readText()
+
+        assertTrue(todoSource.contains("import com.zahri.lighttodo.ui.motion.components.rememberMotionCompletionSettle"))
+        assertTrue(todoSource.contains("val completionSettle = rememberMotionCompletionSettle(animating)"))
+        assertTrue(todoSource.contains("alpha = completionSettle.alpha"))
+        assertTrue(todoSource.contains("translationX = completionSettle.translationX * density"))
+        assertFalse(todoSource.contains("import androidx.compose.animation.core.animateFloatAsState"))
+        assertFalse(todoSource.contains("val contentAlpha by animateFloatAsState"))
+        assertFalse(todoSource.contains("val contentTranslateX by animateFloatAsState"))
+        assertFalse(todoSource.contains("TodoContentSettleMillis"))
+        assertTrue(componentSource.contains("animateFloatAsState"))
+        assertTrue(componentSource.contains("AppMotion.TodoCompletedContentAlpha"))
+        assertTrue(componentSource.contains("AppMotion.TodoCompletedContentTranslationX"))
+        assertTrue(componentSource.contains("AppMotion.TodoContentSettleMillis"))
+    }
+
+    private fun sourceFile(relativePath: String): File {
+        val userDir = requireNotNull(System.getProperty("user.dir"))
+        var dir = File(userDir).absoluteFile
+        while (true) {
+            val candidate = File(dir, relativePath)
+            if (candidate.exists()) return candidate
+            dir = dir.parentFile ?: break
+        }
+        error("Could not find $relativePath from $userDir")
+    }
+}

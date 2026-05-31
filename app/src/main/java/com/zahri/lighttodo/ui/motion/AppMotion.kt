@@ -45,6 +45,8 @@ object AppMotion {
     const val PickerItemScaleMillis = 150
     const val PickerItemProximityRadiusItems = 2.35f
     const val TodoContentSettleMillis = 240
+    const val TodoCompletedContentAlpha = 0.45f
+    const val TodoCompletedContentTranslationX = 6f
     const val NoteSourceAnimationResetDelayMillis = 1_200L
 
     fun <T> routeTween(): TweenSpec<T> =

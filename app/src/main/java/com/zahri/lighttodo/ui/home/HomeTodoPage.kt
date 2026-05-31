@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.ui.home
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -49,6 +48,7 @@ import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
+import com.zahri.lighttodo.ui.motion.components.rememberMotionCompletionSettle
 import com.zahri.lighttodo.ui.motion.components.rememberMotionExpansionRotation
 import com.zahri.lighttodo.ui.motion.components.rememberMotionSelectionColor
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -220,16 +220,7 @@ private fun TodoRow(
 
     val displayDone = todo.done || animating
     val displayStrike = strikeThrough || animating
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (animating) 0.45f else 1f,
-        animationSpec = tween(AppMotion.TodoContentSettleMillis),
-        label = "todo-completion-content-alpha"
-    )
-    val contentTranslateX by animateFloatAsState(
-        targetValue = if (animating) 6f else 0f,
-        animationSpec = tween(AppMotion.TodoContentSettleMillis),
-        label = "todo-completion-content-offset"
-    )
+    val completionSettle = rememberMotionCompletionSettle(animating)
 
     Column(
         modifier = modifier
@@ -284,8 +275,8 @@ private fun TodoRow(
                 Modifier
                     .weight(1f)
                     .graphicsLayer {
-                        alpha = contentAlpha
-                        translationX = contentTranslateX * density
+                        alpha = completionSettle.alpha
+                        translationX = completionSettle.translationX * density
                     }
             ) {
                 Text(
