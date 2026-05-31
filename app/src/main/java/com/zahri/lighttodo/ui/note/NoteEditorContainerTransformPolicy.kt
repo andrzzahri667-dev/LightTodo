@@ -36,8 +36,8 @@ enum class NoteEditorTransformContentPhase {
 }
 
 object NoteEditorContainerTransformPolicy {
-    const val EntryDurationMillis = 640
-    const val ExitDurationMillis = 480
+    const val EntryDurationMillis = 720
+    const val ExitDurationMillis = 540
     const val SourceRevealAfterEntryDelayMillis = 40
     const val ContentSwitchProgress = 0.5f
     const val ContentCrossfadeStartProgress = 0.4f
@@ -71,6 +71,11 @@ object NoteEditorContainerTransformPolicy {
         )
     }
 
+    fun geometryProgressFor(progress: Float): Float {
+        val t = safeProgress(progress)
+        return t * t * t * (t * (t * 6f - 15f) + 10f)
+    }
+
     fun frameFor(
         rootWidth: Int,
         rootHeight: Int,
@@ -81,7 +86,7 @@ object NoteEditorContainerTransformPolicy {
         sourceCornerRadiusPx: Int,
         progress: Float
     ): NoteEditorContainerTransformFrame {
-        val safeProgress = safeProgress(progress)
+        val safeProgress = geometryProgressFor(progress)
         val safeRootWidth = max(rootWidth, 1).toFloat()
         val safeRootHeight = max(rootHeight, 1).toFloat()
         val startScaleX = max(sourceWidth, 1) / safeRootWidth
@@ -91,7 +96,7 @@ object NoteEditorContainerTransformPolicy {
             scaleY = lerp(startScaleY, 1f, safeProgress),
             translationX = lerp(sourceLeft.toFloat(), 0f, safeProgress),
             translationY = lerp(sourceTop.toFloat(), 0f, safeProgress),
-            cornerRadiusPx = lerp(sourceCornerRadiusPx.toFloat(), 0f, safeProgress)
+            cornerRadiusPx = lerp(sourceCornerRadiusPx.toFloat(), 0f, safeProgress).coerceAtLeast(0f)
         )
     }
 
@@ -144,7 +149,7 @@ object NoteEditorContainerTransformPolicy {
             scaleY = previewScaleY,
             translationX = containerFrame.translationX,
             translationY = containerFrame.translationY,
-            cornerRadiusPx = containerFrame.cornerRadiusPx / cornerScale
+            cornerRadiusPx = (containerFrame.cornerRadiusPx / cornerScale).coerceAtLeast(0f)
         )
     }
 

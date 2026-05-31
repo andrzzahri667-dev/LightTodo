@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,6 +44,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -52,6 +52,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.compose.ConstraintSet
+import androidx.constraintlayout.compose.Dimension
+import androidx.constraintlayout.compose.ExperimentalMotionApi
+import androidx.constraintlayout.compose.MotionLayout
 import androidx.core.view.WindowCompat
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -83,7 +87,7 @@ class NoteEditActivity : ComponentActivity() {
         setContent {
             var exitRequested by remember { mutableStateOf(false) }
             LightTodoTheme {
-                NoteEditorContainerTransformHost(
+                NoteEditorMotionLayoutTransformHost(
                     transitionBounds = transitionBounds.takeIf {
                         launchMode == NoteEditorLaunchAnimationMode.CustomContainerTransform
                     },
@@ -221,8 +225,9 @@ class NoteEditActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMotionApi::class)
 @Composable
-private fun NoteEditorContainerTransformHost(
+private fun NoteEditorMotionLayoutTransformHost(
     transitionBounds: NoteEditorTransitionBounds?,
     exitRequested: Boolean,
     onExitFinished: () -> Unit,
@@ -292,11 +297,13 @@ private fun NoteEditorContainerTransformHost(
             }
     ) {
         if (canRender) {
+            val sourceLeft = transitionBounds.screenLeft - rootScreenOffset.x
+            val sourceTop = transitionBounds.screenTop - rootScreenOffset.y
             val frame = NoteEditorContainerTransformPolicy.frameFor(
                 rootWidth = rootSize.width,
                 rootHeight = rootSize.height,
-                sourceLeft = transitionBounds.screenLeft - rootScreenOffset.x,
-                sourceTop = transitionBounds.screenTop - rootScreenOffset.y,
+                sourceLeft = sourceLeft,
+                sourceTop = sourceTop,
                 sourceWidth = transitionBounds.width,
                 sourceHeight = transitionBounds.height,
                 sourceCornerRadiusPx = transitionBounds.cornerRadiusPx,
@@ -304,49 +311,131 @@ private fun NoteEditorContainerTransformHost(
             )
             val cornerRadius = with(density) { frame.cornerRadiusPx.toDp() }
             val contentAlpha = NoteEditorContainerTransformPolicy.contentAlphaFor(progress.value)
+            val geometryProgress = NoteEditorContainerTransformPolicy.geometryProgressFor(progress.value)
+            val startSet = remember(rootSize, transitionBounds, sourceLeft, sourceTop, density) {
+                noteEditorMotionConstraintSet(
+                    rootSize = rootSize,
+                    sourceLeft = sourceLeft,
+                    sourceTop = sourceTop,
+                    sourceWidth = transitionBounds.width,
+                    sourceHeight = transitionBounds.height,
+                    density = density.density,
+                    atEnd = false
+                )
+            }
+            val endSet = remember(rootSize, transitionBounds, density) {
+                noteEditorMotionConstraintSet(
+                    rootSize = rootSize,
+                    sourceLeft = sourceLeft,
+                    sourceTop = sourceTop,
+                    sourceWidth = transitionBounds.width,
+                    sourceHeight = transitionBounds.height,
+                    density = density.density,
+                    atEnd = true
+                )
+            }
 
-            Box(
+            MotionLayout(
+                start = startSet,
+                end = endSet,
+                progress = geometryProgress,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        transformOrigin = TransformOrigin(0f, 0f)
-                        translationX = frame.translationX
-                        translationY = frame.translationY
-                        scaleX = frame.scaleX
-                        scaleY = frame.scaleY
-                        alpha = contentAlpha.editorAlpha
-                        clip = cornerRadius > 0.dp
-                        shape = RoundedCornerShape(cornerRadius)
-                    }
             ) {
-                content()
-            }
+                Box(
+                    modifier = Modifier
+                        .layoutId(NoteEditorMotionIds.Editor)
+                        .graphicsLayer {
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            alpha = contentAlpha.editorAlpha
+                            clip = cornerRadius > 0.dp
+                            shape = RoundedCornerShape(cornerRadius)
+                        }
+                ) {
+                    content()
+                }
 
-            val previewFrame = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
-                containerFrame = frame,
-                rootWidth = rootSize.width,
-                rootHeight = rootSize.height,
-                sourceWidth = transitionBounds.width,
-                sourceHeight = transitionBounds.height
-            )
-            val previewCornerRadius = with(density) { previewFrame.cornerRadiusPx.toDp() }
-            Box(
-                modifier = Modifier
-                    .width(with(density) { transitionBounds.width.toDp() })
-                    .height(with(density) { transitionBounds.height.toDp() })
-                    .graphicsLayer {
-                        transformOrigin = TransformOrigin(0f, 0f)
-                        translationX = previewFrame.translationX
-                        translationY = previewFrame.translationY
-                        scaleX = previewFrame.scaleX
-                        scaleY = previewFrame.scaleY
-                        alpha = contentAlpha.sourcePreviewAlpha
-                        clip = previewCornerRadius > 0.dp
-                        shape = RoundedCornerShape(previewCornerRadius)
-                    }
-            ) {
-                sourcePreview()
+                val previewFrame = NoteEditorContainerTransformPolicy.sourcePreviewFrameFor(
+                    containerFrame = frame,
+                    rootWidth = rootSize.width,
+                    rootHeight = rootSize.height,
+                    sourceWidth = transitionBounds.width,
+                    sourceHeight = transitionBounds.height
+                )
+                val previewCornerRadius = with(density) { previewFrame.cornerRadiusPx.toDp() }
+                Box(
+                    modifier = Modifier
+                        .layoutId(NoteEditorMotionIds.SourcePreview)
+                        .graphicsLayer {
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            alpha = contentAlpha.sourcePreviewAlpha
+                            clip = previewCornerRadius > 0.dp
+                            shape = RoundedCornerShape(previewCornerRadius)
+                        }
+                ) {
+                    sourcePreview()
+                }
             }
+        }
+    }
+}
+
+private object NoteEditorMotionIds {
+    const val Editor = "editor"
+    const val SourcePreview = "sourcePreview"
+}
+
+private fun noteEditorMotionConstraintSet(
+    rootSize: IntSize,
+    sourceLeft: Int,
+    sourceTop: Int,
+    sourceWidth: Int,
+    sourceHeight: Int,
+    density: Float,
+    atEnd: Boolean
+): ConstraintSet {
+    val safeDensity = density.takeIf { it > 0f } ?: 1f
+    val rootWidth = rootSize.width.coerceAtLeast(1).toFloat()
+    val rootHeight = rootSize.height.coerceAtLeast(1).toFloat()
+    val sourceSafeWidth = sourceWidth.coerceAtLeast(1)
+    val sourceSafeHeight = sourceHeight.coerceAtLeast(1)
+    val editorScaleX = if (atEnd) 1f else sourceSafeWidth / rootWidth
+    val editorScaleY = if (atEnd) 1f else sourceSafeHeight / rootHeight
+    val previewScaleX = if (atEnd) rootWidth / sourceSafeWidth else 1f
+    val previewScaleY = if (atEnd) rootHeight / sourceSafeHeight else 1f
+    val editorTranslationX = if (atEnd) 0.dp else (sourceLeft / safeDensity).dp
+    val editorTranslationY = if (atEnd) 0.dp else (sourceTop / safeDensity).dp
+    val previewTranslationX = if (atEnd) 0.dp else (sourceLeft / safeDensity).dp
+    val previewTranslationY = if (atEnd) 0.dp else (sourceTop / safeDensity).dp
+    val sourceWidthDp = (sourceSafeWidth / safeDensity).dp
+    val sourceHeightDp = (sourceSafeHeight / safeDensity).dp
+
+    return ConstraintSet {
+        val editor = createRefFor(NoteEditorMotionIds.Editor)
+        val sourcePreview = createRefFor(NoteEditorMotionIds.SourcePreview)
+
+        constrain(editor) {
+            width = Dimension.fillToConstraints
+            height = Dimension.fillToConstraints
+            linkTo(parent.start, parent.top, parent.end, parent.bottom)
+            scaleX = editorScaleX
+            scaleY = editorScaleY
+            translationX = editorTranslationX
+            translationY = editorTranslationY
+            pivotX = 0f
+            pivotY = 0f
+        }
+        constrain(sourcePreview) {
+            width = Dimension.value(sourceWidthDp)
+            height = Dimension.value(sourceHeightDp)
+            start.linkTo(parent.start)
+            top.linkTo(parent.top)
+            scaleX = previewScaleX
+            scaleY = previewScaleY
+            translationX = previewTranslationX
+            translationY = previewTranslationY
+            pivotX = 0f
+            pivotY = 0f
         }
     }
 }

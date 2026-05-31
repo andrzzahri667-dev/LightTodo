@@ -13,9 +13,20 @@ class NoteEditorContainerTransformPolicyTest {
 
     @Test
     fun timingKeepsEntryDeliberateAndExitVisible() {
-        assertEquals(640, NoteEditorContainerTransformPolicy.EntryDurationMillis)
-        assertEquals(480, NoteEditorContainerTransformPolicy.ExitDurationMillis)
+        assertEquals(720, NoteEditorContainerTransformPolicy.EntryDurationMillis)
+        assertEquals(540, NoteEditorContainerTransformPolicy.ExitDurationMillis)
         assertEquals(40, NoteEditorContainerTransformPolicy.SourceRevealAfterEntryDelayMillis)
+    }
+
+    @Test
+    fun geometryProgress_startsSlowThenCatchesUpForMiuiLikeExpansion() {
+        val early = NoteEditorContainerTransformPolicy.geometryProgressFor(0.2f)
+        val middle = NoteEditorContainerTransformPolicy.geometryProgressFor(0.5f)
+        val late = NoteEditorContainerTransformPolicy.geometryProgressFor(0.85f)
+
+        assertEquals(true, early < 0.12f)
+        assertEquals(true, middle > 0.42f)
+        assertEquals(true, late > 0.94f)
     }
 
     @Test
@@ -55,6 +66,22 @@ class NoteEditorContainerTransformPolicyTest {
         assertEquals(1f, frame.scaleY, 0.0001f)
         assertEquals(0f, frame.translationX, 0.0001f)
         assertEquals(0f, frame.translationY, 0.0001f)
+        assertEquals(0f, frame.cornerRadiusPx, 0.0001f)
+    }
+
+    @Test
+    fun frameFor_neverEmitsNegativeCornerRadiusNearAnimationEnd() {
+        val frame = NoteEditorContainerTransformPolicy.frameFor(
+            rootWidth = 1000,
+            rootHeight = 2000,
+            sourceLeft = 120,
+            sourceTop = 320,
+            sourceWidth = 250,
+            sourceHeight = 180,
+            sourceCornerRadiusPx = 36,
+            progress = 1.000001f
+        )
+
         assertEquals(0f, frame.cornerRadiusPx, 0.0001f)
     }
 
