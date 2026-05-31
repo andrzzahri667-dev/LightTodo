@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -7,7 +8,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -71,8 +71,7 @@ fun TodoPage(
             bottom = 96.dp,
             start = 16.dp,
             end = 16.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        )
     ) {
         if (state.groups.isEmpty() && state.doneItems.isEmpty()) {
             item(key = "empty") {
@@ -117,30 +116,37 @@ fun TodoPage(
                             fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
                             placementSpec = AppMotion.listPlacementSpring(),
                             fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis, easing = AppMotion.StandardEasing)
-                        )
+                        ).padding(bottom = 8.dp)
                     )
                 }
                 is HomeTodoListItem.TodoRow -> {
                     val todo = item.todo
-                    TodoRow(
-                        todo = todo,
-                        selected = todo.id in selectedIds,
-                        inSelectionMode = inSelection,
-                        onToggle = { vm.toggleDone(todo.id, !item.strikeThrough) },
-                        onClick = {
-                            if (inSelection) vm.toggleSelection(todo.id)
-                            else onEdit(todo.id)
-                        },
-                        onLongClick = { vm.toggleSelection(todo.id) },
-                        strikeThrough = item.strikeThrough,
-                        animating = todo.id in pendingCompleteIds,
-                        showDivider = item.showDivider,
+                    AnimatedVisibility(
+                        visible = item.visible,
+                        enter = AppMotion.sectionItemEnter(),
+                        exit = AppMotion.sectionItemExit(),
                         modifier = Modifier.animateItem(
                             fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
                             placementSpec = AppMotion.listPlacementSpring(),
                             fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis, easing = AppMotion.StandardEasing)
                         )
-                    )
+                    ) {
+                        TodoRow(
+                            todo = todo,
+                            selected = todo.id in selectedIds,
+                            inSelectionMode = inSelection,
+                            onToggle = { vm.toggleDone(todo.id, !item.strikeThrough) },
+                            onClick = {
+                                if (inSelection) vm.toggleSelection(todo.id)
+                                else onEdit(todo.id)
+                            },
+                            onLongClick = { vm.toggleSelection(todo.id) },
+                            strikeThrough = item.strikeThrough,
+                            animating = todo.id in pendingCompleteIds,
+                            showDivider = item.showDivider,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
                 }
             }
         }

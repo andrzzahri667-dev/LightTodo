@@ -10,6 +10,10 @@ class HomeTodoSectionMotionSourceTest {
     fun todoSectionRowsAnimateEnterExitAndPlacement() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
 
+        assertTrue(source.contains("AnimatedVisibility("))
+        assertTrue(source.contains("visible = item.visible"))
+        assertTrue(source.contains("enter = AppMotion.sectionItemEnter()"))
+        assertTrue(source.contains("exit = AppMotion.sectionItemExit()"))
         assertTrue(source.contains("Modifier.animateItem("))
         assertTrue(source.contains("fadeInSpec = tween(AppMotion.SectionItemFadeInMillis"))
         assertTrue(source.contains("fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis"))

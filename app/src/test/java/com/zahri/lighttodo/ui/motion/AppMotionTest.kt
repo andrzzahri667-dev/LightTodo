@@ -38,7 +38,7 @@ class AppMotionTest {
     fun pickerItemMotion_isCentralizedAndQuick() {
         assertTrue(AppMotion.PickerItemAlphaMillis in 120..180)
         assertTrue(AppMotion.PickerItemScaleMillis in 120..180)
-        assertTrue(AppMotion.PickerItemProximityRadiusItems in 1.1f..1.6f)
+        assertTrue(AppMotion.PickerItemProximityRadiusItems in 2.0f..2.8f)
     }
 
     @Test

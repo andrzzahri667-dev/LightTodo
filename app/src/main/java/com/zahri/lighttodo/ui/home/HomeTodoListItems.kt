@@ -18,7 +18,8 @@ sealed interface HomeTodoListItem {
     data class TodoRow(
         val todo: TodoEntity,
         val showDivider: Boolean,
-        val strikeThrough: Boolean
+        val strikeThrough: Boolean,
+        val visible: Boolean
     ) : HomeTodoListItem {
         override val key: String = if (strikeThrough) "done-${todo.id}" else "todo-${todo.id}"
     }
@@ -36,14 +37,13 @@ fun buildHomeTodoListItems(state: HomeUiState): List<HomeTodoListItem> {
             count = group.items.size,
             expanded = expanded
         )
-        if (expanded) {
-            group.items.forEachIndexed { index, todo ->
-                items += HomeTodoListItem.TodoRow(
-                    todo = todo,
-                    showDivider = index < group.items.lastIndex,
-                    strikeThrough = false
-                )
-            }
+        group.items.forEachIndexed { index, todo ->
+            items += HomeTodoListItem.TodoRow(
+                todo = todo,
+                showDivider = index < group.items.lastIndex,
+                strikeThrough = false,
+                visible = expanded
+            )
         }
     }
 
@@ -55,14 +55,13 @@ fun buildHomeTodoListItems(state: HomeUiState): List<HomeTodoListItem> {
             expanded = state.doneExpanded,
             doneSection = true
         )
-        if (state.doneExpanded) {
-            state.doneItems.forEachIndexed { index, todo ->
-                items += HomeTodoListItem.TodoRow(
-                    todo = todo,
-                    showDivider = index < state.doneItems.lastIndex,
-                    strikeThrough = true
-                )
-            }
+        state.doneItems.forEachIndexed { index, todo ->
+            items += HomeTodoListItem.TodoRow(
+                todo = todo,
+                showDivider = index < state.doneItems.lastIndex,
+                strikeThrough = true,
+                visible = state.doneExpanded
+            )
         }
     }
 

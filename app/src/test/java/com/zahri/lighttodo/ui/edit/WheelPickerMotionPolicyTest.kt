@@ -29,8 +29,10 @@ class WheelPickerMotionPolicyTest {
         assertTrue(farAlpha < nearAlpha)
         assertTrue(nearAlpha < centerAlpha)
         assertEquals(1f, farScale, 0.0001f)
-        assertTrue(centerScale in 1.10f..1.18f)
+        assertTrue(centerScale in 1.22f..1.34f)
+        assertTrue(nearScale >= 1.10f)
         assertTrue(farAlpha in 0.38f..0.48f)
+        assertTrue(nearAlpha >= 0.65f)
         assertEquals(1f, centerAlpha, 0.0001f)
     }
 }

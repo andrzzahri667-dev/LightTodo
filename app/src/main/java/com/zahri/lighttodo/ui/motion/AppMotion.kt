@@ -5,6 +5,8 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -39,7 +41,7 @@ object AppMotion {
     const val SectionItemFadeOutMillis = 120
     const val PickerItemAlphaMillis = 150
     const val PickerItemScaleMillis = 150
-    const val PickerItemProximityRadiusItems = 1.35f
+    const val PickerItemProximityRadiusItems = 2.35f
     const val TodoContentSettleMillis = 240
     const val NoteSourceAnimationResetDelayMillis = 1_200L
 
@@ -60,6 +62,14 @@ object AppMotion {
 
     fun <T> sectionArrowSpring(): SpringSpec<T> =
         spring(dampingRatio = SectionArrowDampingRatio, stiffness = SectionArrowStiffness)
+
+    fun sectionItemEnter(): EnterTransition =
+        fadeIn(tween(SectionItemFadeInMillis, easing = EmphasizedEasing)) +
+            expandVertically(tween(SectionItemFadeInMillis, easing = EmphasizedEasing))
+
+    fun sectionItemExit(): ExitTransition =
+        fadeOut(tween(SectionItemFadeOutMillis, easing = StandardEasing)) +
+            shrinkVertically(tween(SectionItemFadeOutMillis, easing = StandardEasing))
 
     fun transientSurfaceEnter(): EnterTransition =
         fadeIn(tween(SurfaceVisibilityFadeMillis, easing = EmphasizedEasing)) +
