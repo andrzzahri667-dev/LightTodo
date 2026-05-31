@@ -21,6 +21,7 @@ class AppMotionTest {
     fun pressSpring_isSnappyButNotOverlyBouncy() {
         assertTrue(AppMotion.PressSpringDampingRatio in 0.5f..0.75f)
         assertTrue(AppMotion.PressSpringStiffness in 650f..900f)
+        assertTrue(AppMotion.PressScale in 0.88f..0.96f)
     }
 
     @Test

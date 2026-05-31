@@ -1,10 +1,8 @@
 package com.zahri.lighttodo.ui.home
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,6 +48,7 @@ import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
+import com.zahri.lighttodo.ui.motion.components.rememberMotionPressScale
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -92,12 +91,7 @@ fun HomeScreen(
             if (!anySelection) {
                 val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
                 val noteSourceBounds = remember { HomeNoteSourceBounds() }
-                val pressed by interaction.collectIsPressedAsState()
-                val scale by animateFloatAsState(
-                    targetValue = if (pressed) 0.92f else 1f,
-                    animationSpec = AppMotion.pressSpring(),
-                    label = "fab-scale"
-                )
+                val scale by rememberMotionPressScale(interaction)
                 FloatingActionButton(
                     onClick = {
                         when (currentPage) {

@@ -25,6 +25,7 @@ object AppMotion {
 
     const val PressSpringDampingRatio = 0.62f
     const val PressSpringStiffness = 760f
+    const val PressScale = 0.92f
 
     const val ListPlacementDampingRatio = 0.86f
     const val ListPlacementStiffness = 500f
