@@ -5,9 +5,11 @@ import com.zahri.lighttodo.calendar.CalendarEventWriter
 import com.zahri.lighttodo.calendar.CalendarSyncCoordinator
 import com.zahri.lighttodo.notify.ReminderScheduler
 import com.zahri.lighttodo.widget.TodoWidgetProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 /**
  * 单一数据源。
@@ -127,29 +129,29 @@ class Repository(
         todoDao.setDone(id, done, doneAtMillis)
         val updated = before.copy(done = done, doneAtMillis = doneAtMillis)
         if (prefsSnapshot.calendarSyncEnabled) {
-            if (done) {
-                updated.calendarEventId?.let { CalendarEventWriter.setCompleted(context, it, true) }
-            } else if (updated.dateMillis != null) {
-                val eventId = CalendarEventWriter.upsertFromTodo(context, updated, prefsSnapshot.calendarAccountName)
-                if (eventId != null && eventId != updated.calendarEventId) {
-                    todoDao.setCalendarLink(
-                        id = id,
-                        eventId = eventId,
-                        createdByApp = updated.calendarCreatedByApp || updated.calendarEventId == null
-                    )
+            withContext<Unit>(Dispatchers.IO) {
+                if (done) {
+                    updated.calendarEventId?.let { CalendarEventWriter.setCompleted(context, it, true) }
+                } else if (updated.dateMillis != null) {
+                    val eventId = CalendarEventWriter.upsertFromTodo(context, updated, prefsSnapshot.calendarAccountName)
+                    if (eventId != null && eventId != updated.calendarEventId) {
+                        todoDao.setCalendarLink(
+                            id = id,
+                            eventId = eventId,
+                            createdByApp = updated.calendarCreatedByApp || updated.calendarEventId == null
+                        )
+                    }
                 }
             }
         }
         if (done) ReminderScheduler.cancel(context, id)
         else {
-            val t = todoDao.findById(id)
-            if (t != null) {
-                val now = System.currentTimeMillis()
-                if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
-                    ReminderScheduler.schedule(context, t, isStart = true)
-                if (t.remindAtMillis != null && t.remindAtMillis > now)
-                    ReminderScheduler.schedule(context, t, isStart = false)
-            }
+            val t = updated
+            val now = System.currentTimeMillis()
+            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
+                ReminderScheduler.schedule(context, t, isStart = true)
+            if (t.remindAtMillis != null && t.remindAtMillis > now)
+                ReminderScheduler.schedule(context, t, isStart = false)
         }
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
@@ -158,7 +160,9 @@ class Repository(
         val p = prefs.snapshot()
         if (p.calendarSyncEnabled) {
             CalendarSyncCoordinator.withLock {
-                todoDao.findById(id)?.calendarEventId?.let { CalendarEventWriter.deleteEvent(context, it) }
+                todoDao.findById(id)?.calendarEventId?.let { eventId ->
+                    withContext(Dispatchers.IO) { CalendarEventWriter.deleteEvent(context, eventId) }
+                }
                 deleteLocalTodo(id)
             }
         } else {
@@ -171,9 +175,11 @@ class Repository(
         val p = prefs.snapshot()
         if (p.calendarSyncEnabled) {
             CalendarSyncCoordinator.withLock {
-                todoDao.findByIds(ids)
+                val calendarEventIds = todoDao.findByIds(ids)
                     .mapNotNull { it.calendarEventId }
-                    .forEach { CalendarEventWriter.deleteEvent(context, it) }
+                withContext(Dispatchers.IO) {
+                    calendarEventIds.forEach { CalendarEventWriter.deleteEvent(context, it) }
+                }
                 deleteLocalTodos(ids)
             }
         } else {
@@ -187,8 +193,10 @@ class Repository(
             CalendarSyncCoordinator.withLock {
                 val doneTodos = todoDao.listDone()
                 val doneReminderIds = todoDao.listDoneWithReminders().map { it.id }
-                doneTodos.mapNotNull { it.calendarEventId }
-                    .forEach { CalendarEventWriter.deleteEvent(context, it) }
+                withContext(Dispatchers.IO) {
+                    doneTodos.mapNotNull { it.calendarEventId }
+                        .forEach { CalendarEventWriter.deleteEvent(context, it) }
+                }
                 todoDao.deleteAllDone()
                 doneReminderIds.forEach { id -> ReminderScheduler.cancel(context, id) }
                 TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
@@ -255,14 +263,14 @@ class Repository(
         TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
     }
 
-    private fun mirrorTodoToCalendar(todo: TodoEntity, prefs: UserPrefs.Snapshot): TodoEntity {
-        if (!prefs.calendarSyncEnabled) return todo
+    private suspend fun mirrorTodoToCalendar(todo: TodoEntity, prefs: UserPrefs.Snapshot): TodoEntity = withContext(Dispatchers.IO) {
+        if (!prefs.calendarSyncEnabled) return@withContext todo
         if (todo.dateMillis == null) {
             todo.calendarEventId?.let { CalendarEventWriter.deleteEvent(context, it) }
-            return todo.copy(calendarEventId = null, calendarCreatedByApp = false)
+            return@withContext todo.copy(calendarEventId = null, calendarCreatedByApp = false)
         }
         val eventId = CalendarEventWriter.upsertFromTodo(context, todo, prefs.calendarAccountName)
-        return if (eventId != null) {
+        if (eventId != null) {
             todo.copy(
                 calendarEventId = eventId,
                 calendarCreatedByApp = todo.calendarCreatedByApp || todo.calendarEventId == null

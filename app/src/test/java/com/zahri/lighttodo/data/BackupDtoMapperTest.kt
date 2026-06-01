@@ -1,6 +1,9 @@
 package com.zahri.lighttodo.data
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupDtoMapperTest {
@@ -52,5 +55,16 @@ class BackupDtoMapperTest {
         assertEquals(9L, entities.notes.single().id)
         assertEquals("Restored", entities.notes.single().title)
         assertEquals(bundle.notes.single().content, entities.notes.single().content)
+    }
+
+    @Test
+    fun backupTodoDtoIncludesCalendarCreatedByAppFlag() {
+        val entitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Entities.kt")
+            .readText()
+        val mapperSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupDtoMapper.kt")
+            .readText()
+
+        assertTrue(entitySource.contains("val calendarCreatedByApp: Boolean = false"))
+        assertTrue(mapperSource.contains("calendarCreatedByApp = calendarCreatedByApp"))
     }
 }

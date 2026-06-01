@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
-import com.zahri.lighttodo.ui.motion.components.motionWheelPickerScrollToItem
 import com.zahri.lighttodo.ui.motion.components.motionWheelPickerItemLayer
 import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -127,7 +126,7 @@ fun WheelPicker(
                     .minByOrNull { kotlin.math.abs(it - currentAbs) }
                     ?: targetBase
             } else selectedIndex
-            listState.motionWheelPickerScrollToItem(target)
+            listState.animateScrollToItem(target)
         }
     }
 

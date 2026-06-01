@@ -1,8 +1,9 @@
 package com.zahri.lighttodo.ui
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class AccessibilitySourceTest {
     @Test
@@ -25,16 +26,5 @@ class AccessibilitySourceTest {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditScreen.kt").readText()
 
         assertTrue(source.contains("if (playing) R.string.note_audio_pause else R.string.note_audio_play"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }

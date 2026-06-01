@@ -1,8 +1,9 @@
 package com.zahri.lighttodo.data
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class TodoEntityIndexTest {
     @Test
@@ -22,16 +23,5 @@ class TodoEntityIndexTest {
         assertTrue(source.contains("CREATE INDEX IF NOT EXISTS index_todo_done_remindStartAtMillis_remindAtMillis"))
         assertTrue(source.contains("ALTER TABLE todo ADD COLUMN calendarCreatedByApp INTEGER NOT NULL DEFAULT 0"))
         assertTrue(source.contains("MIGRATION_5_6"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }

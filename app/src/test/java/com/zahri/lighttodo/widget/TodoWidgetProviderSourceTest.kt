@@ -1,9 +1,10 @@
 package com.zahri.lighttodo.widget
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class TodoWidgetProviderSourceTest {
     @Test
@@ -40,18 +41,18 @@ class TodoWidgetProviderSourceTest {
             .readText()
 
         assertTrue(source.contains("WidgetUpdateDebouncer"))
-        assertTrue(source.contains("widgetUpdateDebouncer(app).submit"))
+        assertTrue(source.contains("WidgetUpdateDebouncer("))
         assertFalse(source.contains("fun notifyAllWidgetsDataChanged(context: Context) {\n            val app = context.applicationContext as App\n            app.appScope.launch(Dispatchers.IO)"))
     }
 
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
+    @Test
+    fun dataChangeDebouncerDoesNotRetainOldAppScopeAcrossProcessState() {
+        val providerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+            .readText()
+        val debouncerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/WidgetUpdateDebouncer.kt")
+            .readText()
+
+        assertTrue(providerSource.contains("widgetUpdateDebouncer.submit(app.appScope)"))
+        assertFalse(debouncerSource.contains("private val scope: CoroutineScope"))
     }
 }

@@ -1,8 +1,10 @@
 package com.zahri.lighttodo.data
 
+import com.zahri.lighttodo.test.sourceFile
+
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class RepositoryAlarmSourceTest {
     @Test
@@ -29,14 +31,15 @@ class RepositoryAlarmSourceTest {
         assertTrue(source.contains("val list = allTodos.filter { !it.done && it.hasAnyReminder() }"))
     }
 
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
+    @Test
+    fun setDoneReusesUpdatedEntityWhenReschedulingAlarms() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Repository.kt").readText()
+
+        val setDoneStart = source.indexOf("private suspend fun setDoneLocked")
+        val deleteStart = source.indexOf("suspend fun delete(id: Long)")
+        val setDoneBody = source.substring(setDoneStart, deleteStart)
+
+        assertFalse(setDoneBody.contains("val t = todoDao.findById(id)"))
+        assertTrue(setDoneBody.contains("val t = updated"))
     }
 }

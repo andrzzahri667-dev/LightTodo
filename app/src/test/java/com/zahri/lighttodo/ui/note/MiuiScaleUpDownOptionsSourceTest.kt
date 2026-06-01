@@ -1,9 +1,10 @@
 package com.zahri.lighttodo.ui.note
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class MiuiScaleUpDownOptionsSourceTest {
     @Test
@@ -14,16 +15,5 @@ class MiuiScaleUpDownOptionsSourceTest {
         assertFalse(launcher.contains("private object MiuiScaleUpDownOptions"))
         assertTrue(adapter.contains("object MiuiScaleUpDownOptions"))
         assertTrue(adapter.contains("ActivityOptions::class.java.getMethod"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }

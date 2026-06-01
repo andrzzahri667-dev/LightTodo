@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.ui.note
 
-import java.io.File
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,14 +43,15 @@ class NoteEditorMotionLayoutSourceTest {
         assertTrue(layerSource.contains("clip = cornerRadius > 0.dp"))
     }
 
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
+    @Test
+    fun transformHostUsesSingleEffectToDriveProgress() {
+        val hostSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteEditorTransformHost.kt")
+            .readText()
+
+        assertTrue(hostSource.contains("LaunchedEffect(canRender, exitRequested)"))
+        assertFalse(hostSource.contains("LaunchedEffect(exitRequested, canRender)"))
+        assertTrue(hostSource.contains("if (!canRender) return@LaunchedEffect"))
+        assertTrue(hostSource.indexOf("progress.animateTo(\n                targetValue = 0f") <
+            hostSource.indexOf("onExitFinished()"))
     }
 }

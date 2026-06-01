@@ -53,7 +53,8 @@ private fun TodoEntity.toBackupTodo() = BackupTodo(
     tagId = tagId,
     done = done,
     doneAtMillis = doneAtMillis,
-    createdAtMillis = createdAtMillis
+    createdAtMillis = createdAtMillis,
+    calendarCreatedByApp = calendarCreatedByApp
 )
 
 private fun BackupTodo.toEntity() = TodoEntity(
@@ -74,7 +75,7 @@ private fun BackupTodo.toEntity() = TodoEntity(
     doneAtMillis = doneAtMillis,
     createdAtMillis = createdAtMillis,
     calendarEventId = null,
-    calendarCreatedByApp = false
+    calendarCreatedByApp = calendarCreatedByApp
 )
 
 private fun NoteEntity.toBackupNote() = BackupNote(

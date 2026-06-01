@@ -13,16 +13,15 @@ class WidgetUpdateDebouncerTest {
     fun submitCoalescesRapidRequestsIntoOneUpdate() = runBlocking {
         val updates = AtomicInteger(0)
         val debouncer = WidgetUpdateDebouncer(
-            scope = this,
             dispatcher = Dispatchers.Default,
             delayMillis = 60L
         )
 
-        debouncer.submit { updates.incrementAndGet() }
+        debouncer.submit(this) { updates.incrementAndGet() }
         delay(20L)
-        debouncer.submit { updates.incrementAndGet() }
+        debouncer.submit(this) { updates.incrementAndGet() }
         delay(20L)
-        debouncer.submit { updates.incrementAndGet() }
+        debouncer.submit(this) { updates.incrementAndGet() }
 
         delay(120L)
 

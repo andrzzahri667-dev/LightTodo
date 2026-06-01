@@ -1,10 +1,11 @@
 package com.zahri.lighttodo.ui.home.note
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class NoteGridPageSourceTest {
     @Test
@@ -55,16 +56,5 @@ class NoteGridPageSourceTest {
         assertTrue(selectionSource.contains("durationMillis = AppMotion.NoteCardSelectionColorMillis"))
         assertTrue(visibilitySource.contains("fun Modifier.motionNoteSourceVisibilityLayer("))
         assertTrue(visibilitySource.contains("graphicsLayer { alpha = if (hidden) 0f else 1f }"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }

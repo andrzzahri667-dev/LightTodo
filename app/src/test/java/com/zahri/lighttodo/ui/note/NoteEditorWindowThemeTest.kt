@@ -1,5 +1,7 @@
 package com.zahri.lighttodo.ui.note
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.w3c.dom.Element
@@ -33,17 +35,6 @@ class NoteEditorWindowThemeTest {
             assertEquals("@android:color/transparent", noteTransform.itemValue("android:windowBackground"))
             assertEquals("false", noteTransform.itemValue("android:backgroundDimEnabled"))
         }
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 
     private fun xmlDocument(file: File) =

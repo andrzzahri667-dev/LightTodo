@@ -14,7 +14,7 @@ object DatabaseSnapshotExporter {
             val targetDir = File(appContext.getExternalFilesDir(null), "database-snapshot").apply {
                 mkdirs()
             }
-            val dbName = "lighttodo.db"
+            val dbName = AppDatabase.DatabaseName
             val sourceDir = appContext.getDatabasePath(dbName).parentFile
                 ?: error("Database directory not found")
 

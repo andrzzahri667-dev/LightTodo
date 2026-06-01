@@ -1,6 +1,8 @@
 package com.zahri.lighttodo.ui.home
 
-import java.io.File
+import com.zahri.lighttodo.test.sourceFile
+import com.zahri.lighttodo.test.sourcePath
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -18,23 +20,7 @@ class TodoCompletionIndicatorSourceTest {
         assertFalse(sourcePath("app/src/main/java/com/zahri/lighttodo/ui/home/TodoCompletionIndicator.kt").exists())
         assertTrue(indicatorSource.contains("import com.airbnb.lottie.compose.LottieAnimation"))
         assertTrue(indicatorSource.contains("R.raw.todo_check_success"))
+        assertFalse(indicatorSource.contains("Text(\"✓\""))
         assertTrue(sourceFile("app/src/main/res/raw/todo_check_success.json").exists())
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val candidate = sourcePath(relativePath)
-        if (candidate.exists()) return candidate
-        error("Could not find $relativePath from ${System.getProperty("user.dir")}")
-    }
-
-    private fun sourcePath(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        return File(userDir, relativePath)
     }
 }

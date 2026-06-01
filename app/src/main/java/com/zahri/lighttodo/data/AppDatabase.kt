@@ -17,6 +17,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
     companion object {
+        const val DatabaseName = "lighttodo.db"
 
         @Volatile private var INSTANCE: AppDatabase? = null
 
@@ -129,7 +130,7 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "lighttodo.db"
+                    DatabaseName
                 )
                     .addMigrations(
                         MIGRATION_1_2,

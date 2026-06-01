@@ -143,7 +143,8 @@ data class BackupTodo(
     val tagId: Long?,
     val done: Boolean,
     val doneAtMillis: Long?,
-    val createdAtMillis: Long
+    val createdAtMillis: Long,
+    val calendarCreatedByApp: Boolean = false
 )
 
 @Serializable

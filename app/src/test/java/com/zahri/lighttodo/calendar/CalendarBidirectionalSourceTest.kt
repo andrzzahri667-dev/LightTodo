@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.calendar
 
-import java.io.File
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,6 +17,17 @@ class CalendarBidirectionalSourceTest {
     }
 
     @Test
+    fun repositoryPerformsCalendarProviderIoOnIoDispatcher() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Repository.kt")
+            .readText()
+
+        assertTrue(source.contains("import kotlinx.coroutines.Dispatchers"))
+        assertTrue(source.contains("import kotlinx.coroutines.withContext"))
+        assertTrue(source.contains("private suspend fun mirrorTodoToCalendar"))
+        assertTrue(source.contains("withContext(Dispatchers.IO)"))
+    }
+
+    @Test
     fun appCreatedCalendarTodosRemainEditable() {
         val entitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Entities.kt")
             .readText()
@@ -27,16 +39,5 @@ class CalendarBidirectionalSourceTest {
         assertTrue(entitySource.contains("calendarCreatedByApp"))
         assertTrue(editSource.contains("t.calendarEventId != null && !t.calendarCreatedByApp"))
         assertTrue(repositorySource.contains("calendarCreatedByApp = existing?.calendarCreatedByApp ?: false"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }

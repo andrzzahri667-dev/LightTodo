@@ -60,24 +60,22 @@ fun NoteEditorMotionLayoutTransformHost(
     )
 
     LaunchedEffect(canRender, exitRequested) {
-        if (canRender && !entryPlayed && !exitRequested) {
-            progress.animateTo(
-                targetValue = 1f,
-                animationSpec = NoteEditorContainerTransformPolicy.entryTween()
-            )
-            entryPlayed = true
-        } else if (canRender && entryPlayed && !exitRequested && progress.value < 1f) {
-            progress.snapTo(1f)
-        }
-    }
+        if (!canRender) return@LaunchedEffect
 
-    LaunchedEffect(exitRequested, canRender) {
-        if (exitRequested && canRender) {
+        if (exitRequested) {
             progress.animateTo(
                 targetValue = 0f,
                 animationSpec = NoteEditorContainerTransformPolicy.exitTween()
             )
             onExitFinished()
+        } else if (!entryPlayed) {
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = NoteEditorContainerTransformPolicy.entryTween()
+            )
+            entryPlayed = true
+        } else if (progress.value < 1f) {
+            progress.snapTo(1f)
         }
     }
 

@@ -1,9 +1,10 @@
 package com.zahri.lighttodo.notify
 
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class BroadcastReceiverScopeSourceTest {
     @Test
@@ -29,16 +30,5 @@ class BroadcastReceiverScopeSourceTest {
         assertTrue(source.contains("ReminderFullScreenPolicy.shouldAttachFullScreenIntent"))
         assertTrue(source.contains("if (attachFullScreenIntent)"))
         assertTrue(source.contains("setFullScreenIntent(fullScreenPi, true)"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }

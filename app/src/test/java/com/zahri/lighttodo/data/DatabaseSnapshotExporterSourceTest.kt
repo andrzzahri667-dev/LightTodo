@@ -1,6 +1,8 @@
 package com.zahri.lighttodo.data
 
-import java.io.File
+import com.zahri.lighttodo.test.sourceFile
+
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,14 +18,15 @@ class DatabaseSnapshotExporterSourceTest {
         assertTrue(source.indexOf("PRAGMA wal_checkpoint(FULL)") < source.indexOf("source.copyTo(target, overwrite = true)"))
     }
 
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
+    @Test
+    fun exportUsesSharedDatabaseName() {
+        val exporterSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/DatabaseSnapshotExporter.kt")
+            .readText()
+        val databaseSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/AppDatabase.kt")
+            .readText()
+
+        assertTrue(databaseSource.contains("const val DatabaseName = \"lighttodo.db\""))
+        assertTrue(exporterSource.contains("val dbName = AppDatabase.DatabaseName"))
+        assertFalse(exporterSource.contains("val dbName = \"lighttodo.db\""))
     }
 }

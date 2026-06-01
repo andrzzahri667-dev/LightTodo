@@ -60,7 +60,15 @@ object CalendarSync {
             providerEventIds = eventIds
         )
         if (orphanEventIds.isNotEmpty()) {
-            app.db.todoDao().deleteByCalendarEventIds(orphanEventIds)
+            val orphanTodos = app.db.todoDao().findByCalendarEventIds(orphanEventIds)
+            orphanTodos
+                .filter { it.calendarCreatedByApp }
+                .forEach { app.db.todoDao().setCalendarLink(it.id, eventId = null, createdByApp = false) }
+            orphanTodos
+                .filterNot { it.calendarCreatedByApp }
+                .map { it.id }
+                .takeIf { it.isNotEmpty() }
+                ?.let { app.db.todoDao().deleteByIds(it) }
         }
 
         // Insert new + update existing entities by calendarEventId

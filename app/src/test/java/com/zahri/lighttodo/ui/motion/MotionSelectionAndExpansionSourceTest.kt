@@ -1,6 +1,7 @@
 package com.zahri.lighttodo.ui.motion
 
-import java.io.File
+import com.zahri.lighttodo.test.sourceFile
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,16 +34,5 @@ class MotionSelectionAndExpansionSourceTest {
         assertTrue(expansionSource.contains("graphicsLayer { rotationZ = rotationDegrees }"))
         assertTrue(expansionSource.contains("AppMotion.SectionExpandedRotationDegrees"))
         assertTrue(expansionSource.contains("AppMotion.sectionArrowSpring()"))
-    }
-
-    private fun sourceFile(relativePath: String): File {
-        val userDir = requireNotNull(System.getProperty("user.dir"))
-        var dir = File(userDir).absoluteFile
-        while (true) {
-            val candidate = File(dir, relativePath)
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile ?: break
-        }
-        error("Could not find $relativePath from $userDir")
     }
 }
