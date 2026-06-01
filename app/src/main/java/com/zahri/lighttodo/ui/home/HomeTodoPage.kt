@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -46,6 +45,8 @@ import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
+import com.zahri.lighttodo.ui.motion.components.motionCompletionSettleLayer
+import com.zahri.lighttodo.ui.motion.components.motionExpansionRotationLayer
 import com.zahri.lighttodo.ui.motion.components.motionSectionListItem
 import com.zahri.lighttodo.ui.motion.components.rememberMotionCompletionSettle
 import com.zahri.lighttodo.ui.motion.components.rememberMotionExpansionRotation
@@ -180,7 +181,7 @@ private fun SectionHeader(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .size(20.dp)
-                .graphicsLayer { rotationZ = arrowRotation }
+                .motionExpansionRotationLayer(arrowRotation)
         )
     }
 }
@@ -265,10 +266,7 @@ private fun TodoRow(
             Column(
                 Modifier
                     .weight(1f)
-                    .graphicsLayer {
-                        alpha = completionSettle.alpha
-                        translationX = completionSettle.translationX * density
-                    }
+                    .motionCompletionSettleLayer(completionSettle)
             ) {
                 Text(
                     text = titleText,

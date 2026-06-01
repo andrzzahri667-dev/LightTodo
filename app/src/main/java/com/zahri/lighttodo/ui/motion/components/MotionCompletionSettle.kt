@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import com.zahri.lighttodo.ui.motion.AppMotion
 
 @Immutable
@@ -27,3 +29,9 @@ fun rememberMotionCompletionSettle(active: Boolean): MotionCompletionSettle {
     )
     return MotionCompletionSettle(alpha = alpha, translationX = translationX)
 }
+
+fun Modifier.motionCompletionSettleLayer(settle: MotionCompletionSettle): Modifier =
+    graphicsLayer {
+        alpha = settle.alpha
+        translationX = settle.translationX * density
+    }

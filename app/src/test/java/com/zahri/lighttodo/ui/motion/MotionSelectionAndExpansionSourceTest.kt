@@ -15,8 +15,11 @@ class MotionSelectionAndExpansionSourceTest {
 
         assertTrue(todoSource.contains("import com.zahri.lighttodo.ui.motion.components.rememberMotionExpansionRotation"))
         assertTrue(todoSource.contains("import com.zahri.lighttodo.ui.motion.components.rememberMotionSelectionColor"))
+        assertTrue(todoSource.contains("import com.zahri.lighttodo.ui.motion.components.motionExpansionRotationLayer"))
         assertTrue(noteGridSource.contains("import com.zahri.lighttodo.ui.motion.components.rememberMotionNoteCardSelectionColor"))
         assertTrue(todoSource.contains("val arrowRotation by rememberMotionExpansionRotation("))
+        assertTrue(todoSource.contains(".motionExpansionRotationLayer(arrowRotation)"))
+        assertFalse(todoSource.contains(".graphicsLayer { rotationZ = arrowRotation }"))
         assertTrue(todoSource.contains("val selectedBackground by rememberMotionSelectionColor("))
         assertTrue(noteGridSource.contains("val cardBackground by rememberMotionNoteCardSelectionColor("))
         assertFalse(todoSource.contains("import androidx.compose.animation.animateColorAsState"))
@@ -26,6 +29,8 @@ class MotionSelectionAndExpansionSourceTest {
         assertTrue(selectionSource.contains("AppMotion.SelectionColorMillis"))
         assertTrue(selectionSource.contains("AppMotion.NoteCardSelectionColorMillis"))
         assertTrue(expansionSource.contains("animateFloatAsState"))
+        assertTrue(expansionSource.contains("fun Modifier.motionExpansionRotationLayer("))
+        assertTrue(expansionSource.contains("graphicsLayer { rotationZ = rotationDegrees }"))
         assertTrue(expansionSource.contains("AppMotion.SectionExpandedRotationDegrees"))
         assertTrue(expansionSource.contains("AppMotion.sectionArrowSpring()"))
     }

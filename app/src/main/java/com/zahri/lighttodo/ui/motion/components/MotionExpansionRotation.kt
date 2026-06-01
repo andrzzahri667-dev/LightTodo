@@ -3,6 +3,8 @@ package com.zahri.lighttodo.ui.motion.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import com.zahri.lighttodo.ui.motion.AppMotion
 
 @Composable
@@ -15,3 +17,6 @@ fun rememberMotionExpansionRotation(
         animationSpec = AppMotion.sectionArrowSpring(),
         label = label
     )
+
+fun Modifier.motionExpansionRotationLayer(rotationDegrees: Float): Modifier =
+    graphicsLayer { rotationZ = rotationDegrees }
