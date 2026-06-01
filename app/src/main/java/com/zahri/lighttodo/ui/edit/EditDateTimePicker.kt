@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 import com.zahri.lighttodo.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.format.TextStyle
@@ -112,16 +113,14 @@ internal fun WheelDateTimePickerDialog(
                     selectedIndex = selectedDateIndex,
                     onSelectedChanged = { selectedDateIndex = it; liveDate = it },
                     modifier = Modifier.weight(1.6f),
-                    selectedFontSize = 18.sp,
-                    unselectedFontSize = 14.sp
+                    textMotion = WheelPickerMotionPolicy.DateColumnTextMotion
                 )
                 val hIdx = WheelPicker(
                     items = hourLabels,
                     selectedIndex = selectedHour,
                     onSelectedChanged = { selectedHour = it; liveHour = it },
                     modifier = Modifier.weight(0.7f),
-                    selectedFontSize = 24.sp,
-                    unselectedFontSize = 16.sp,
+                    textMotion = WheelPickerMotionPolicy.TimeColumnTextMotion,
                     superscript = "H"
                 )
                 val mIdx = WheelPicker(
@@ -129,8 +128,7 @@ internal fun WheelDateTimePickerDialog(
                     selectedIndex = selectedMinute,
                     onSelectedChanged = { selectedMinute = it; liveMinute = it },
                     modifier = Modifier.weight(0.7f),
-                    selectedFontSize = 24.sp,
-                    unselectedFontSize = 16.sp,
+                    textMotion = WheelPickerMotionPolicy.TimeColumnTextMotion,
                     superscript = "M"
                 )
                 LaunchedEffect(dIdx) { if (dIdx != liveDate) liveDate = dIdx }
@@ -245,8 +243,7 @@ fun WheelTimePickerDialog(
                     selectedIndex = selectedHour,
                     onSelectedChanged = { selectedHour = it; liveHour = it },
                     modifier = Modifier.weight(1f),
-                    selectedFontSize = 24.sp,
-                    unselectedFontSize = 16.sp,
+                    textMotion = WheelPickerMotionPolicy.TimeColumnTextMotion,
                     superscript = "H"
                 )
                 val mIdx = WheelPicker(
@@ -254,8 +251,7 @@ fun WheelTimePickerDialog(
                     selectedIndex = selectedMinute,
                     onSelectedChanged = { selectedMinute = it; liveMinute = it },
                     modifier = Modifier.weight(1f),
-                    selectedFontSize = 24.sp,
-                    unselectedFontSize = 16.sp,
+                    textMotion = WheelPickerMotionPolicy.TimeColumnTextMotion,
                     superscript = "M"
                 )
                 LaunchedEffect(hIdx) { if (hIdx != liveHour) liveHour = hIdx }
@@ -398,16 +394,14 @@ fun WheelDatePickerDialog(
                     selectedIndex = selectedMonthIndex,
                     onSelectedChanged = { selectedMonthIndex = it; liveMonthIndex = it },
                     modifier = Modifier.weight(1.4f),
-                    selectedFontSize = 18.sp,
-                    unselectedFontSize = 14.sp
+                    textMotion = WheelPickerMotionPolicy.DateColumnTextMotion
                 )
                 val dIdx = WheelPicker(
                     items = dayLabels,
                     selectedIndex = selectedDayIndex.coerceAtMost(daysInMonth - 1),
                     onSelectedChanged = { selectedDayIndex = it; liveDayIndex = it },
                     modifier = Modifier.weight(0.8f),
-                    selectedFontSize = 22.sp,
-                    unselectedFontSize = 15.sp
+                    textMotion = WheelPickerMotionPolicy.DayColumnTextMotion
                 )
                 LaunchedEffect(mIdx) { if (mIdx != liveMonthIndex) liveMonthIndex = mIdx }
                 LaunchedEffect(dIdx) { if (dIdx != liveDayIndex) liveDayIndex = dIdx }

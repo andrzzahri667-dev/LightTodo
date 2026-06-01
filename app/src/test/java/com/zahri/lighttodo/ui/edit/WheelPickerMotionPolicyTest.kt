@@ -1,6 +1,8 @@
 package com.zahri.lighttodo.ui.edit
 
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -35,5 +37,32 @@ class WheelPickerMotionPolicyTest {
         assertTrue(farAlpha in 0.38f..0.48f)
         assertTrue(nearAlpha >= 0.65f)
         assertEquals(1f, centerAlpha, 0.0001f)
+    }
+
+    @Test
+    fun textAndColorRespondContinuouslyToProximity() {
+        val textMotion = WheelPickerMotionPolicy.TimeColumnTextMotion
+        val farSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, 0f)
+        val nearSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, 0.5f)
+        val centerSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, 1f)
+        val farColor = WheelPickerMotionPolicy.colorForProximity(Color.Red, Color.Blue, 0f)
+        val nearColor = WheelPickerMotionPolicy.colorForProximity(Color.Red, Color.Blue, 0.5f)
+        val centerColor = WheelPickerMotionPolicy.colorForProximity(Color.Red, Color.Blue, 1f)
+        val farWeight = WheelPickerMotionPolicy.fontWeightForProximity(0f)
+        val nearWeight = WheelPickerMotionPolicy.fontWeightForProximity(0.5f)
+        val centerWeight = WheelPickerMotionPolicy.fontWeightForProximity(1f)
+
+        assertEquals(textMotion.unselectedFontSize, farSize)
+        assertTrue(nearSize.value > farSize.value)
+        assertTrue(nearSize.value < centerSize.value)
+        assertEquals(textMotion.selectedFontSize, centerSize)
+        assertEquals(Color.Blue, farColor)
+        assertTrue(nearColor.red > 0f)
+        assertTrue(nearColor.blue > 0f)
+        assertEquals(Color.Red, centerColor)
+        assertEquals(FontWeight.Normal.weight, farWeight.weight)
+        assertTrue(nearWeight.weight > farWeight.weight)
+        assertTrue(nearWeight.weight < centerWeight.weight)
+        assertEquals(FontWeight.SemiBold.weight, centerWeight.weight)
     }
 }

@@ -47,7 +47,7 @@ import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
 import com.zahri.lighttodo.ui.motion.components.motionCompletionSettleLayer
 import com.zahri.lighttodo.ui.motion.components.motionExpansionRotationLayer
-import com.zahri.lighttodo.ui.motion.components.motionSectionListItem
+import com.zahri.lighttodo.ui.motion.components.motionSectionItemPlacement
 import com.zahri.lighttodo.ui.motion.components.rememberMotionCompletionSettle
 import com.zahri.lighttodo.ui.motion.components.rememberMotionExpansionRotation
 import com.zahri.lighttodo.ui.motion.components.rememberMotionSelectionColor
@@ -114,14 +114,14 @@ fun TodoPage(
                                 vm.setGroupExpanded(item.sectionKey, !item.expanded)
                             }
                         },
-                        modifier = motionSectionListItem().padding(bottom = 8.dp)
+                        modifier = motionSectionItemPlacement().padding(bottom = 8.dp)
                     )
                 }
                 is HomeTodoListItem.TodoRow -> {
                     val todo = item.todo
                     MotionSectionVisibility(
                         visible = item.visible,
-                        modifier = motionSectionListItem()
+                        modifier = motionSectionItemPlacement()
                     ) {
                         TodoRow(
                             todo = todo,

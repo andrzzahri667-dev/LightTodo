@@ -21,14 +21,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zahri.lighttodo.ui.motion.WheelPickerTextMotion
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 import com.zahri.lighttodo.ui.motion.components.motionWheelPickerItemLayer
 import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion
@@ -56,8 +55,7 @@ fun WheelPicker(
     visibleCount: Int = 3,
     selectedColor: Color = MaterialTheme.colorScheme.primary,
     unselectedColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-    selectedFontSize: TextUnit = 22.sp,
-    unselectedFontSize: TextUnit = 16.sp,
+    textMotion: WheelPickerTextMotion = WheelPickerMotionPolicy.TimeColumnTextMotion,
     superscript: String = "",
     loopThreshold: Int = 60,
     loopRepetitions: Int = 501
@@ -168,9 +166,13 @@ fun WheelPicker(
                 }
                 val proximity = WheelPickerMotionPolicy.proximityForDistance(distanceFromCenter, proximityRadiusPx)
                 val itemMotion = rememberWheelPickerItemMotion(proximity)
-                val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
-                val color = if (isSelected) selectedColor else unselectedColor
-                val weight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                val fontSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, proximity)
+                val color = WheelPickerMotionPolicy.colorForProximity(
+                    selectedColor = selectedColor,
+                    unselectedColor = unselectedColor,
+                    proximity = proximity
+                )
+                val weight = WheelPickerMotionPolicy.fontWeightForProximity(proximity)
 
                 Box(
                     modifier = Modifier

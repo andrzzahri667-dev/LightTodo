@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import com.zahri.lighttodo.ui.motion.AppMotion
 
 @OptIn(ExperimentalFoundationApi::class)
-fun LazyItemScope.motionSectionListItem(
+fun LazyItemScope.motionSectionItemPlacement(
     modifier: Modifier = Modifier
 ): Modifier =
     modifier.animateItem(
