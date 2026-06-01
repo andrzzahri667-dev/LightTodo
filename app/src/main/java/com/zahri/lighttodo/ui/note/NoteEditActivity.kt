@@ -10,9 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -262,10 +259,7 @@ private fun NoteEditorMotionLayoutTransformHost(
         if (canRender && !entryPlayed && !exitRequested) {
             progress.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = NoteEditorContainerTransformPolicy.EntryDurationMillis,
-                    easing = NoteEditorContainerTransformPolicy.EntryEasing.toComposeEasing()
-                )
+                animationSpec = NoteEditorContainerTransformPolicy.entryTween()
             )
             entryPlayed = true
         } else if (canRender && entryPlayed && !exitRequested && progress.value < 1f) {
@@ -277,10 +271,7 @@ private fun NoteEditorMotionLayoutTransformHost(
         if (exitRequested && canRender) {
             progress.animateTo(
                 targetValue = 0f,
-                animationSpec = tween(
-                    durationMillis = NoteEditorContainerTransformPolicy.ExitDurationMillis,
-                    easing = NoteEditorContainerTransformPolicy.ExitEasing.toComposeEasing()
-                )
+                animationSpec = NoteEditorContainerTransformPolicy.exitTween()
             )
             onExitFinished()
         }
@@ -499,6 +490,3 @@ private fun NoteEditorSourcePreview(
         }
     }
 }
-
-private fun NoteEditorContainerTransformEasing.toComposeEasing(): Easing =
-    CubicBezierEasing(x1, y1, x2, y2)

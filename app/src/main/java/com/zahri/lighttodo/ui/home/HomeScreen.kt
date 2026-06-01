@@ -46,7 +46,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
-import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.motion.components.rememberMotionPressScale
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed

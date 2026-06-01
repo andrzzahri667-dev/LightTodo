@@ -14,7 +14,12 @@ class NoteEditorMotionLayoutSourceTest {
         assertTrue(source.contains("import androidx.constraintlayout.compose.MotionLayout"))
         assertTrue(source.contains("NoteEditorMotionLayoutTransformHost("))
         assertTrue(source.contains("MotionLayout("))
+        assertTrue(source.contains("animationSpec = NoteEditorContainerTransformPolicy.entryTween()"))
+        assertTrue(source.contains("animationSpec = NoteEditorContainerTransformPolicy.exitTween()"))
         assertTrue(source.contains("geometryProgress = NoteEditorContainerTransformPolicy.geometryProgressFor(progress.value)"))
+        assertFalse(source.contains("import androidx.compose.animation.core.tween"))
+        assertFalse(source.contains("durationMillis = NoteEditorContainerTransformPolicy.EntryDurationMillis"))
+        assertFalse(source.contains("durationMillis = NoteEditorContainerTransformPolicy.ExitDurationMillis"))
         assertFalse(source.contains("private fun NoteEditorContainerTransformHost("))
     }
 

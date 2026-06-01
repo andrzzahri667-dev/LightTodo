@@ -1,5 +1,9 @@
 package com.zahri.lighttodo.ui.note
 
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.tween
 import kotlin.math.max
 
 data class NoteEditorContainerTransformFrame(
@@ -48,6 +52,18 @@ object NoteEditorContainerTransformPolicy {
 
     fun shouldRender(rootWidth: Int, rootHeight: Int): Boolean =
         rootWidth > 0 && rootHeight > 0
+
+    fun entryTween(): TweenSpec<Float> =
+        tween(
+            durationMillis = EntryDurationMillis,
+            easing = EntryEasing.toComposeEasing()
+        )
+
+    fun exitTween(): TweenSpec<Float> =
+        tween(
+            durationMillis = ExitDurationMillis,
+            easing = ExitEasing.toComposeEasing()
+        )
 
     fun contentPhaseFor(progress: Float): NoteEditorTransformContentPhase {
         val safeProgress = safeProgress(progress)
@@ -161,4 +177,7 @@ object NoteEditorContainerTransformPolicy {
 
     private fun lerp(start: Float, end: Float, progress: Float): Float =
         start + (end - start) * progress
+
+    private fun NoteEditorContainerTransformEasing.toComposeEasing(): Easing =
+        CubicBezierEasing(x1, y1, x2, y2)
 }
