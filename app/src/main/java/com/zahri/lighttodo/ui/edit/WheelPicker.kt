@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -80,7 +79,7 @@ fun WheelPicker(
     val totalHeight = itemHeight * visibleCount
     val density = LocalDensity.current
     val proximityRadiusPx = with(density) {
-        itemHeight.toPx() * AppMotion.PickerItemProximityRadiusItems
+        WheelPickerMotionPolicy.proximityRadiusPx(itemHeight.toPx())
     }
 
     // Absolute centered index in the expanded list

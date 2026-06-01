@@ -10,10 +10,12 @@ class WheelPickerMotionSourceTest {
     fun wheelPickerUsesCentralAppMotionForItemAlpha() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/WheelPicker.kt").readText()
         val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/WheelPickerItemMotion.kt").readText()
+        val policySource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/WheelPickerMotionPolicy.kt").readText()
 
-        assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.AppMotion"))
+        assertFalse(source.contains("import com.zahri.lighttodo.ui.motion.AppMotion"))
         assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy"))
         assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion"))
+        assertTrue(source.contains("WheelPickerMotionPolicy.proximityRadiusPx(itemHeight.toPx())"))
         assertTrue(source.contains("WheelPickerMotionPolicy.proximityForDistance"))
         assertTrue(source.contains("val itemMotion = rememberWheelPickerItemMotion(proximity)"))
         assertTrue(source.contains("this.alpha = itemMotion.alpha"))
@@ -32,6 +34,8 @@ class WheelPickerMotionSourceTest {
         assertTrue(componentSource.contains("WheelPickerMotionPolicy.scaleForProximity"))
         assertTrue(componentSource.contains("AppMotion.PickerItemAlphaMillis"))
         assertTrue(componentSource.contains("AppMotion.PickerItemScaleMillis"))
+        assertTrue(policySource.contains("fun proximityRadiusPx(itemHeightPx: Float): Float"))
+        assertTrue(policySource.contains("itemHeightPx * AppMotion.PickerItemProximityRadiusItems"))
     }
 
     private fun sourceFile(relativePath: String): File {
