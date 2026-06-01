@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.ui.home
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,9 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoEntity
-import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
+import com.zahri.lighttodo.ui.motion.components.motionSectionListItem
 import com.zahri.lighttodo.ui.motion.components.rememberMotionCompletionSettle
 import com.zahri.lighttodo.ui.motion.components.rememberMotionExpansionRotation
 import com.zahri.lighttodo.ui.motion.components.rememberMotionSelectionColor
@@ -114,22 +113,14 @@ fun TodoPage(
                                 vm.setGroupExpanded(item.sectionKey, !item.expanded)
                             }
                         },
-                        modifier = Modifier.animateItem(
-                            fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
-                            placementSpec = AppMotion.listPlacementSpring(),
-                            fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis, easing = AppMotion.StandardEasing)
-                        ).padding(bottom = 8.dp)
+                        modifier = motionSectionListItem().padding(bottom = 8.dp)
                     )
                 }
                 is HomeTodoListItem.TodoRow -> {
                     val todo = item.todo
                     MotionSectionVisibility(
                         visible = item.visible,
-                        modifier = Modifier.animateItem(
-                            fadeInSpec = tween(AppMotion.SectionItemFadeInMillis, easing = AppMotion.EmphasizedEasing),
-                            placementSpec = AppMotion.listPlacementSpring(),
-                            fadeOutSpec = tween(AppMotion.SectionItemFadeOutMillis, easing = AppMotion.StandardEasing)
-                        )
+                        modifier = motionSectionListItem()
                     ) {
                         TodoRow(
                             todo = todo,
