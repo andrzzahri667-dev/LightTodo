@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 
@@ -28,3 +30,10 @@ fun rememberWheelPickerItemMotion(proximity: Float): WheelPickerItemMotion {
     )
     return WheelPickerItemMotion(alpha = alpha, scale = scale)
 }
+
+fun Modifier.motionWheelPickerItemLayer(itemMotion: WheelPickerItemMotion): Modifier =
+    graphicsLayer {
+        alpha = itemMotion.alpha
+        scaleX = itemMotion.scale
+        scaleY = itemMotion.scale
+    }

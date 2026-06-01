@@ -18,7 +18,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
+import com.zahri.lighttodo.ui.motion.components.motionWheelPickerItemLayer
 import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -176,11 +176,7 @@ fun WheelPicker(
                     modifier = Modifier
                         .height(itemHeight)
                         .fillMaxWidth()
-                        .graphicsLayer {
-                            this.alpha = itemMotion.alpha
-                            scaleX = itemMotion.scale
-                            scaleY = itemMotion.scale
-                        },
+                        .motionWheelPickerItemLayer(itemMotion),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected && superscript.isNotEmpty()) {
