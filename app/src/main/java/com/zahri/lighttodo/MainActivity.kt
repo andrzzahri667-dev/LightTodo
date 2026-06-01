@@ -10,7 +10,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,7 +32,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zahri.lighttodo.ui.edit.EditScreen
 import com.zahri.lighttodo.ui.home.HomeScreen
-import com.zahri.lighttodo.ui.motion.AppMotion
+import com.zahri.lighttodo.ui.motion.components.NoteSourceVisibilityMotion
+import com.zahri.lighttodo.ui.motion.components.motionRouteEnterTransition
+import com.zahri.lighttodo.ui.motion.components.motionRouteExitTransition
+import com.zahri.lighttodo.ui.motion.components.motionRoutePopEnterTransition
+import com.zahri.lighttodo.ui.motion.components.motionRoutePopExitTransition
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
 import com.zahri.lighttodo.ui.note.NoteEditorColors
 import com.zahri.lighttodo.ui.note.NoteEditorLauncher
@@ -150,7 +153,7 @@ class MainActivity : ComponentActivity() {
                         hiddenNoteSource = null
                     }
                 },
-                AppMotion.NoteSourceAnimationResetDelayMillis
+                NoteSourceVisibilityMotion.ResetDelayMillis
             )
         } else if (hiddenNoteSource == sourceKey) {
             hiddenNoteSource = null
@@ -207,30 +210,10 @@ private fun AppNavHost(
     NavHost(
         navController = nav,
         startDestination = Routes.Home,
-        enterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Start,
-                AppMotion.routeTween()
-            )
-        },
-        exitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Start,
-                AppMotion.routeTween()
-            )
-        },
-        popEnterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.End,
-                AppMotion.routeTween()
-            )
-        },
-        popExitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.End,
-                AppMotion.routeTween()
-            )
-        }
+        enterTransition = { motionRouteEnterTransition() },
+        exitTransition = { motionRouteExitTransition() },
+        popEnterTransition = { motionRoutePopEnterTransition() },
+        popExitTransition = { motionRoutePopExitTransition() }
     ) {
         composable(Routes.Home) {
             HomeScreen(
