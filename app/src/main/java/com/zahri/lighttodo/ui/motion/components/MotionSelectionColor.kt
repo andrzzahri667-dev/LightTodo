@@ -20,3 +20,18 @@ fun rememberMotionSelectionColor(
         animationSpec = tween(durationMillis),
         label = label
     )
+
+@Composable
+fun rememberMotionNoteCardSelectionColor(
+    selected: Boolean,
+    selectedColor: Color,
+    unselectedColor: Color,
+    label: String = "note-card-selection-bg"
+): State<Color> =
+    rememberMotionSelectionColor(
+        selected = selected,
+        selectedColor = selectedColor,
+        unselectedColor = unselectedColor,
+        durationMillis = AppMotion.NoteCardSelectionColorMillis,
+        label = label
+    )

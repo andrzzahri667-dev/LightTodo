@@ -32,10 +32,22 @@ class NoteGridPageSourceTest {
     @Test
     fun noteGridPlacementUsesCurrentLazyItemMotionApi() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
+        val placementSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteGridItemPlacement.kt").readText()
+        val selectionSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionSelectionColor.kt").readText()
 
-        assertTrue(source.contains("modifier = Modifier.animateItem("))
-        assertTrue(source.contains("placementSpec = AppMotion.noteGridPlacementSpring()"))
+        assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.components.motionNoteGridItem"))
+        assertTrue(source.contains("modifier = motionNoteGridItem()"))
+        assertTrue(source.contains("rememberMotionNoteCardSelectionColor("))
+        assertFalse(source.contains("import com.zahri.lighttodo.ui.motion.AppMotion"))
+        assertFalse(source.contains("Modifier.animateItem("))
+        assertFalse(source.contains("placementSpec = AppMotion.noteGridPlacementSpring()"))
+        assertFalse(source.contains("durationMillis = AppMotion.NoteCardSelectionColorMillis"))
         assertFalse(source.contains("animateItemPlacement("))
+        assertTrue(placementSource.contains("fun LazyStaggeredGridItemScope.motionNoteGridItem("))
+        assertTrue(placementSource.contains("animateItem("))
+        assertTrue(placementSource.contains("placementSpec = AppMotion.noteGridPlacementSpring()"))
+        assertTrue(selectionSource.contains("fun rememberMotionNoteCardSelectionColor("))
+        assertTrue(selectionSource.contains("durationMillis = AppMotion.NoteCardSelectionColorMillis"))
     }
 
     private fun sourceFile(relativePath: String): File {
