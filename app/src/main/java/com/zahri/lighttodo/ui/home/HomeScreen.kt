@@ -46,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
+import com.zahri.lighttodo.ui.motion.components.motionHomePagerScrollToPage
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.motionPressScaleLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionPressScale
@@ -206,7 +207,7 @@ fun HomeScreen(
                                 interactionSource = tabInteraction,
                                 indication = null
                             ) {
-                                scope.launch { pagerState.animateScrollToPage(index) }
+                                scope.launch { pagerState.motionHomePagerScrollToPage(index) }
                             }
                             .padding(horizontal = 4.dp)
                     )
