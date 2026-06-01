@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.ui.motion
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing

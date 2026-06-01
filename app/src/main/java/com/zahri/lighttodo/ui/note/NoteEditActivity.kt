@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.motion.NoteEditorTransitionBounds
 import com.zahri.lighttodo.ui.motion.components.NoteEditorMotionLayoutTransformHost
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType

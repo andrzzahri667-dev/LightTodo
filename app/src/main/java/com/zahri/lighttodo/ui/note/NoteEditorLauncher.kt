@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.view.View
 import androidx.compose.ui.geometry.Rect
+import com.zahri.lighttodo.ui.motion.NoteEditorContainerTransformPolicy
+import com.zahri.lighttodo.ui.motion.NoteEditorTransitionBounds
 import kotlin.math.roundToInt
 
 object NoteEditorLauncher {

@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.ui.motion
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

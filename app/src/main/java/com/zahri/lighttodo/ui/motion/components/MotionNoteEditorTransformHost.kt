@@ -23,8 +23,8 @@ import androidx.constraintlayout.compose.ConstraintSet
 import androidx.constraintlayout.compose.Dimension
 import androidx.constraintlayout.compose.ExperimentalMotionApi
 import androidx.constraintlayout.compose.MotionLayout
-import com.zahri.lighttodo.ui.note.NoteEditorContainerTransformPolicy
-import com.zahri.lighttodo.ui.note.NoteEditorTransitionBounds
+import com.zahri.lighttodo.ui.motion.NoteEditorContainerTransformPolicy
+import com.zahri.lighttodo.ui.motion.NoteEditorTransitionBounds
 
 @OptIn(ExperimentalMotionApi::class)
 @Composable
