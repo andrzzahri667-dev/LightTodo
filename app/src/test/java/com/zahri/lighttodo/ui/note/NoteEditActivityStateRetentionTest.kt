@@ -7,7 +7,7 @@ import java.io.File
 class NoteEditActivityStateRetentionTest {
     @Test
     fun customTransformEntryAnimationStateSurvivesActivityRecreation() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditActivity.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteEditorTransformHost.kt")
             .readText()
 
         assertTrue(
