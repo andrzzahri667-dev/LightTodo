@@ -11,7 +11,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,8 +84,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
+import com.zahri.lighttodo.ui.motion.components.motionNoteContentSize
 import com.zahri.lighttodo.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -385,7 +384,7 @@ fun NoteEditScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .animateContentSize(animationSpec = AppMotion.noteContentSizeSpring())
+                                .motionNoteContentSize()
                         ) {
                             when (block) {
                                 is NoteContentBlock.Text -> NoteTextBlockEditor(
