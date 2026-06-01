@@ -1,7 +1,5 @@
 package com.zahri.lighttodo.ui.edit
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Box
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.ui.motion.AppMotion
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
+import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
@@ -169,18 +168,7 @@ fun WheelPicker(
                     }
                 }
                 val proximity = WheelPickerMotionPolicy.proximityForDistance(distanceFromCenter, proximityRadiusPx)
-                val targetAlpha = WheelPickerMotionPolicy.alphaForProximity(proximity)
-                val targetScale = WheelPickerMotionPolicy.scaleForProximity(proximity)
-                val alpha by animateFloatAsState(
-                    targetValue = targetAlpha,
-                    animationSpec = tween(AppMotion.PickerItemAlphaMillis),
-                    label = "wheel-picker-item-alpha"
-                )
-                val scale by animateFloatAsState(
-                    targetValue = targetScale,
-                    animationSpec = tween(AppMotion.PickerItemScaleMillis),
-                    label = "wheel-picker-item-scale"
-                )
+                val itemMotion = rememberWheelPickerItemMotion(proximity)
                 val fontSize = if (isSelected) selectedFontSize else unselectedFontSize
                 val color = if (isSelected) selectedColor else unselectedColor
                 val weight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -190,9 +178,9 @@ fun WheelPicker(
                         .height(itemHeight)
                         .fillMaxWidth()
                         .graphicsLayer {
-                            this.alpha = alpha
-                            scaleX = scale
-                            scaleY = scale
+                            this.alpha = itemMotion.alpha
+                            scaleX = itemMotion.scale
+                            scaleY = itemMotion.scale
                         },
                     contentAlignment = Alignment.Center
                 ) {

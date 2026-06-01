@@ -9,20 +9,29 @@ class WheelPickerMotionSourceTest {
     @Test
     fun wheelPickerUsesCentralAppMotionForItemAlpha() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/WheelPicker.kt").readText()
+        val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/WheelPickerItemMotion.kt").readText()
 
-        assertTrue(source.contains("import androidx.compose.animation.core.animateFloatAsState"))
         assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.AppMotion"))
         assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy"))
-        assertTrue(source.contains("AppMotion.PickerItemAlphaMillis"))
+        assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion"))
         assertTrue(source.contains("WheelPickerMotionPolicy.proximityForDistance"))
-        assertTrue(source.contains("WheelPickerMotionPolicy.scaleForProximity"))
-        assertTrue(source.contains("WheelPickerMotionPolicy.alphaForProximity"))
-        assertTrue(source.contains("scaleX = scale"))
-        assertTrue(source.contains("scaleY = scale"))
+        assertTrue(source.contains("val itemMotion = rememberWheelPickerItemMotion(proximity)"))
+        assertTrue(source.contains("this.alpha = itemMotion.alpha"))
+        assertTrue(source.contains("scaleX = itemMotion.scale"))
+        assertTrue(source.contains("scaleY = itemMotion.scale"))
+        assertFalse(source.contains("import androidx.compose.animation.core.animateFloatAsState"))
+        assertFalse(source.contains("WheelPickerMotionPolicy.scaleForProximity"))
+        assertFalse(source.contains("WheelPickerMotionPolicy.alphaForProximity"))
+        assertFalse(source.contains("AppMotion.PickerItemAlphaMillis"))
         assertFalse(source.contains("import androidx.compose.animation.core.Animatable"))
         assertFalse(source.contains("package com.zahri.lighttodo.ui.edit\n\nobject WheelPickerMotionPolicy"))
         assertFalse(source.contains("tween(durationMillis = 150)"))
         assertFalse(source.contains("val targetAlpha = if (isSelected) 1f else 0.4f"))
+        assertTrue(componentSource.contains("animateFloatAsState"))
+        assertTrue(componentSource.contains("WheelPickerMotionPolicy.alphaForProximity"))
+        assertTrue(componentSource.contains("WheelPickerMotionPolicy.scaleForProximity"))
+        assertTrue(componentSource.contains("AppMotion.PickerItemAlphaMillis"))
+        assertTrue(componentSource.contains("AppMotion.PickerItemScaleMillis"))
     }
 
     private fun sourceFile(relativePath: String): File {
