@@ -37,8 +37,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.layoutId
@@ -55,6 +53,7 @@ import androidx.constraintlayout.compose.ExperimentalMotionApi
 import androidx.constraintlayout.compose.MotionLayout
 import androidx.core.view.WindowCompat
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.ui.motion.components.motionNoteEditorTransformLayer
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
@@ -336,12 +335,10 @@ private fun NoteEditorMotionLayoutTransformHost(
                 Box(
                     modifier = Modifier
                         .layoutId(NoteEditorMotionIds.Editor)
-                        .graphicsLayer {
-                            transformOrigin = TransformOrigin(0f, 0f)
-                            alpha = contentAlpha.editorAlpha
-                            clip = cornerRadius > 0.dp
-                            shape = RoundedCornerShape(cornerRadius)
-                        }
+                        .motionNoteEditorTransformLayer(
+                            alpha = contentAlpha.editorAlpha,
+                            cornerRadius = cornerRadius
+                        )
                 ) {
                     content()
                 }
@@ -357,12 +354,10 @@ private fun NoteEditorMotionLayoutTransformHost(
                 Box(
                     modifier = Modifier
                         .layoutId(NoteEditorMotionIds.SourcePreview)
-                        .graphicsLayer {
-                            transformOrigin = TransformOrigin(0f, 0f)
-                            alpha = contentAlpha.sourcePreviewAlpha
-                            clip = previewCornerRadius > 0.dp
-                            shape = RoundedCornerShape(previewCornerRadius)
-                        }
+                        .motionNoteEditorTransformLayer(
+                            alpha = contentAlpha.sourcePreviewAlpha,
+                            cornerRadius = previewCornerRadius
+                        )
                 ) {
                     sourcePreview()
                 }
