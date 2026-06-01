@@ -6,6 +6,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import com.zahri.lighttodo.ui.motion.AppMotion
 
 @Composable
@@ -20,3 +22,9 @@ fun rememberMotionPressScale(
         label = label
     )
 }
+
+fun Modifier.motionPressScaleLayer(scale: Float): Modifier =
+    graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }

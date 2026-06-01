@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -36,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.ui.motion.components.motionNoteGridItem
+import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionNoteCardSelectionColor
 import com.zahri.lighttodo.ui.note.NoteEmptyPlaceholder
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
@@ -120,7 +120,7 @@ private fun NoteCard(
             .clip(RoundedCornerShape(12.dp))
             .background(cardBackground)
             .onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }
-            .graphicsLayer { alpha = if (hidden) 0f else 1f }
+            .motionNoteSourceVisibilityLayer(hidden)
             .combinedClickable(onLongClick = onLongClick, onClick = { onClick(sourceBounds.bounds) })
             .padding(12.dp)
     ) {

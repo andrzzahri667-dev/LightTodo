@@ -34,11 +34,16 @@ class NoteGridPageSourceTest {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
         val placementSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteGridItemPlacement.kt").readText()
         val selectionSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionSelectionColor.kt").readText()
+        val visibilitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/NoteSourceVisibilityMotion.kt").readText()
 
         assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.components.motionNoteGridItem"))
+        assertTrue(source.contains("import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer"))
         assertTrue(source.contains("modifier = motionNoteGridItem()"))
         assertTrue(source.contains("rememberMotionNoteCardSelectionColor("))
+        assertTrue(source.contains(".motionNoteSourceVisibilityLayer(hidden)"))
         assertFalse(source.contains("import com.zahri.lighttodo.ui.motion.AppMotion"))
+        assertFalse(source.contains("import androidx.compose.ui.graphics.graphicsLayer"))
+        assertFalse(source.contains(".graphicsLayer { alpha = if (hidden) 0f else 1f }"))
         assertFalse(source.contains("Modifier.animateItem("))
         assertFalse(source.contains("placementSpec = AppMotion.noteGridPlacementSpring()"))
         assertFalse(source.contains("durationMillis = AppMotion.NoteCardSelectionColorMillis"))
@@ -48,6 +53,8 @@ class NoteGridPageSourceTest {
         assertTrue(placementSource.contains("placementSpec = AppMotion.noteGridPlacementSpring()"))
         assertTrue(selectionSource.contains("fun rememberMotionNoteCardSelectionColor("))
         assertTrue(selectionSource.contains("durationMillis = AppMotion.NoteCardSelectionColorMillis"))
+        assertTrue(visibilitySource.contains("fun Modifier.motionNoteSourceVisibilityLayer("))
+        assertTrue(visibilitySource.contains("graphicsLayer { alpha = if (hidden) 0f else 1f }"))
     }
 
     private fun sourceFile(relativePath: String): File {

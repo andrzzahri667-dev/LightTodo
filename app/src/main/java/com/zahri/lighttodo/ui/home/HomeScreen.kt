@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
@@ -47,6 +46,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.ui.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
+import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
+import com.zahri.lighttodo.ui.motion.components.motionPressScaleLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionPressScale
 import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
 import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
@@ -104,11 +105,8 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(56.dp)
                         .onGloballyPositioned { noteSourceBounds.bounds = it.boundsInRoot() }
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            alpha = if (hiddenNoteSource?.matches(null) == true) 0f else 1f
-                        }
+                        .motionPressScaleLayer(scale)
+                        .motionNoteSourceVisibilityLayer(hiddenNoteSource?.matches(null) == true)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = stringResource(R.string.home_add), tint = Color.Black)
                 }
