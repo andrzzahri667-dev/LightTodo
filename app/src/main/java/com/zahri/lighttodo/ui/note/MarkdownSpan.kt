@@ -80,6 +80,7 @@ class MarkdownBulletSpan(
         text: CharSequence, start: Int, end: Int,
         first: Boolean, layout: android.text.Layout?
     ) {
+        if (!first) return
         val style = paint.style
         val color = paint.color
         val alpha = paint.alpha
