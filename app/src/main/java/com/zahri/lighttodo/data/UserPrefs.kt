@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
 
 private val Context.userPrefsDataStore by preferencesDataStore(name = "user_prefs")
 
@@ -28,6 +29,7 @@ class UserPrefs(private val context: Context) {
         val DONE_SECTION_EXPANDED = booleanPreferencesKey("done_section_expanded")
     }
 
+    @Serializable
     data class Snapshot(
         val defaultRemindHour: Int = 9,
         val defaultRemindMinute: Int = 0,
@@ -84,5 +86,18 @@ class UserPrefs(private val context: Context) {
 
     suspend fun setDoneSectionExpanded(expanded: Boolean) {
         context.userPrefsDataStore.edit { it[Keys.DONE_SECTION_EXPANDED] = expanded }
+    }
+
+    suspend fun restore(snapshot: Snapshot) {
+        context.userPrefsDataStore.edit {
+            it[Keys.DEFAULT_REMIND_HOUR] = snapshot.defaultRemindHour
+            it[Keys.DEFAULT_REMIND_MINUTE] = snapshot.defaultRemindMinute
+            it[Keys.DEFAULT_HOURS_BEFORE] = snapshot.defaultHoursBefore
+            it[Keys.CALENDAR_SYNC_ENABLED] = snapshot.calendarSyncEnabled
+            it[Keys.CALENDAR_ACCOUNT_NAME] = snapshot.calendarAccountName
+            it[Keys.QUICK_ADD_NOTIF_ENABLED] = snapshot.quickAddNotifEnabled
+            it[Keys.EXPANDED_TAG_IDS] = snapshot.collapsedTagIds.joinToString("|")
+            it[Keys.DONE_SECTION_EXPANDED] = snapshot.doneSectionExpanded
+        }
     }
 }

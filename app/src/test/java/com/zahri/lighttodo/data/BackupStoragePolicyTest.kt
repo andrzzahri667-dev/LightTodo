@@ -7,6 +7,26 @@ import org.junit.Test
 class BackupStoragePolicyTest {
 
     @Test
+    fun publicDocumentsMode_usesScopedStorageFromAndroid10() {
+        assertEquals(
+            BackupStoragePolicy.PublicDocumentsMode.MediaStore,
+            BackupStoragePolicy.publicDocumentsMode(sdkInt = 29)
+        )
+        assertEquals(
+            BackupStoragePolicy.PublicDocumentsMode.MediaStore,
+            BackupStoragePolicy.publicDocumentsMode(sdkInt = 35)
+        )
+    }
+
+    @Test
+    fun publicDocumentsMode_usesLegacyDirectPathBeforeAndroid10() {
+        assertEquals(
+            BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath,
+            BackupStoragePolicy.publicDocumentsMode(sdkInt = 28)
+        )
+    }
+
+    @Test
     fun publicDownloadsMode_usesScopedStorageFromAndroid10() {
         assertEquals(
             BackupStoragePolicy.PublicDownloadsMode.MediaStore,

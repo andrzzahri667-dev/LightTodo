@@ -26,7 +26,7 @@ class App : Application() {
     val db by lazy { AppDatabase.get(this) }
     val prefs by lazy { UserPrefs(this) }
     val repository by lazy { Repository(this, db.todoDao(), db.tagDao(), prefs) }
-    val backupManager by lazy { BackupManager(this, db, repository, appScope) }
+    val backupManager by lazy { BackupManager(this, db, repository, prefs, appScope) }
 
     private var calendarObserver: CalendarObserver? = null
     private var calendarSyncJob: Job? = null

@@ -5,6 +5,7 @@ import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import java.io.File
+import java.io.InputStream
 
 object NoteAttachmentStore {
     private const val ROOT_DIR = "note_attachments"
@@ -33,6 +34,32 @@ object NoteAttachmentStore {
             target.outputStream().use { output -> input.copyTo(output) }
         }
         return target
+    }
+
+    fun importAttachment(
+        context: Context,
+        kind: NoteAttachmentMarkdown.Kind,
+        fileName: String,
+        input: InputStream
+    ): String {
+        val type = when (kind) {
+            NoteAttachmentMarkdown.Kind.Image -> IMAGE_DIR
+            NoteAttachmentMarkdown.Kind.Audio -> AUDIO_DIR
+        }
+        val safeName = fileName
+            .substringAfterLast('/')
+            .substringAfterLast(File.separatorChar)
+            .takeIf { it.isNotBlank() && !it.contains("..") }
+            ?: "attachment_${System.currentTimeMillis()}.bin"
+        val target = uniqueImportedFile(context, type, safeName)
+        target.parentFile?.mkdirs()
+        input.use { source ->
+            target.outputStream().use { output -> source.copyTo(output) }
+        }
+        return when (kind) {
+            NoteAttachmentMarkdown.Kind.Image -> imageRef(target)
+            NoteAttachmentMarkdown.Kind.Audio -> audioRef(target)
+        }
     }
 
     fun resolve(context: Context, ref: String): File? {
@@ -76,6 +103,25 @@ object NoteAttachmentStore {
         dir.mkdirs()
         val safeExtension = extension.trimStart('.').ifBlank { "bin" }
         return File(dir, "${prefix}_${System.currentTimeMillis()}.$safeExtension")
+    }
+
+    private fun uniqueImportedFile(context: Context, type: String, fileName: String): File {
+        val dir = attachmentDir(context, type)
+        dir.mkdirs()
+        val baseName = fileName.substringBeforeLast('.', missingDelimiterValue = fileName)
+        val extension = fileName.substringAfterLast('.', missingDelimiterValue = "")
+        var candidate = File(dir, fileName)
+        var suffix = 1
+        while (candidate.exists()) {
+            val nextName = if (extension.isBlank()) {
+                "${baseName}_$suffix"
+            } else {
+                "${baseName}_$suffix.$extension"
+            }
+            candidate = File(dir, nextName)
+            suffix += 1
+        }
+        return candidate
     }
 
     private fun attachmentDir(context: Context, type: String): File =

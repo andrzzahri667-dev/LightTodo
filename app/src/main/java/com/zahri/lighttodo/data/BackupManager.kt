@@ -1,6 +1,5 @@
 package com.zahri.lighttodo.data
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -24,16 +23,18 @@ import java.io.File
  * 自动备份 & 恢复管理器。
  *
  * 职责：
- *  - 监听数据变化，3s 防抖后自动写备份到 app-external + Downloads
+ *  - 监听数据变化，3s 防抖后自动写备份到 app-external + Documents/LightTodo 迁移目录
  *  - 启动时若数据库为空，尝试从备份恢复
  */
 class BackupManager(
     private val context: Context,
     private val db: AppDatabase,
     private val repository: Repository,
+    private val prefs: UserPrefs,
     private val scope: CoroutineScope
 ) {
     private val fileName = "lighttodo-auto-backup.json"
+    private val portableBackupStore = PortableBackupStore(context)
 
     suspend fun buildBackupBundle(): BackupBundle {
         val tags = db.tagDao().listAll()
@@ -63,15 +64,27 @@ class BackupManager(
             combine(
                 db.todoDao().observeAll(),
                 db.tagDao().observeAll(),
-                db.noteDao().observeAll()
-            ) { todos, tags, notes -> Triple(todos, tags, notes) }
-                .collectLatest { (todos, tags, notes) ->
-                    if (todos.isEmpty() && tags.isEmpty() && notes.isEmpty()) return@collectLatest
+                db.noteDao().observeAll(),
+                prefs.flow
+            ) { todos, tags, notes, settings ->
+                AutoBackupSnapshot(todos = todos, tags = tags, notes = notes, settings = settings)
+            }
+                .collectLatest { snapshot ->
+                    if (
+                        snapshot.todos.isEmpty() &&
+                        snapshot.tags.isEmpty() &&
+                        snapshot.notes.isEmpty()
+                    ) {
+                        return@collectLatest
+                    }
                     delay(3000)
                     runCatching {
-                        val bundle = BackupDtoMapper.buildBundle(tags, todos, notes)
-                        val json = Json { prettyPrint = true; encodeDefaults = true }
-                        writeBackupFile(json.encodeToString(bundle))
+                        val bundle = BackupDtoMapper.buildBundle(
+                            tags = snapshot.tags,
+                            todos = snapshot.todos,
+                            notes = snapshot.notes
+                        )
+                        writeBackup(bundle, snapshot.settings)
                     }
                 }
         }
@@ -84,21 +97,35 @@ class BackupManager(
             val todosEmpty = db.todoDao().listAll().isEmpty()
             val notesEmpty = db.noteDao().listAll().isEmpty()
             if (!todosEmpty || !notesEmpty) return@launch
-            val text = readBackupFile() ?: return@launch
-            runCatching {
-                val bundle = Json { ignoreUnknownKeys = true }
-                    .decodeFromString(BackupBundle.serializer(), text)
-                restoreFromBundle(bundle)
-            }.onFailure {
-                Log.w("BackupManager", "Auto restore failed", it)
+
+            readFromAppExternal()?.let { text ->
+                if (restoreJsonBackup(text)) return@launch
+            }
+
+            // Best-effort Documents/LightTodo restore: Android 10+ only exposes files still
+            // readable to this installed app instance, so failure must fall back to legacy JSON.
+            val portableBackup = portableBackupStore.read()
+            if (portableBackup != null && restoreBestEffortPortableBackup(portableBackup)) {
+                return@launch
+            }
+
+            readFromPublicDownloads()?.let { text ->
+                restoreJsonBackup(text)
             }
         }
     }
 
-    private fun writeBackupFile(content: String) {
-        val bytes = content.toByteArray()
+    suspend fun restorePortableFromTree(uri: Uri): Int? {
+        val portableBackup = portableBackupStore.readFromTree(uri) ?: return null
+        restorePortableBackup(portableBackup)
+        return portableBackup.bundle.todos.size + portableBackup.bundle.notes.size
+    }
+
+    private suspend fun writeBackup(bundle: BackupBundle, settings: UserPrefs.Snapshot) {
+        val json = Json { prettyPrint = true; encodeDefaults = true }
+        val bytes = json.encodeToString(bundle).toByteArray()
         writeToAppExternal(bytes)
-        writeToPublicDownloads(bytes)
+        portableBackupStore.write(bundle, settings)
     }
 
     private fun writeToAppExternal(bytes: ByteArray) {
@@ -106,50 +133,6 @@ class BackupManager(
             val dir = context.getExternalFilesDir(null) ?: return
             File(dir, fileName).writeBytes(bytes)
         }
-    }
-
-    private fun writeToPublicDownloads(bytes: ByteArray) {
-        when (BackupStoragePolicy.publicDownloadsMode()) {
-            BackupStoragePolicy.PublicDownloadsMode.MediaStore -> writeToDownloadsMediaStore(bytes)
-            BackupStoragePolicy.PublicDownloadsMode.LegacyDirectPath -> writeToDownloadsDirect(bytes)
-        }
-    }
-
-    private fun writeToDownloadsMediaStore(bytes: ByteArray) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
-        runCatching {
-            val resolver = context.contentResolver
-            val uri = findDownloadsMediaStoreUri() ?: resolver.insert(
-                MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-                ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "application/json")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
-            ) ?: return
-
-            resolver.openOutputStream(uri, "wt")?.use { it.write(bytes) }
-            ContentValues().apply {
-                put(MediaStore.Downloads.IS_PENDING, 0)
-            }.also { resolver.update(uri, it, null, null) }
-        }
-    }
-
-    private fun writeToDownloadsDirect(bytes: ByteArray) {
-        runCatching {
-            val dir = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS
-            )
-            dir.mkdirs()
-            File(dir, fileName).writeBytes(bytes)
-        }
-    }
-
-    private fun readBackupFile(): String? {
-        readFromAppExternal()?.let { return it }
-        readFromPublicDownloads()?.let { return it }
-        return null
     }
 
     private fun readFromAppExternal(): String? = runCatching {
@@ -173,10 +156,6 @@ class BackupManager(
                 it.readUtf8WithLimit()
             }
         }.getOrNull()
-    }
-
-    private fun findDownloadsMediaStoreUri(): Uri? {
-        return findDownloadsMediaStoreEntry()?.uri
     }
 
     private fun findDownloadsMediaStoreEntry(): BackupMediaStoreEntry? {
@@ -230,4 +209,34 @@ class BackupManager(
         val uri: Uri,
         val sizeBytes: Long
     )
+
+    private data class AutoBackupSnapshot(
+        val todos: List<TodoEntity>,
+        val tags: List<TagEntity>,
+        val notes: List<NoteEntity>,
+        val settings: UserPrefs.Snapshot
+    )
+
+    private suspend fun restoreJsonBackup(text: String): Boolean =
+        runCatching {
+            val bundle = Json { ignoreUnknownKeys = true }
+                .decodeFromString(BackupBundle.serializer(), text)
+            restoreFromBundle(bundle)
+        }.onFailure {
+            Log.w("BackupManager", "Auto restore failed", it)
+        }.isSuccess
+
+    private suspend fun restoreBestEffortPortableBackup(
+        portableBackup: PortableBackupStore.PortableRestore
+    ): Boolean =
+        runCatching {
+            restorePortableBackup(portableBackup)
+        }.onFailure {
+            Log.w("BackupManager", "Best-effort Documents/LightTodo restore failed", it)
+        }.isSuccess
+
+    private suspend fun restorePortableBackup(portableBackup: PortableBackupStore.PortableRestore) {
+        restoreFromBundle(portableBackup.bundle)
+        portableBackup.settings?.let { prefs.restore(it) }
+    }
 }
