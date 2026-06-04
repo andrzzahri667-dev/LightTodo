@@ -56,6 +56,7 @@
     <string name="settings_quick_add_desc">下拉通知栏即可一键写入待办</string>
     <string name="settings_export">导出 JSON</string>
     <string name="settings_import">导入 JSON</string>
+    <string name="settings_import_portable">导入迁移目录</string>
     <string name="settings_clear_done">清空已完成任务</string>
     <string name="settings_clear_done_confirm_title">确认清空</string>
     <string name="settings_clear_done_confirm_msg">将永久删除所有已完成的任务，此操作不可撤销。</string>
@@ -69,6 +70,8 @@
     <string name="settings_export_failed">导出失败：%1$s</string>
     <string name="settings_import_success">导入成功，共 %1$d 条</string>
     <string name="settings_import_failed">导入失败：%1$s</string>
+    <string name="settings_portable_import_success">迁移目录已导入，共 %1$d 条</string>
+    <string name="settings_portable_import_failed">迁移目录导入失败：%1$s</string>
     <string name="settings_cannot_read">无法读取</string>
     <string name="settings_cannot_write">无法写入</string>
     <string name="settings_save_db_snapshot">保存数据库快照</string>

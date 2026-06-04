@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.ui.settings
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -73,6 +74,20 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? -> uri?.let { vm.importFrom(context, it) { msg -> feedbackMessage = msg } } }
+
+    val importPortableLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            vm.importPortableFrom(context, it) { msg -> feedbackMessage = msg }
+        }
+    }
 
     val readCalendarLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -207,6 +222,11 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
                 ActionRow(
                     title = stringResource(R.string.settings_import),
                     onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
+                )
+                InsetDivider()
+                ActionRow(
+                    title = stringResource(R.string.settings_import_portable),
+                    onClick = { importPortableLauncher.launch(null) }
                 )
                 if (BuildConfig.DEBUG) {
                     InsetDivider()

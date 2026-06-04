@@ -56,6 +56,7 @@
     <string name="settings_quick_add_desc">Persistent notification for quick task entry</string>
     <string name="settings_export">Export JSON</string>
     <string name="settings_import">Import JSON</string>
+    <string name="settings_import_portable">Import migration folder</string>
     <string name="settings_clear_done">Clear completed tasks</string>
     <string name="settings_clear_done_confirm_title">Confirm</string>
     <string name="settings_clear_done_confirm_msg">This will permanently delete all completed tasks. This cannot be undone.</string>
@@ -69,6 +70,8 @@
     <string name="settings_export_failed">Export failed: %1$s</string>
     <string name="settings_import_success">Imported %1$d item(s)</string>
     <string name="settings_import_failed">Import failed: %1$s</string>
+    <string name="settings_portable_import_success">Migration folder imported: %1$d item(s)</string>
+    <string name="settings_portable_import_failed">Migration folder import failed: %1$s</string>
     <string name="settings_cannot_read">Cannot read file</string>
     <string name="settings_cannot_write">Cannot write file</string>
     <string name="settings_save_db_snapshot">Save database snapshot</string>

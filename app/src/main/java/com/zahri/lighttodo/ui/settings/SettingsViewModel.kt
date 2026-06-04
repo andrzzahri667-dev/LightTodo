@@ -101,6 +101,17 @@ class SettingsViewModel(
         onDone(message)
     }
 
+    fun importPortableFrom(context: Context, uri: Uri, onDone: (String) -> Unit) = viewModelScope.launch {
+        val message = withContext(Dispatchers.IO) {
+            runCatching {
+                val count = backupManager.restorePortableFromTree(uri)
+                    ?: error(context.getString(R.string.settings_cannot_read))
+                context.getString(R.string.settings_portable_import_success, count)
+            }.getOrElse { context.getString(R.string.settings_portable_import_failed, it.message) }
+        }
+        onDone(message)
+    }
+
     fun exportDatabaseSnapshot(context: Context, onDone: (String) -> Unit) = viewModelScope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
