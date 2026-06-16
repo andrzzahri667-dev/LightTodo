@@ -22,6 +22,7 @@ internal class PortableBackupStore(
 
     fun write(bundle: BackupBundle, settings: UserPrefs.Snapshot) {
         val exportedAtMillis = System.currentTimeMillis()
+        writeNomedia()
         val generation = "$exportedAtMillis-${java.util.UUID.randomUUID()}"
         if (!writeJson(
                 "",
@@ -97,19 +98,26 @@ internal class PortableBackupStore(
         recordWrite(writeJson(NotesDir, "index.json", noteIndex))
 
         if (!allWritesSucceeded) return
-        writeJson(
-            "",
-            "manifest.json",
-            PortableManifest(
-                generation = generation,
-                exportedAtMillis = exportedAtMillis,
-                tagCount = bundle.tags.size,
-                todoCount = bundle.todos.size,
-                noteCount = notes.size,
-                noteFiles = notes.map { it.file },
-                complete = true
+        if (writeJson(
+                "",
+                "manifest.json",
+                PortableManifest(
+                    generation = generation,
+                    exportedAtMillis = exportedAtMillis,
+                    tagCount = bundle.tags.size,
+                    todoCount = bundle.todos.size,
+                    noteCount = notes.size,
+                    noteFiles = notes.map { it.file },
+                    complete = true
+                )
             )
-        )
+        ) {
+            cleanupCurrentBackupOrphans(
+                currentNoteFiles = notes.map { it.file }.toSet(),
+                currentAttachmentKeys = exportedAttachments.toSet()
+            )
+            cleanupLegacyBackupAttachments()
+        }
     }
 
     fun read(): PortableRestore? = runCatching { readUsing(::readBytes) }.getOrNull()
@@ -201,18 +209,37 @@ internal class PortableBackupStore(
             val attachment = NoteAttachmentMarkdown.parseLine(line) ?: return@joinToString line
             val source = NoteAttachmentStore.resolve(context, attachment.ref) ?: return@joinToString line
             val kindDir = attachment.kind.dirName()
-            val targetSubdir = "$AttachmentsDir/$kindDir"
+            val targetSubdir = "$HiddenAttachmentsDir/$kindDir"
+            val legacySubdir = "$AttachmentsDir/$kindDir"
+            val sanitizedHiddenSubdir = "$SanitizedHiddenAttachmentsDir/$kindDir"
+            val legacyRootSubdir = ""
             val portableRef = "../$targetSubdir/${source.name}"
             val attachmentKey = "$targetSubdir/${source.name}"
             if (exportedAttachments.add(attachmentKey)) {
-                recordWrite(
-                    writeFile(
+                if (!attachmentUpToDate(
+                        subdir = targetSubdir,
+                        displayName = source.name,
+                        sourceSize = source.length(),
+                        sourceLastModified = source.lastModified()
+                    )
+                ) {
+                    val wrote = writeFile(
                         subdir = targetSubdir,
                         displayName = source.name,
                         mimeType = mimeTypeFor(source.name, attachment.kind),
                         bytes = source.readBytes()
                     )
-                )
+                    recordWrite(wrote)
+                    if (wrote) {
+                        deleteLegacyAttachment(legacySubdir, source.name)
+                        deleteLegacyAttachment(sanitizedHiddenSubdir, source.name)
+                        deleteLegacyAttachment(legacyRootSubdir, source.name)
+                    }
+                } else {
+                    deleteLegacyAttachment(legacySubdir, source.name)
+                    deleteLegacyAttachment(sanitizedHiddenSubdir, source.name)
+                    deleteLegacyAttachment(legacyRootSubdir, source.name)
+                }
             }
             when (attachment.kind) {
                 NoteAttachmentMarkdown.Kind.Image -> NoteAttachmentMarkdown.image(portableRef)
@@ -230,24 +257,18 @@ internal class PortableBackupStore(
         lineSequence().joinToString("\n") { line ->
             val attachment = NoteAttachmentMarkdown.parseLine(line) ?: return@joinToString line
             val portableRef = attachment.ref.normalizedPortableRef() ?: return@joinToString line
-            val kind = when {
-                portableRef.startsWith("$AttachmentsDir/image/") -> NoteAttachmentMarkdown.Kind.Image
-                portableRef.startsWith("$AttachmentsDir/audio/") -> NoteAttachmentMarkdown.Kind.Audio
-                else -> return@joinToString line
-            }
-            val fileName = portableRef.substringAfterLast('/').takeIf { it.isNotBlank() }
+            val importTarget = portableAttachmentImportTarget(portableRef, attachment.kind)
                 ?: return@joinToString line
             val internalRef = importedAttachments.getOrPut(portableRef) {
-                val subdir = portableRef.substringBeforeLast('/')
-                val bytes = readFile(subdir, fileName) ?: return@joinToString line
+                val bytes = readFile(importTarget.subdir, importTarget.fileName) ?: return@joinToString line
                 NoteAttachmentStore.importAttachment(
                     context = context,
-                    kind = kind,
-                    fileName = fileName,
+                    kind = importTarget.kind,
+                    fileName = importTarget.fileName,
                     input = ByteArrayInputStream(bytes)
                 )
             }
-            when (kind) {
+            when (importTarget.kind) {
                 NoteAttachmentMarkdown.Kind.Image -> NoteAttachmentMarkdown.image(internalRef)
                 NoteAttachmentMarkdown.Kind.Audio -> NoteAttachmentMarkdown.audio(
                     ref = internalRef,
@@ -261,13 +282,259 @@ internal class PortableBackupStore(
         displayName: String,
         mimeType: String,
         bytes: ByteArray
-    ): Boolean =
-        when (BackupStoragePolicy.publicDocumentsMode()) {
+    ): Boolean {
+        if (usesDirectBackupFile(subdir)) return writeDirectFile(subdir, displayName, bytes)
+        return when (BackupStoragePolicy.publicDocumentsMode()) {
             BackupStoragePolicy.PublicDocumentsMode.MediaStore ->
                 writeMediaStoreFile(subdir, displayName, mimeType, bytes)
             BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
                 writeDirectFile(subdir, displayName, bytes)
         }
+    }
+
+    private fun cleanupCurrentBackupOrphans(
+        currentNoteFiles: Set<String>,
+        currentAttachmentKeys: Set<String>
+    ) {
+        deleteOrphanNoteFiles(currentNoteFiles)
+        deleteOrphanCurrentAttachmentFiles(currentAttachmentKeys)
+    }
+
+    private fun deleteOrphanNoteFiles(currentNoteFiles: Set<String>) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching {
+                val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val projection = arrayOf(
+                    MediaStore.MediaColumns._ID,
+                    MediaStore.MediaColumns.DISPLAY_NAME
+                )
+                val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+                val args = arrayOf(relativePath(NotesDir))
+                val ids = mutableListOf<Long>()
+                context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val displayName = cursor.getString(1).orEmpty()
+                        if (displayName.endsWith(".md") && displayName !in currentNoteFiles) {
+                            ids += cursor.getLong(0)
+                        }
+                    }
+                }
+                ids.forEach { id ->
+                    val uri = ContentUris.withAppendedId(collection, id)
+                    context.contentResolver.delete(uri, null, null)
+                }
+            }
+        }
+        runCatching {
+            directDir(NotesDir).listFiles()
+                ?.filter { file -> file.isFile && file.name.endsWith(".md") && file.name !in currentNoteFiles }
+                ?.forEach { file ->
+                    deleteFile(subdir = NotesDir, displayName = file.name)
+                    deleteDirectFile(NotesDir, file.name)
+                }
+        }
+    }
+
+    private fun deleteOrphanCurrentAttachmentFiles(currentAttachmentKeys: Set<String>) {
+        listOf(
+            "$HiddenAttachmentsDir/image",
+            "$HiddenAttachmentsDir/audio"
+        ).forEach { subdir ->
+            runCatching {
+                directDir(subdir).listFiles()
+                    ?.filter { file -> file.isFile && file.toPortableAttachmentKey(subdir) !in currentAttachmentKeys }
+                    ?.forEach { file ->
+                        deleteDirectFile(subdir, file.name)
+                    }
+                deleteEmptyBackupDir(subdir)
+            }
+        }
+    }
+
+    private fun File.toPortableAttachmentKey(subdir: String): String =
+        "$subdir/$name"
+
+    private fun cleanupLegacyBackupAttachments() {
+        val legacyAttachmentSubdirs = listOf(
+            "$AttachmentsDir/image",
+            "$AttachmentsDir/audio",
+            "$SanitizedHiddenAttachmentsDir/image",
+            "$SanitizedHiddenAttachmentsDir/audio"
+        )
+        legacyAttachmentSubdirs.forEach { subdir ->
+            deleteLegacyMediaStoreFilesInDir(subdir)
+            deleteLegacyBackupDirContents(subdir)
+        }
+        deleteLegacyRootMediaStoreAttachmentFiles()
+        deleteLegacyRootAttachmentFiles()
+    }
+
+    private fun deleteLegacyMediaStoreFilesInDir(subdir: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        runCatching {
+            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val projection = arrayOf(MediaStore.MediaColumns._ID)
+            val selection =
+                "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} IS NOT NULL"
+            val args = arrayOf(relativePath(subdir))
+            val ids = mutableListOf<Long>()
+            context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    ids += cursor.getLong(0)
+                }
+            }
+            ids.forEach { id ->
+                val uri = ContentUris.withAppendedId(collection, id)
+                context.contentResolver.delete(uri, null, null)
+            }
+        }
+    }
+
+    private fun deleteLegacyRootMediaStoreAttachmentFiles() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        runCatching {
+            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val projection = arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME
+            )
+            val selection =
+                "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} IS NOT NULL"
+            val args = arrayOf(relativePath(""))
+            val ids = mutableListOf<Long>()
+            context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val displayName = cursor.getString(1).orEmpty()
+                    if (displayName.isLegacyRootAttachmentName()) {
+                        ids += cursor.getLong(0)
+                    }
+                }
+            }
+            ids.forEach { id ->
+                val uri = ContentUris.withAppendedId(collection, id)
+                context.contentResolver.delete(uri, null, null)
+            }
+        }
+    }
+
+    private fun deleteLegacyBackupDirContents(subdir: String) {
+        runCatching {
+            directDir(subdir).listFiles()
+                ?.filter { it.isFile }
+                ?.forEach { file -> deleteLegacyAttachment(subdir, file.name) }
+            deleteEmptyBackupDir(subdir)
+        }
+    }
+
+    private fun deleteLegacyRootAttachmentFiles() {
+        runCatching {
+            directDir("").listFiles()
+                ?.filter { file -> file.isFile && file.name.isLegacyRootAttachmentName() }
+                ?.forEach { file ->
+                    deleteFile("", file.name)
+                    deleteDirectFile("", file.name)
+                }
+        }
+    }
+
+    private fun String.isLegacyRootAttachmentName(): Boolean =
+        when (substringAfterLast('.', "").lowercase()) {
+            "jpg", "jpeg", "png", "webp", "gif",
+            "m4a", "mp4", "aac", "mp3", "wav", "ogg" -> true
+            else -> false
+        }
+
+    private fun deleteLegacyAttachment(subdir: String, displayName: String) {
+        deleteFile(subdir, displayName)
+        deleteDirectFile(subdir, displayName)
+        deleteEmptyBackupDir(subdir)
+    }
+
+    private fun deleteEmptyBackupDir(subdir: String) {
+        if (subdir.isBlank()) return
+        runCatching {
+            val dir = directDir(subdir)
+            if (dir.exists() && dir.isDirectory && dir.list().isNullOrEmpty()) {
+                dir.delete()
+            }
+            val parentSubdir = subdir.substringBeforeLast('/', "")
+            if (parentSubdir.isNotBlank()) {
+                val parent = directDir(parentSubdir)
+                if (parent.exists() && parent.isDirectory && parent.list().isNullOrEmpty()) {
+                    parent.delete()
+                }
+            }
+        }
+    }
+
+    private fun deleteFile(subdir: String, displayName: String): Boolean {
+        if (usesDirectBackupFile(subdir)) return deleteDirectFile(subdir, displayName)
+        return when (BackupStoragePolicy.publicDocumentsMode()) {
+            BackupStoragePolicy.PublicDocumentsMode.MediaStore ->
+                deleteMediaStoreFile(subdir, displayName)
+            BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
+                deleteDirectFile(subdir, displayName)
+        }
+    }
+
+    private fun writeNomedia() {
+        runCatching {
+            val file = directFile("", ".nomedia")
+            file.parentFile?.mkdirs()
+            if (!file.exists()) file.writeBytes(ByteArray(0))
+        }
+    }
+
+    private fun usesDirectBackupFile(subdir: String): Boolean =
+        subdir == HiddenAttachmentsDir || subdir.startsWith("$HiddenAttachmentsDir/")
+
+    private fun attachmentUpToDate(
+        subdir: String,
+        displayName: String,
+        sourceSize: Long,
+        sourceLastModified: Long
+    ): Boolean {
+        if (usesDirectBackupFile(subdir)) {
+            return runCatching {
+                val file = directFile(subdir, displayName)
+                file.exists() &&
+                    file.length() == sourceSize &&
+                    file.lastModified() >= sourceLastModified
+            }.getOrDefault(false)
+        }
+        return when (BackupStoragePolicy.publicDocumentsMode()) {
+            BackupStoragePolicy.PublicDocumentsMode.MediaStore -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    false
+                } else {
+                    runCatching {
+                        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                        val projection = arrayOf(
+                            MediaStore.MediaColumns.SIZE,
+                            MediaStore.MediaColumns.DATE_MODIFIED
+                        )
+                        val selection =
+                            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+                        val args = arrayOf(displayName, relativePath(subdir))
+                        val sort = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
+                        context.contentResolver.query(collection, projection, selection, args, sort)?.use { cursor ->
+                            if (!cursor.moveToFirst()) return@use false
+                            val existingSize = cursor.getLong(0)
+                            val existingModifiedSec = cursor.getLong(1)
+                            existingSize == sourceSize && existingModifiedSec * 1000 >= sourceLastModified
+                        } ?: false
+                    }.getOrDefault(false)
+                }
+            }
+            BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
+                runCatching {
+                    val file = directFile(subdir, displayName)
+                    file.exists() &&
+                        file.length() == sourceSize &&
+                        file.lastModified() >= sourceLastModified
+                }.getOrDefault(false)
+        }
+    }
 
     private fun readText(
         readFile: (String, String) -> ByteArray?,
@@ -276,13 +543,15 @@ internal class PortableBackupStore(
     ): String? =
         readFile(subdir, displayName)?.toString(Charsets.UTF_8)
 
-    private fun readBytes(subdir: String, displayName: String): ByteArray? =
-        when (BackupStoragePolicy.publicDocumentsMode()) {
+    private fun readBytes(subdir: String, displayName: String): ByteArray? {
+        if (usesDirectBackupFile(subdir)) return readDirectFile(subdir, displayName)
+        return when (BackupStoragePolicy.publicDocumentsMode()) {
             BackupStoragePolicy.PublicDocumentsMode.MediaStore ->
                 readMediaStoreFile(subdir, displayName)
             BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
                 readDirectFile(subdir, displayName)
         }
+    }
 
     private fun writeMediaStoreFile(
         subdir: String,
@@ -337,12 +606,27 @@ internal class PortableBackupStore(
         }
     }
 
+    private fun deleteMediaStoreFile(subdir: String, displayName: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        return runCatching {
+            val uri = findMediaStoreFile(subdir, displayName) ?: return true
+            context.contentResolver.delete(uri, null, null)
+            true
+        }.getOrDefault(false)
+    }
+
     private fun writeDirectFile(subdir: String, displayName: String, bytes: ByteArray): Boolean =
         runCatching {
             val file = directFile(subdir, displayName)
             file.parentFile?.mkdirs()
             file.writeBytes(bytes)
             true
+        }.getOrDefault(false)
+
+    private fun deleteDirectFile(subdir: String, displayName: String): Boolean =
+        runCatching {
+            val file = directFile(subdir, displayName)
+            !file.exists() || file.delete()
         }.getOrDefault(false)
 
     private fun readDirectFile(subdir: String, displayName: String): ByteArray? =
@@ -352,12 +636,16 @@ internal class PortableBackupStore(
         }.getOrNull()
 
     private fun directFile(subdir: String, displayName: String): File {
+        val dir = directDir(subdir)
+        return File(dir, displayName)
+    }
+
+    private fun directDir(subdir: String): File {
         val root = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
             RootDir
         )
-        val dir = if (subdir.isBlank()) root else File(root, subdir)
-        return File(dir, displayName)
+        return if (subdir.isBlank()) root else File(root, subdir)
     }
 
     private fun relativePath(subdir: String): String =
@@ -389,7 +677,30 @@ internal class PortableBackupStore(
 
     private fun String.normalizedPortableRef(): String? {
         val normalized = removePrefix("./").removePrefix("../")
-        return normalized.takeIf { it.startsWith("$AttachmentsDir/") }
+        return when {
+            normalized.isBlank() -> null
+            normalized.startsWith("$HiddenAttachmentsDir/") -> normalized
+            normalized.startsWith("$AttachmentsDir/") -> normalized
+            normalized.contains('/').not() -> normalized
+            else -> null
+        }
+    }
+
+    private fun portableAttachmentImportTarget(
+        portableRef: String,
+        markerKind: NoteAttachmentMarkdown.Kind
+    ): PortableAttachmentTarget? {
+        val kind = when {
+            portableRef.startsWith("$HiddenAttachmentsDir/image/") -> NoteAttachmentMarkdown.Kind.Image
+            portableRef.startsWith("$HiddenAttachmentsDir/audio/") -> NoteAttachmentMarkdown.Kind.Audio
+            portableRef.startsWith("$AttachmentsDir/image/") -> NoteAttachmentMarkdown.Kind.Image
+            portableRef.startsWith("$AttachmentsDir/audio/") -> NoteAttachmentMarkdown.Kind.Audio
+            portableRef.contains('/').not() -> markerKind
+            else -> return null
+        }
+        val fileName = portableRef.substringAfterLast('/').takeIf { it.isNotBlank() } ?: return null
+        val subdir = if (portableRef.contains('/')) portableRef.substringBeforeLast('/') else ""
+        return PortableAttachmentTarget(kind = kind, subdir = subdir, fileName = fileName)
     }
 
     private fun mimeTypeFor(fileName: String, kind: NoteAttachmentMarkdown.Kind): String =
@@ -406,6 +717,12 @@ internal class PortableBackupStore(
     data class PortableRestore(
         val bundle: BackupBundle,
         val settings: UserPrefs.Snapshot?
+    )
+
+    private data class PortableAttachmentTarget(
+        val kind: NoteAttachmentMarkdown.Kind,
+        val subdir: String,
+        val fileName: String
     )
 
     private class TreeReader(
@@ -510,6 +827,8 @@ internal class PortableBackupStore(
         const val PortableBundleVersion = 2
         const val RootDir = "LightTodo"
         const val NotesDir = "notes"
+        const val HiddenAttachmentsDir = ".attachments"
+        const val SanitizedHiddenAttachmentsDir = "_.attachments"
         const val AttachmentsDir = "attachments"
     }
 }
