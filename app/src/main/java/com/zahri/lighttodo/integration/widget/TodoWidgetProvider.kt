@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.widget
+package com.zahri.lighttodo.integration.widget
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

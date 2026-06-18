@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.domain.calendar
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

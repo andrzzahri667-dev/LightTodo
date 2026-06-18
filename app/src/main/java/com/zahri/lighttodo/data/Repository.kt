@@ -1,10 +1,10 @@
 package com.zahri.lighttodo.data
 
 import android.content.Context
-import com.zahri.lighttodo.calendar.CalendarEventWriter
-import com.zahri.lighttodo.calendar.CalendarSyncCoordinator
-import com.zahri.lighttodo.notify.ReminderScheduler
-import com.zahri.lighttodo.widget.TodoWidgetProvider
+import com.zahri.lighttodo.integration.calendar.CalendarEventWriter
+import com.zahri.lighttodo.integration.calendar.CalendarSyncCoordinator
+import com.zahri.lighttodo.integration.reminder.ReminderScheduler
+import com.zahri.lighttodo.integration.widget.TodoWidgetProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine

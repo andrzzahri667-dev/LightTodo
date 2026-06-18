@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.calendar.CalendarSync
+import com.zahri.lighttodo.integration.calendar.CalendarSync
 import com.zahri.lighttodo.data.BackupBundle
 import com.zahri.lighttodo.data.BackupManager
 import com.zahri.lighttodo.data.DatabaseSnapshotExporter

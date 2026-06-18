@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.domain.reminder
 
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue

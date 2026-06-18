@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.integration.notification
 
 import android.app.Notification
 import android.app.PendingIntent

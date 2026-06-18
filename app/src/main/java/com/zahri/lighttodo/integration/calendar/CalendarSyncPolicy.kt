@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.integration.calendar
 
 object CalendarSyncPolicy {
     const val SyncTimeoutMillis = 15_000L

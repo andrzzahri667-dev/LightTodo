@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.integration.calendar
 
 import android.Manifest
 import android.content.Context
@@ -10,7 +10,7 @@ import com.zahri.lighttodo.R
 import com.zahri.lighttodo.data.TodoDateFields
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils
-import com.zahri.lighttodo.widget.TodoWidgetProvider
+import com.zahri.lighttodo.integration.widget.TodoWidgetProvider
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.util.Calendar

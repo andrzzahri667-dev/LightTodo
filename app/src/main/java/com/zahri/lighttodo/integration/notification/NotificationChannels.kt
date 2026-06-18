@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.integration.notification
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.integration.reminder
 
 object ReminderRequestCodePolicy {
     fun requestCodeFor(id: Long, isStart: Boolean): Int {

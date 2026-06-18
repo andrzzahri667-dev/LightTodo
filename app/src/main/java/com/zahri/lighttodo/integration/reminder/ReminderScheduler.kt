@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.integration.reminder
 
 import android.app.AlarmManager
 import android.app.PendingIntent

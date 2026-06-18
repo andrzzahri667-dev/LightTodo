@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.integration.calendar
 
 import android.content.Context
 import android.database.ContentObserver

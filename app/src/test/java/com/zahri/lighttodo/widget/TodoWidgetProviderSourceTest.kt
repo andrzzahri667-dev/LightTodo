@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.widget
+package com.zahri.lighttodo.integration.widget
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -9,7 +9,7 @@ import org.junit.Test
 class TodoWidgetProviderSourceTest {
     @Test
     fun providerDoesNotBlockBroadcastThreadForDatabaseWork() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()
 
         assertFalse(source.contains("runBlocking"))
@@ -19,7 +19,7 @@ class TodoWidgetProviderSourceTest {
 
     @Test
     fun partialRowAnimationTargetsOnlyClickedWidgetInstance() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()
 
         assertTrue(source.contains("EXTRA_WIDGET_ID"))
@@ -29,7 +29,7 @@ class TodoWidgetProviderSourceTest {
 
     @Test
     fun providerDoesNotKeepDebugLogsInReleasePath() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()
 
         assertFalse(source.contains("Log.d("))
@@ -37,7 +37,7 @@ class TodoWidgetProviderSourceTest {
 
     @Test
     fun dataChangeWidgetUpdatesAreDebounced() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()
 
         assertTrue(source.contains("WidgetUpdateDebouncer"))
@@ -47,9 +47,9 @@ class TodoWidgetProviderSourceTest {
 
     @Test
     fun dataChangeDebouncerDoesNotRetainOldAppScopeAcrossProcessState() {
-        val providerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetProvider.kt")
+        val providerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()
-        val debouncerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/widget/WidgetUpdateDebouncer.kt")
+        val debouncerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/WidgetUpdateDebouncer.kt")
             .readText()
 
         assertTrue(providerSource.contains("widgetUpdateDebouncer.submit(app.appScope)"))

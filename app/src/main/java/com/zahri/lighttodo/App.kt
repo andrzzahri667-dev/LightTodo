@@ -1,14 +1,14 @@
 package com.zahri.lighttodo
 
 import android.app.Application
-import com.zahri.lighttodo.calendar.CalendarObserver
-import com.zahri.lighttodo.calendar.CalendarSync
+import com.zahri.lighttodo.integration.calendar.CalendarObserver
+import com.zahri.lighttodo.integration.calendar.CalendarSync
 import com.zahri.lighttodo.data.AppDatabase
 import com.zahri.lighttodo.data.BackupManager
 import com.zahri.lighttodo.data.Repository
 import com.zahri.lighttodo.data.UserPrefs
-import com.zahri.lighttodo.notify.NotificationChannels
-import com.zahri.lighttodo.notify.QuickAddService
+import com.zahri.lighttodo.integration.notification.NotificationChannels
+import com.zahri.lighttodo.integration.notification.QuickAddService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

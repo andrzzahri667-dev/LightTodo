@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.widget
+package com.zahri.lighttodo.integration.widget
 
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.util.DateUtils

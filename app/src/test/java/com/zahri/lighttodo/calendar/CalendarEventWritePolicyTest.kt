@@ -1,6 +1,5 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.domain.calendar
 
-import com.zahri.lighttodo.data.TodoEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -12,7 +11,7 @@ class CalendarEventWritePolicyTest {
     fun draftFor_returnsNullForUndatedTodos() {
         assertNull(
             CalendarEventWritePolicy.draftFor(
-                TodoEntity(title = "No date", dateMillis = null)
+                calendarEventTodo(title = "No date", dateMillis = null)
             )
         )
     }
@@ -20,7 +19,7 @@ class CalendarEventWritePolicyTest {
     @Test
     fun draftFor_usesExclusiveNextDayEndForAllDayTodos() {
         val draft = CalendarEventWritePolicy.draftFor(
-            TodoEntity(
+            calendarEventTodo(
                 title = "All day",
                 note = "description",
                 dateMillis = 10_000L
@@ -39,7 +38,7 @@ class CalendarEventWritePolicyTest {
     @Test
     fun draftFor_usesTodoStartAndDeadlineForTimedTodos() {
         val draft = CalendarEventWritePolicy.draftFor(
-            TodoEntity(
+            calendarEventTodo(
                 title = "Timed",
                 dateMillis = 10_000L,
                 startHour = 9,
@@ -56,4 +55,25 @@ class CalendarEventWritePolicyTest {
         assertFalse(draft.allDay)
         assertTrue(draft.completed)
     }
+
+    private fun calendarEventTodo(
+        title: String? = null,
+        note: String? = null,
+        dateMillis: Long? = null,
+        startHour: Int? = null,
+        startMinute: Int? = null,
+        deadlineHour: Int? = null,
+        deadlineMinute: Int? = null,
+        done: Boolean = false
+    ): CalendarEventTodo =
+        CalendarEventTodo(
+            title = title,
+            note = note,
+            dateMillis = dateMillis,
+            startHour = startHour,
+            startMinute = startMinute,
+            deadlineHour = deadlineHour,
+            deadlineMinute = deadlineMinute,
+            done = done
+        )
 }

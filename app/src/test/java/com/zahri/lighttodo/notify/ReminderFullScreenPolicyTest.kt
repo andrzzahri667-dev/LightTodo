@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.domain.reminder
 
 import android.os.Build
 import org.junit.Assert.assertFalse

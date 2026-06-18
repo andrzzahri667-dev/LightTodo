@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.integration.calendar
 
 import com.zahri.lighttodo.test.sourceFile
 

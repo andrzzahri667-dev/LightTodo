@@ -1,10 +1,11 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.integration.boot
 
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.zahri.lighttodo.App
-import com.zahri.lighttodo.calendar.CalendarSync
+import com.zahri.lighttodo.integration.calendar.CalendarSync
+import com.zahri.lighttodo.integration.notification.QuickAddService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

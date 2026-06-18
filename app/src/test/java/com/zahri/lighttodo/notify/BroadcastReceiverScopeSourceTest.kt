@@ -9,7 +9,7 @@ import org.junit.Test
 class BroadcastReceiverScopeSourceTest {
     @Test
     fun bootReceiverUsesApplicationScopeForAsyncWork() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/notify/BootReceiver.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/boot/BootReceiver.kt").readText()
 
         assertFalse(source.contains("CoroutineScope(Dispatchers.IO)"))
         assertTrue(source.contains("app.appScope.launch(Dispatchers.IO)"))
@@ -17,7 +17,7 @@ class BroadcastReceiverScopeSourceTest {
 
     @Test
     fun reminderReceiverUsesApplicationScopeForAsyncWork() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/notify/ReminderReceiver.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/reminder/ReminderReceiver.kt").readText()
 
         assertFalse(source.contains("CoroutineScope(Dispatchers.IO)"))
         assertTrue(source.contains("app.appScope.launch(Dispatchers.IO)"))
@@ -25,7 +25,7 @@ class BroadcastReceiverScopeSourceTest {
 
     @Test
     fun reminderReceiverFallsBackWhenFullScreenIntentIsUnavailable() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/notify/ReminderReceiver.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/reminder/ReminderReceiver.kt").readText()
 
         assertTrue(source.contains("ReminderFullScreenPolicy.shouldAttachFullScreenIntent"))
         assertTrue(source.contains("if (attachFullScreenIntent)"))

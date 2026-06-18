@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.integration.calendar
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

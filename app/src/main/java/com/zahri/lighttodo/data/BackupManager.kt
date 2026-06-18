@@ -7,7 +7,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import androidx.room.withTransaction
-import com.zahri.lighttodo.notify.ReminderScheduler
+import com.zahri.lighttodo.integration.reminder.ReminderScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

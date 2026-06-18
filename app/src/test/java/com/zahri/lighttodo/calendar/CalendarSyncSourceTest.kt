@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.calendar
+package com.zahri.lighttodo.integration.calendar
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -10,7 +10,7 @@ class CalendarSyncSourceTest {
 
     @Test
     fun orphanCleanupOnlyConsidersUndoneImportedEventsInsideSyncWindow() {
-        val syncSource = sourceFile("app/src/main/java/com/zahri/lighttodo/calendar/CalendarSync.kt")
+        val syncSource = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/calendar/CalendarSync.kt")
             .readText()
         val daoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Daos.kt")
             .readText()
@@ -24,7 +24,7 @@ class CalendarSyncSourceTest {
 
     @Test
     fun orphanCleanupUnlinksAppCreatedTodosInsteadOfDeletingThem() {
-        val syncSource = sourceFile("app/src/main/java/com/zahri/lighttodo/calendar/CalendarSync.kt")
+        val syncSource = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/calendar/CalendarSync.kt")
             .readText()
 
         assertTrue(syncSource.contains("val orphanTodos = app.db.todoDao().findByCalendarEventIds(orphanEventIds)"))

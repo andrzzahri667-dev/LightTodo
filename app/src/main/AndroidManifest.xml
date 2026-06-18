@@ -82,7 +82,7 @@
 
         <!-- Reminder alarm receiver -->
         <receiver
-            android:name=".notify.ReminderReceiver"
+            android:name=".integration.reminder.ReminderReceiver"
             android:exported="false" />
 
         <provider
@@ -97,7 +97,7 @@
 
         <!-- Boot receiver to reschedule alarms -->
         <receiver
-            android:name=".notify.BootReceiver"
+            android:name=".integration.boot.BootReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
@@ -108,7 +108,7 @@
 
         <!-- Persistent quick-add foreground service -->
         <service
-            android:name=".notify.QuickAddService"
+            android:name=".integration.notification.QuickAddService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
@@ -126,7 +126,7 @@
             of the app.
         -->
         <receiver
-            android:name=".widget.TodoWidgetProvider"
+            android:name=".integration.widget.TodoWidgetProvider"
             android:exported="true"
             android:label="@string/widget_title">
             <intent-filter>
