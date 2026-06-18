@@ -84,6 +84,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.lightTodoViewModelFactory
+import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
+import com.zahri.lighttodo.domain.note.NoteContentBlock
+import com.zahri.lighttodo.domain.note.NoteContentBlockUiKeys
+import com.zahri.lighttodo.domain.note.NoteContentBlocks
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.motion.components.motionNoteContentSize
 import com.zahri.lighttodo.ui.theme.AppColors
@@ -100,7 +105,7 @@ import kotlin.math.roundToInt
 fun NoteEditScreen(
     editingId: Long?,
     onBack: () -> Unit,
-    vm: NoteEditViewModel = viewModel()
+    vm: NoteEditViewModel = viewModel(factory = lightTodoViewModelFactory())
 ) {
     val title by vm.title.collectAsStateWithLifecycle()
     val content by vm.content.collectAsStateWithLifecycle()
@@ -112,6 +117,7 @@ fun NoteEditScreen(
     val view = LocalView.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
+    val attachmentResolver: NoteAttachmentResolver = remember(vm) { vm::resolveAttachmentFile }
     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
     val contentHint = stringResource(R.string.note_content_hint)
     val noteBackground = NoteEditorColors.editorBackground(isDark)
@@ -202,7 +208,7 @@ fun NoteEditScreen(
     }
 
     fun playAudio(ref: String) {
-        if (!vm.toggleAudioPlayback(context, ref)) {
+        if (!vm.toggleAudioPlayback(ref)) {
             Toast.makeText(context, R.string.note_audio_play_failed, Toast.LENGTH_SHORT).show()
         }
     }
@@ -218,7 +224,7 @@ fun NoteEditScreen(
         if (recorded != null) {
             insertBlock(
                 NoteContentBlock.Audio(
-                    ref = NoteAttachmentStore.audioRef(recorded.file),
+                    ref = vm.audioRef(recorded.file),
                     durationLabel = NoteAttachmentMarkdown.formatDuration(recorded.durationMillis)
                 )
             )
@@ -239,10 +245,10 @@ fun NoteEditScreen(
         scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    NoteAttachmentStore.copyImageFromUri(context, uri)
+                    vm.copyImageFromUri(uri)
                 }
             }.onSuccess { file ->
-                insertBlock(NoteContentBlock.Image(NoteAttachmentStore.imageRef(file)))
+                insertBlock(NoteContentBlock.Image(vm.imageRef(file)))
             }.onFailure {
                 Toast.makeText(context, R.string.note_image_insert_failed, Toast.LENGTH_SHORT).show()
             }
@@ -255,7 +261,7 @@ fun NoteEditScreen(
         val file = pendingCameraFile
         pendingCameraFile = null
         if (saved && file != null && file.exists() && file.length() > 0L) {
-            insertBlock(NoteContentBlock.Image(NoteAttachmentStore.imageRef(file)))
+            insertBlock(NoteContentBlock.Image(vm.imageRef(file)))
         } else {
             file?.delete()
         }
@@ -421,6 +427,7 @@ fun NoteEditScreen(
                                     onDeletePreviousMedia = {
                                         deleteMediaBeforeTextBlock(index)
                                     },
+                                    resolveAttachment = attachmentResolver,
                                     onLinkClick = { url ->
                                         val intent = Intent(Intent.ACTION_VIEW, browsableUri(url))
                                         context.startActivity(intent)
@@ -430,6 +437,7 @@ fun NoteEditScreen(
                                 is NoteContentBlock.Image -> NoteImageBlock(
                                     ref = block.ref,
                                     selected = pendingKeyboardMediaDelete?.second == block.ref,
+                                    resolveAttachment = attachmentResolver,
                                     onOpen = { previewImageRef = block.ref },
                                     onDelete = {
                                         pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
@@ -481,9 +489,9 @@ fun NoteEditScreen(
                         )
                     },
                     onTakePhoto = {
-                        val file = NoteAttachmentStore.createImageFile(context)
+                        val file = vm.createImageFile()
                         pendingCameraFile = file
-                        cameraLauncher.launch(NoteAttachmentStore.fileProviderUri(context, file))
+                        cameraLauncher.launch(vm.fileProviderUri(file))
                     },
                     onToggleRecording = { toggleRecording() },
                     onFormatAction = { action ->
@@ -498,7 +506,11 @@ fun NoteEditScreen(
     }
 
     previewImageRef?.let { ref ->
-        ImagePreviewDialog(ref = ref, onDismiss = { previewImageRef = null })
+        ImagePreviewDialog(
+            ref = ref,
+            resolveAttachment = attachmentResolver,
+            onDismiss = { previewImageRef = null }
+        )
     }
 
     pendingDeleteAttachment?.let { attachment ->
@@ -541,6 +553,7 @@ private fun NoteTextBlockEditor(
     onBlurred: () -> Unit,
     onSelectionChanged: (Int, Int, MarkdownEditText) -> Unit,
     onDeletePreviousMedia: () -> Boolean,
+    resolveAttachment: NoteAttachmentResolver,
     onLinkClick: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -561,6 +574,7 @@ private fun NoteTextBlockEditor(
             view.contentUpdateCallback = { onTextChanged(index, it) }
             view.selectionChangedCallback = { start, end -> onSelectionChanged(start, end, view) }
             view.deletePreviousMediaCallback = onDeletePreviousMedia
+            view.attachmentResolver = resolveAttachment
             view.linkClickCallback = onLinkClick
             view.setOnFocusChangeListener { _, hasFocus ->
                 if (hasFocus) onFocused(view) else onBlurred()
@@ -588,6 +602,7 @@ private fun NoteTextBlockEditor(
             editText.contentUpdateCallback = null
             editText.selectionChangedCallback = null
             editText.deletePreviousMediaCallback = null
+            editText.attachmentResolver = null
             editText.linkClickCallback = null
             editText.onFocusChangeListener = null
         }
@@ -598,10 +613,10 @@ private fun NoteTextBlockEditor(
 private fun NoteImageBlock(
     ref: String,
     selected: Boolean,
+    resolveAttachment: NoteAttachmentResolver,
     onOpen: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val context = LocalContext.current
     val density = LocalDensity.current
     val shape = RoundedCornerShape(12.dp)
 
@@ -613,12 +628,16 @@ private fun NoteImageBlock(
         val targetWidthPx = with(density) { maxWidth.toPx() }.roundToInt().coerceAtLeast(1)
         val image by produceState<LoadedNoteImage?>(
             initialValue = null,
-            context,
             ref,
-            targetWidthPx
+            targetWidthPx,
+            resolveAttachment
         ) {
             value = withContext(Dispatchers.IO) {
-                loadNoteImage(context, ref, targetWidthPx)
+                loadNoteImage(
+                    ref = ref,
+                    targetWidthPx = targetWidthPx,
+                    resolveAttachment = resolveAttachment
+                )
             }
         }
 
@@ -738,8 +757,11 @@ private fun AudioWaveBars() {
 }
 
 @Composable
-private fun ImagePreviewDialog(ref: String, onDismiss: () -> Unit) {
-    val context = LocalContext.current
+private fun ImagePreviewDialog(
+    ref: String,
+    resolveAttachment: NoteAttachmentResolver,
+    onDismiss: () -> Unit
+) {
     val density = LocalDensity.current
     Dialog(
         onDismissRequest = onDismiss,
@@ -757,17 +779,17 @@ private fun ImagePreviewDialog(ref: String, onDismiss: () -> Unit) {
             val targetHeightPx = with(density) { maxHeight.toPx() }.roundToInt().coerceAtLeast(1)
             val image by produceState<LoadedNoteImage?>(
                 initialValue = null,
-                context,
                 ref,
                 targetWidthPx,
-                targetHeightPx
+                targetHeightPx,
+                resolveAttachment
             ) {
                 value = withContext(Dispatchers.IO) {
                     loadNoteImage(
-                        context = context,
                         ref = ref,
                         targetWidthPx = targetWidthPx,
-                        targetHeightPx = targetHeightPx
+                        targetHeightPx = targetHeightPx,
+                        resolveAttachment = resolveAttachment
                     )
                 }
             }

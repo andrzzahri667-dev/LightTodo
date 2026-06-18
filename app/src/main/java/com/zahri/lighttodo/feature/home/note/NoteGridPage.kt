@@ -33,7 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.NoteEntity
+import com.zahri.lighttodo.usecase.note.NoteListItem
 import com.zahri.lighttodo.ui.motion.components.motionNoteGridItem
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionNoteCardSelectionColor
@@ -48,7 +48,7 @@ private const val GRID_COLUMNS = 2
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteGridPage(
-    notes: List<NoteEntity>,
+    notes: List<NoteListItem>,
     selectedIds: Set<Long>,
     hiddenNoteSource: NoteSourceAnimationKey?,
     onNoteClick: (Long, Rect?) -> Unit,

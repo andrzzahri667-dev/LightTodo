@@ -10,7 +10,7 @@ class DatabaseSnapshotExporterSourceTest {
 
     @Test
     fun exportSerializesCheckpointAndFileCopy() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/DatabaseSnapshotExporter.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/local/DatabaseSnapshotExporter.kt")
             .readText()
 
         assertTrue(source.contains("private val exportLock = Any()"))
@@ -20,9 +20,9 @@ class DatabaseSnapshotExporterSourceTest {
 
     @Test
     fun exportUsesSharedDatabaseName() {
-        val exporterSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/DatabaseSnapshotExporter.kt")
+        val exporterSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/local/DatabaseSnapshotExporter.kt")
             .readText()
-        val databaseSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/AppDatabase.kt")
+        val databaseSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/local/AppDatabase.kt")
             .readText()
 
         assertTrue(databaseSource.contains("const val DatabaseName = \"lighttodo.db\""))

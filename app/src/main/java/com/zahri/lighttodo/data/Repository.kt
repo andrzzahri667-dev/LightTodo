@@ -1,15 +1,24 @@
 package com.zahri.lighttodo.data
 
-import android.content.Context
-import com.zahri.lighttodo.integration.calendar.CalendarEventWriter
-import com.zahri.lighttodo.integration.calendar.CalendarSyncCoordinator
-import com.zahri.lighttodo.integration.reminder.ReminderScheduler
-import com.zahri.lighttodo.integration.widget.TodoWidgetProvider
-import kotlinx.coroutines.Dispatchers
+import com.zahri.lighttodo.data.local.TagDao
+import com.zahri.lighttodo.data.local.TagEntity
+import com.zahri.lighttodo.data.local.TodoDao
+import com.zahri.lighttodo.data.local.TodoEntity
+import com.zahri.lighttodo.data.prefs.UserPrefs
+import com.zahri.lighttodo.domain.todo.TodoDateFields
+import com.zahri.lighttodo.domain.todo.TodoInput
+import com.zahri.lighttodo.domain.todo.TodoReminderDefaults
+import com.zahri.lighttodo.usecase.calendar.CalendarSyncRepository
+import com.zahri.lighttodo.usecase.todo.HomeTag
+import com.zahri.lighttodo.usecase.todo.HomeTodoSnapshot
+import com.zahri.lighttodo.usecase.todo.TodoPreferencesSnapshot
+import com.zahri.lighttodo.usecase.todo.TodoRecord
+import com.zahri.lighttodo.usecase.todo.TodoRepository
+import com.zahri.lighttodo.usecase.todo.TodoTag
+import com.zahri.lighttodo.usecase.todo.toHomeTodo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withContext
 
 /**
  * 单一数据源。
@@ -18,20 +27,38 @@ import kotlinx.coroutines.withContext
  * 让 UI 不必关心提醒计算细节。然后顺手挂上/取消 AlarmManager。
  */
 class Repository(
-    private val context: Context,
     private val todoDao: TodoDao,
     private val tagDao: TagDao,
     private val prefs: UserPrefs
-) {
+) : TodoRepository, CalendarSyncRepository {
 
     val todosFlow: Flow<List<TodoEntity>> = todoDao.observeAll()
     val tagsFlow: Flow<List<TagEntity>> = tagDao.observeAll()
 
+    override fun observeHome(): Flow<HomeTodoSnapshot> =
+        combine(todosFlow, tagsFlow, prefs.flow) { todos, tags, p ->
+            HomeTodoSnapshot(
+                todos = todos.map { it.toTodoRecord().toHomeTodo() },
+                tags = tags.map { HomeTag(id = it.id, name = it.name) },
+                collapsedTagIds = p.collapsedTagIds,
+                doneSectionExpanded = p.doneSectionExpanded
+            )
+        }
+
     fun homeFlow(): Flow<HomeData> =
         combine(todosFlow, tagsFlow, prefs.flow) { todos, tags, p -> HomeData(todos, tags, p) }
 
-    suspend fun saveTodo(input: TodoInput): Long {
-        val p = prefs.flow.first()
+    override suspend fun prefsSnapshot(): TodoPreferencesSnapshot =
+        prefs.flow.first().toTodoPreferencesSnapshot()
+
+    override suspend fun listTags(): List<TodoTag> =
+        tagDao.listAll().map { TodoTag(id = it.id, name = it.name) }
+
+    override suspend fun buildTodo(
+        input: TodoInput,
+        prefsSnapshot: TodoPreferencesSnapshot,
+        now: Long
+    ): TodoRecord {
         val tagId = resolveTagId(input.tagName)
 
         val dateFields = TodoDateFields.fromParts(input.year, input.month, input.day)
@@ -57,22 +84,22 @@ class Repository(
                 hour = input.startHour,
                 minute = input.startMinute,
                 hoursBefore = 0,
-                defaultHour = p.defaultRemindHour,
-                defaultMinute = p.defaultRemindMinute,
+                defaultHour = prefsSnapshot.defaultRemindHour,
+                defaultMinute = prefsSnapshot.defaultRemindMinute,
                 allDayFallback = false
             )
             // 截止时间提醒：未覆盖时使用全局默认提前小时数；显式 0 表示到点提醒。
             val endHoursBefore = TodoReminderDefaults.effectiveHoursBefore(
                 customHoursBefore = input.customHoursBefore,
-                defaultHoursBefore = p.defaultHoursBefore
+                defaultHoursBefore = prefsSnapshot.defaultHoursBefore
             )
             remindEnd = computeRemindAt(
                 dateMillis = dateFields.dateMillis,
                 hour = input.deadlineHour,
                 minute = input.deadlineMinute,
                 hoursBefore = endHoursBefore,
-                defaultHour = p.defaultRemindHour,
-                defaultMinute = p.defaultRemindMinute,
+                defaultHour = prefsSnapshot.defaultRemindHour,
+                defaultMinute = prefsSnapshot.defaultRemindMinute,
                 allDayFallback = true
             )
         } else {
@@ -86,8 +113,7 @@ class Repository(
         }
 
         val existing = input.id?.let { todoDao.findById(it) }
-        val now = System.currentTimeMillis()
-        val entity = TodoEntity(
+        return TodoRecord(
             id = input.id ?: 0L,
             title = input.title?.takeIf { it.isNotBlank() },
             note = input.note?.takeIf { it.isNotBlank() },
@@ -107,120 +133,73 @@ class Repository(
             calendarEventId = existing?.calendarEventId,
             calendarCreatedByApp = existing?.calendarCreatedByApp ?: false
         )
-        return if (p.calendarSyncEnabled) {
-            CalendarSyncCoordinator.withLock { persistTodo(entity, p, now, input.id) }
-        } else {
-            persistTodo(entity, p, now, input.id)
-        }
     }
 
-    suspend fun setDone(id: Long, done: Boolean) {
-        val p = prefs.snapshot()
-        if (p.calendarSyncEnabled) {
-            CalendarSyncCoordinator.withLock { setDoneLocked(id, done, p) }
-        } else {
-            setDoneLocked(id, done, p)
-        }
+    override suspend fun upsertTodo(record: TodoRecord, inputId: Long?): TodoRecord {
+        val entity = record.toEntity()
+        val generatedId = todoDao.upsert(entity)
+        return entity.copy(id = inputId ?: generatedId).toTodoRecord()
     }
 
-    private suspend fun setDoneLocked(id: Long, done: Boolean, prefsSnapshot: UserPrefs.Snapshot) {
-        val before = todoDao.findById(id) ?: return
-        val doneAtMillis = if (done) System.currentTimeMillis() else null
+    override suspend fun setDoneLocal(id: Long, done: Boolean, now: Long): TodoRecord? {
+        val before = todoDao.findById(id) ?: return null
+        val doneAtMillis = if (done) now else null
         todoDao.setDone(id, done, doneAtMillis)
-        val updated = before.copy(done = done, doneAtMillis = doneAtMillis)
-        if (prefsSnapshot.calendarSyncEnabled) {
-            withContext<Unit>(Dispatchers.IO) {
-                if (done) {
-                    updated.calendarEventId?.let { CalendarEventWriter.setCompleted(context, it, true) }
-                } else if (updated.dateMillis != null) {
-                    val eventId = CalendarEventWriter.upsertFromTodo(context, updated, prefsSnapshot.calendarAccountName)
-                    if (eventId != null && eventId != updated.calendarEventId) {
-                        todoDao.setCalendarLink(
-                            id = id,
-                            eventId = eventId,
-                            createdByApp = updated.calendarCreatedByApp || updated.calendarEventId == null
-                        )
-                    }
-                }
-            }
-        }
-        if (done) ReminderScheduler.cancel(context, id)
-        else {
-            val t = updated
-            val now = System.currentTimeMillis()
-            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
-                ReminderScheduler.schedule(context, t, isStart = true)
-            if (t.remindAtMillis != null && t.remindAtMillis > now)
-                ReminderScheduler.schedule(context, t, isStart = false)
-        }
-        TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
+        return before.copy(done = done, doneAtMillis = doneAtMillis).toTodoRecord()
     }
 
-    suspend fun delete(id: Long) {
-        val p = prefs.snapshot()
-        if (p.calendarSyncEnabled) {
-            CalendarSyncCoordinator.withLock {
-                todoDao.findById(id)?.calendarEventId?.let { eventId ->
-                    withContext(Dispatchers.IO) { CalendarEventWriter.deleteEvent(context, eventId) }
-                }
-                deleteLocalTodo(id)
-            }
-        } else {
-            deleteLocalTodo(id)
-        }
+    override suspend fun findTodoById(id: Long): TodoRecord? =
+        todoDao.findById(id)?.toTodoRecord()
+
+    override suspend fun findTodosByIds(ids: List<Long>): List<TodoRecord> =
+        todoDao.findByIds(ids).map { it.toTodoRecord() }
+
+    override suspend fun findTodosByCalendarEventIds(eventIds: List<Long>): List<TodoRecord> =
+        todoDao.findByCalendarEventIds(eventIds).map { it.toTodoRecord() }
+
+    override suspend fun listAllTodos(): List<TodoRecord> =
+        todoDao.listAll().map { it.toTodoRecord() }
+
+    override fun listWidgetTodos(nowMillis: Long, limit: Int): List<TodoRecord> =
+        todoDao.listAllUndoneSync(nowMillis, limit).map { it.toTodoRecord() }
+
+    override suspend fun listUndoneCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long> =
+        todoDao.listUndoneCalendarEventIdsInWindow(fromMillis, toMillis)
+
+    override suspend fun listDoneTodos(): List<TodoRecord> =
+        todoDao.listDone().map { it.toTodoRecord() }
+
+    override suspend fun listDoneTodoIdsWithReminders(): List<Long> =
+        todoDao.listDoneWithReminders().map { it.id }
+
+    override suspend fun setTodoCalendarLink(id: Long, eventId: Long?, createdByApp: Boolean) {
+        todoDao.setCalendarLink(id, eventId, createdByApp)
     }
 
-    suspend fun deleteMany(ids: List<Long>) {
-        if (ids.isEmpty()) return
-        val p = prefs.snapshot()
-        if (p.calendarSyncEnabled) {
-            CalendarSyncCoordinator.withLock {
-                val calendarEventIds = todoDao.findByIds(ids)
-                    .mapNotNull { it.calendarEventId }
-                withContext(Dispatchers.IO) {
-                    calendarEventIds.forEach { CalendarEventWriter.deleteEvent(context, it) }
-                }
-                deleteLocalTodos(ids)
-            }
-        } else {
-            deleteLocalTodos(ids)
-        }
+    override suspend fun deleteLocalTodo(id: Long) {
+        todoDao.delete(id)
     }
 
-    suspend fun clearDone() {
-        val p = prefs.snapshot()
-        if (p.calendarSyncEnabled) {
-            CalendarSyncCoordinator.withLock {
-                val doneTodos = todoDao.listDone()
-                val doneReminderIds = todoDao.listDoneWithReminders().map { it.id }
-                withContext(Dispatchers.IO) {
-                    doneTodos.mapNotNull { it.calendarEventId }
-                        .forEach { CalendarEventWriter.deleteEvent(context, it) }
-                }
-                todoDao.deleteAllDone()
-                doneReminderIds.forEach { id -> ReminderScheduler.cancel(context, id) }
-                TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
-            }
-        } else {
-            val doneReminderIds = todoDao.listDoneWithReminders().map { it.id }
-            todoDao.deleteAllDone()
-            doneReminderIds.forEach { id -> ReminderScheduler.cancel(context, id) }
-            TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
-        }
+    override suspend fun deleteLocalTodos(ids: List<Long>) {
+        todoDao.deleteByIds(ids)
     }
 
-    suspend fun rescheduleAllAlarms() {
-        val allTodos = todoDao.listAll()
-        allTodos.forEach { t -> ReminderScheduler.cancel(context, t.id) }
-        val list = allTodos.filter { !it.done && it.hasAnyReminder() }
-        val now = System.currentTimeMillis()
-        list.forEach { t ->
-            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
-                ReminderScheduler.schedule(context, t, isStart = true)
-            if (t.remindAtMillis != null && t.remindAtMillis > now)
-                ReminderScheduler.schedule(context, t, isStart = false)
-        }
+    override suspend fun upsertTodos(todos: List<TodoRecord>) {
+        todoDao.upsertAll(todos.map { it.toEntity() })
     }
+
+    override suspend fun deleteAllDoneTodos() {
+        todoDao.deleteAllDone()
+    }
+
+    private fun UserPrefs.Snapshot.toTodoPreferencesSnapshot(): TodoPreferencesSnapshot =
+        TodoPreferencesSnapshot(
+            defaultRemindHour = defaultRemindHour,
+            defaultRemindMinute = defaultRemindMinute,
+            defaultHoursBefore = defaultHoursBefore,
+            calendarSyncEnabled = calendarSyncEnabled,
+            calendarAccountName = calendarAccountName
+        )
 
     private suspend fun resolveTagId(name: String?): Long? {
         val n = name?.trim().orEmpty()
@@ -228,56 +207,6 @@ class Repository(
         tagDao.findByName(n)?.let { return it.id }
         return tagDao.insert(TagEntity(name = n)).takeIf { it != -1L }
             ?: tagDao.findByName(n)?.id
-    }
-
-    private suspend fun persistTodo(
-        entity: TodoEntity,
-        prefsSnapshot: UserPrefs.Snapshot,
-        now: Long,
-        inputId: Long?
-    ): Long {
-        val mirrored = mirrorTodoToCalendar(entity, prefsSnapshot)
-        val id = todoDao.upsert(mirrored)
-        val saved = mirrored.copy(id = if (inputId != null) inputId else id)
-        ReminderScheduler.cancel(context, saved.id)
-        if (!saved.done) {
-            val t = saved
-            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
-                ReminderScheduler.schedule(context, t, isStart = true)
-            if (t.remindAtMillis != null && t.remindAtMillis > now)
-                ReminderScheduler.schedule(context, t, isStart = false)
-        }
-        TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
-        return saved.id
-    }
-
-    private suspend fun deleteLocalTodo(id: Long) {
-        todoDao.delete(id)
-        ReminderScheduler.cancel(context, id)
-        TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
-    }
-
-    private suspend fun deleteLocalTodos(ids: List<Long>) {
-        todoDao.deleteByIds(ids)
-        ids.forEach { id -> ReminderScheduler.cancel(context, id) }
-        TodoWidgetProvider.notifyAllWidgetsDataChanged(context)
-    }
-
-    private suspend fun mirrorTodoToCalendar(todo: TodoEntity, prefs: UserPrefs.Snapshot): TodoEntity = withContext(Dispatchers.IO) {
-        if (!prefs.calendarSyncEnabled) return@withContext todo
-        if (todo.dateMillis == null) {
-            todo.calendarEventId?.let { CalendarEventWriter.deleteEvent(context, it) }
-            return@withContext todo.copy(calendarEventId = null, calendarCreatedByApp = false)
-        }
-        val eventId = CalendarEventWriter.upsertFromTodo(context, todo, prefs.calendarAccountName)
-        if (eventId != null) {
-            todo.copy(
-                calendarEventId = eventId,
-                calendarCreatedByApp = todo.calendarCreatedByApp || todo.calendarEventId == null
-            )
-        } else {
-            todo
-        }
     }
 
     /**
@@ -303,24 +232,52 @@ class Repository(
     }
 }
 
+private fun TodoEntity.toTodoRecord(): TodoRecord =
+    TodoRecord(
+        id = id,
+        title = title,
+        note = note,
+        date = date,
+        dateMillis = dateMillis,
+        startHour = startHour,
+        startMinute = startMinute,
+        deadlineHour = deadlineHour,
+        deadlineMinute = deadlineMinute,
+        remindStartAtMillis = remindStartAtMillis,
+        remindAtMillis = remindAtMillis,
+        customRemindHoursBefore = customRemindHoursBefore,
+        tagId = tagId,
+        done = done,
+        doneAtMillis = doneAtMillis,
+        createdAtMillis = createdAtMillis,
+        calendarEventId = calendarEventId,
+        calendarCreatedByApp = calendarCreatedByApp
+    )
+
+private fun TodoRecord.toEntity(): TodoEntity =
+    TodoEntity(
+        id = id,
+        title = title,
+        note = note,
+        date = date,
+        dateMillis = dateMillis,
+        startHour = startHour,
+        startMinute = startMinute,
+        deadlineHour = deadlineHour,
+        deadlineMinute = deadlineMinute,
+        remindStartAtMillis = remindStartAtMillis,
+        remindAtMillis = remindAtMillis,
+        customRemindHoursBefore = customRemindHoursBefore,
+        tagId = tagId,
+        done = done,
+        doneAtMillis = doneAtMillis,
+        createdAtMillis = createdAtMillis,
+        calendarEventId = calendarEventId,
+        calendarCreatedByApp = calendarCreatedByApp
+    )
+
 data class HomeData(
     val todos: List<TodoEntity>,
     val tags: List<TagEntity>,
     val prefs: UserPrefs.Snapshot
-)
-
-data class TodoInput(
-    val id: Long? = null,
-    val title: String?,
-    val note: String?,
-    /** year/month/day 三者要么同时非空（有日期任务），要么同时为 null（无日期任务） */
-    val year: Int? = null,
-    val month: Int? = null, // 1-12
-    val day: Int? = null,   // 1-31
-    val startHour: Int? = null,
-    val startMinute: Int? = null,
-    val deadlineHour: Int? = null,
-    val deadlineMinute: Int? = null,
-    val customHoursBefore: Int? = null,
-    val tagName: String? = null
 )

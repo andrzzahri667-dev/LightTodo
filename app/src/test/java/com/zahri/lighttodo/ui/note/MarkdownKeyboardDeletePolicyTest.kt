@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.feature.noteeditor
+package com.zahri.lighttodo.domain.markdown
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

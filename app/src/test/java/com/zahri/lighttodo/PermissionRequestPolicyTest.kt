@@ -8,40 +8,30 @@ import org.junit.Test
 class PermissionRequestPolicyTest {
 
     @Test
-    fun startupPermissions_includeCalendarAndNotificationsOnAndroid13Plus() {
+    fun startupPermissions_includeNotificationsButNotCalendarOnAndroid13Plus() {
         val permissions = PermissionRequestPolicy.startupPermissions(Build.VERSION_CODES.TIRAMISU)
 
         assertEquals(
             listOf(
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.READ_CALENDAR,
-                Manifest.permission.WRITE_CALENDAR
+                Manifest.permission.POST_NOTIFICATIONS
             ),
             permissions
         )
     }
 
     @Test
-    fun startupPermissions_includeCalendarOnAndroid10To12() {
+    fun startupPermissions_doNotRequestCalendarOnAndroid10To12() {
         val permissions = PermissionRequestPolicy.startupPermissions(Build.VERSION_CODES.Q)
 
-        assertEquals(
-            listOf(
-                Manifest.permission.READ_CALENDAR,
-                Manifest.permission.WRITE_CALENDAR
-            ),
-            permissions
-        )
+        assertEquals(emptyList<String>(), permissions)
     }
 
     @Test
-    fun startupPermissions_includeCalendarAndLegacyStorageBeforeAndroid10() {
+    fun startupPermissions_includeLegacyStorageButNotCalendarBeforeAndroid10() {
         val permissions = PermissionRequestPolicy.startupPermissions(Build.VERSION_CODES.P)
 
         assertEquals(
             listOf(
-                Manifest.permission.READ_CALENDAR,
-                Manifest.permission.WRITE_CALENDAR,
                 Manifest.permission.READ_EXTERNAL_STORAGE,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE
             ),

@@ -3,12 +3,13 @@ package com.zahri.lighttodo.feature.noteeditor
 import android.content.Context
 import android.media.MediaPlayer
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zahri.lighttodo.App
-import com.zahri.lighttodo.data.NoteDao
-import com.zahri.lighttodo.data.NoteEntity
+import com.zahri.lighttodo.usecase.note.NoteEditorSnapshot
+import com.zahri.lighttodo.usecase.note.NoteUseCases
+import com.zahri.lighttodo.usecase.note.SaveNoteInput
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,10 +31,8 @@ data class RecordedNoteAudio(
 )
 
 class NoteEditViewModel(
-    private val app: App = App.instance,
-    private val noteDao: NoteDao = app.db.noteDao()
+    private val noteUseCases: NoteUseCases
 ) : ViewModel() {
-
     private val _title = MutableStateFlow("")
     val title: StateFlow<String> = _title.asStateFlow()
 
@@ -76,7 +75,7 @@ class NoteEditViewModel(
         }
         viewModelScope.launch {
             val note = withContext(Dispatchers.IO) {
-                noteDao.findById(id)
+                noteUseCases.loadNote(id)
             } ?: return@launch
             applyNote(note)
         }
@@ -109,20 +108,19 @@ class NoteEditViewModel(
                     if (t.isEmpty() && c.isBlank()) return@withContext
                     if (noteId != null && t == lastSavedTitle && c == lastSavedContent) return@withContext
 
-                    val now = System.currentTimeMillis()
-                    val entity = NoteEntity(
-                        id = noteId ?: 0L,
-                        title = t.ifEmpty { null },
-                        content = c,
-                        createdAtMillis = _createdAt.value,
-                        updatedAtMillis = now
+                    val saved = noteUseCases.saveNote(
+                        SaveNoteInput(
+                            id = noteId,
+                            title = t.ifEmpty { null },
+                            content = c,
+                            createdAtMillis = _createdAt.value,
+                            previousContent = lastSavedContent
+                        )
                     )
-                    val newId = noteDao.upsert(entity)
-                    if (noteId == null) noteId = newId
-                    _updatedAt.value = now
-                    NoteAttachmentStore.deleteRemovedRefs(app, lastSavedContent, c)
-                    lastSavedTitle = t
-                    lastSavedContent = c
+                    noteId = saved.id
+                    _updatedAt.value = saved.updatedAtMillis
+                    lastSavedTitle = saved.title.orEmpty()
+                    lastSavedContent = saved.content
                 }
             } while (saveAgainAfterCurrentJob)
         }
@@ -132,10 +130,7 @@ class NoteEditViewModel(
         val id = noteId ?: run { onDone(); return }
         viewModelScope.launch {
             withContext(NonCancellable + Dispatchers.IO) {
-                val content = noteDao.findById(id)?.content ?: _content.value
-                NoteAttachmentStore.deleteRefs(app, NoteAttachmentMarkdown.refsIn(content))
-                noteDao.delete(id)
-                cleanupUnreferencedAttachments()
+                noteUseCases.deleteNote.delete(id, fallbackContent = _content.value)
             }
             onDone()
         }
@@ -145,7 +140,7 @@ class NoteEditViewModel(
         stopAudioPlayback()
 
         val appContext = context.applicationContext
-        val file = NoteAttachmentStore.createAudioFile(appContext)
+        val file = noteUseCases.createAudioFile()
         val nextRecorder = createNoteMediaRecorder(appContext, file)
         return runCatching {
             nextRecorder.prepare()
@@ -180,13 +175,25 @@ class NoteEditViewModel(
         return null
     }
 
-    fun toggleAudioPlayback(context: Context, ref: String): Boolean {
+    fun createImageFile(): File = noteUseCases.createImageFile()
+
+    fun fileProviderUri(file: File): Uri = noteUseCases.fileProviderUri(file)
+
+    fun copyImageFromUri(uri: Uri): File = noteUseCases.copyImageFromUri(uri)
+
+    fun imageRef(file: File): String = noteUseCases.imageRef(file)
+
+    fun audioRef(file: File): String = noteUseCases.audioRef(file)
+
+    fun resolveAttachmentFile(ref: String): File? = noteUseCases.resolveAttachment(ref)
+
+    fun toggleAudioPlayback(ref: String): Boolean {
         if (_mediaState.value.playingAudioRef == ref) {
             stopAudioPlayback()
             return true
         }
 
-        val file = NoteAttachmentStore.resolve(context.applicationContext, ref) ?: return false
+        val file = noteUseCases.resolveAttachment(ref) ?: return false
         return runCatching {
             stopAudioPlayback()
             val nextPlayer = MediaPlayer().apply {
@@ -238,20 +245,13 @@ class NoteEditViewModel(
         lastSavedContent = _content.value
     }
 
-    private fun applyNote(note: NoteEntity) {
+    private fun applyNote(note: NoteEditorSnapshot) {
         _title.value = note.title.orEmpty()
         _content.value = note.content
         _createdAt.value = note.createdAtMillis
         _updatedAt.value = note.updatedAtMillis
         lastSavedTitle = _title.value.trim()
         lastSavedContent = _content.value
-    }
-
-    private suspend fun cleanupUnreferencedAttachments() {
-        val refs = noteDao.listAll()
-            .flatMap { NoteAttachmentMarkdown.refsIn(it.content) }
-            .toSet()
-        NoteAttachmentStore.deleteUnreferenced(app, refs)
     }
 }
 

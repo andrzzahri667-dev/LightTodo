@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.feature.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
@@ -70,7 +71,7 @@ fun HomeScreen(
     onNoteEdit: (Long?, Rect?, Float, NoteEditLaunchSeed?) -> Unit,
     onSettings: () -> Unit,
     hiddenNoteSource: NoteSourceAnimationKey? = null,
-    vm: HomeViewModel = viewModel()
+    vm: HomeViewModel = viewModel(factory = lightTodoViewModelFactory())
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val selectedIds by vm.selectedIds.collectAsStateWithLifecycle()
@@ -237,7 +238,15 @@ fun HomeScreen(
                             else {
                                 val launchSeed = notes
                                     .firstOrNull { it.id == id }
-                                    ?.let(NoteEditLaunchSeed::from)
+                                    ?.let { note ->
+                                        NoteEditLaunchSeed(
+                                            id = note.id,
+                                            title = note.title,
+                                            content = note.content,
+                                            createdAtMillis = note.createdAtMillis,
+                                            updatedAtMillis = note.updatedAtMillis
+                                        )
+                                    }
                                 onNoteEdit(id, sourceBounds, 1f, launchSeed)
                             }
                         },

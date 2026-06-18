@@ -8,16 +8,20 @@ import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.domain.calendar.CalendarEventDraft
+import com.zahri.lighttodo.domain.calendar.CalendarEventTodo
+import com.zahri.lighttodo.domain.calendar.CalendarEventWritePolicy
+import com.zahri.lighttodo.domain.calendar.CalendarSyncPolicy
+import com.zahri.lighttodo.usecase.todo.TodoRecord
 import java.util.TimeZone
 
 internal object CalendarEventWriter {
     fun upsertFromTodo(
         context: Context,
-        todo: TodoEntity,
+        todo: TodoRecord,
         userFilter: String
     ): Long? {
-        val draft = CalendarEventWritePolicy.draftFor(todo) ?: return null
+        val draft = CalendarEventWritePolicy.draftFor(todo.toCalendarEventTodo()) ?: return null
         if (!hasReadPermission(context) || !hasWritePermission(context)) return todo.calendarEventId
 
         val cr = context.contentResolver
@@ -127,4 +131,16 @@ internal object CalendarEventWriter {
     private fun hasWritePermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) ==
             PackageManager.PERMISSION_GRANTED
+
+    private fun TodoRecord.toCalendarEventTodo(): CalendarEventTodo =
+        CalendarEventTodo(
+            title = title,
+            note = note,
+            dateMillis = dateMillis,
+            startHour = startHour,
+            startMinute = startMinute,
+            deadlineHour = deadlineHour,
+            deadlineMinute = deadlineMinute,
+            done = done
+        )
 }

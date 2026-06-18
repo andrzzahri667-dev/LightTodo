@@ -1,18 +1,34 @@
 package com.zahri.lighttodo.feature.noteeditor
 
-import com.zahri.lighttodo.App
-import com.zahri.lighttodo.data.NoteDao
-import com.zahri.lighttodo.data.NoteEntity
+import android.net.Uri
+import com.zahri.lighttodo.usecase.note.CopyNoteImageFromUriUseCase
+import com.zahri.lighttodo.usecase.note.CreateNoteAudioFileUseCase
+import com.zahri.lighttodo.usecase.note.CreateNoteImageFileUseCase
+import com.zahri.lighttodo.usecase.note.DeleteNoteUseCase
+import com.zahri.lighttodo.usecase.note.LoadNoteUseCase
+import com.zahri.lighttodo.usecase.note.NoteAudioRefUseCase
+import com.zahri.lighttodo.usecase.note.NoteEditorSnapshot
+import com.zahri.lighttodo.usecase.note.NoteFileProviderUriUseCase
+import com.zahri.lighttodo.usecase.note.NoteImageRefUseCase
+import com.zahri.lighttodo.usecase.note.NoteListItem
+import com.zahri.lighttodo.usecase.note.NoteRepository
+import com.zahri.lighttodo.usecase.note.NoteUseCases
+import com.zahri.lighttodo.usecase.note.ObserveNotesUseCase
+import com.zahri.lighttodo.usecase.note.ResolveNoteAttachmentUseCase
+import com.zahri.lighttodo.usecase.note.SaveNoteInput
+import com.zahri.lighttodo.usecase.note.SaveNoteUseCase
+import com.zahri.lighttodo.usecase.note.SavedNote
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NoteEditViewModelLaunchSeedTest {
     @Test
     fun load_matchingLaunchSeedPublishesFirstFrameStateSynchronouslyWithoutRoomRead() {
-        val noteDao = CountingNoteDao()
-        val vm = NoteEditViewModel(app = App(), noteDao = noteDao)
+        val noteRepository = CountingNoteRepository()
+        val vm = NoteEditViewModel(noteUseCases = noteUseCases(noteRepository))
         val seed = NoteEditLaunchSeed(
             id = 7L,
             title = "Seed title",
@@ -27,12 +43,12 @@ class NoteEditViewModelLaunchSeedTest {
         assertEquals("Seed content", vm.content.value)
         assertEquals(1_000L, vm.createdAt.value)
         assertEquals(2_000L, vm.updatedAt.value)
-        assertEquals(0, noteDao.findByIdCalls)
+        assertEquals(0, noteRepository.loadCalls)
     }
 
     @Test
     fun editingLoadedNoteDoesNotMutateUpdatedAtUntilSave() {
-        val vm = NoteEditViewModel(app = App(), noteDao = CountingNoteDao())
+        val vm = NoteEditViewModel(noteUseCases = noteUseCases(CountingNoteRepository()))
         val seed = NoteEditLaunchSeed(
             id = 7L,
             title = "Seed title",
@@ -49,19 +65,43 @@ class NoteEditViewModelLaunchSeedTest {
     }
 }
 
-private class CountingNoteDao : NoteDao {
-    var findByIdCalls = 0
+private fun noteUseCases(repository: NoteRepository): NoteUseCases =
+    NoteUseCases(
+        observeNotes = ObserveNotesUseCase(repository),
+        loadNote = LoadNoteUseCase(repository),
+        saveNote = SaveNoteUseCase(repository),
+        deleteNote = DeleteNoteUseCase(repository),
+        createImageFile = CreateNoteImageFileUseCase(repository),
+        createAudioFile = CreateNoteAudioFileUseCase(repository),
+        fileProviderUri = NoteFileProviderUriUseCase(repository),
+        copyImageFromUri = CopyNoteImageFromUriUseCase(repository),
+        imageRef = NoteImageRefUseCase(repository),
+        audioRef = NoteAudioRefUseCase(repository),
+        resolveAttachment = ResolveNoteAttachmentUseCase(repository)
+    )
 
-    override fun observeAll(): Flow<List<NoteEntity>> = emptyFlow()
-    override suspend fun listAll(): List<NoteEntity> = emptyList()
-    override suspend fun findById(id: Long): NoteEntity? {
-        findByIdCalls++
+private class CountingNoteRepository : NoteRepository {
+    var loadCalls = 0
+
+    override fun observeNotes(): Flow<List<NoteListItem>> = emptyFlow()
+    override suspend fun loadEditorSnapshot(id: Long): NoteEditorSnapshot? {
+        loadCalls++
         return null
     }
-    override suspend fun findByIds(ids: List<Long>): List<NoteEntity> = emptyList()
-    override suspend fun upsert(note: NoteEntity): Long = note.id
-    override suspend fun upsertAll(notes: List<NoteEntity>) = Unit
-    override suspend fun delete(id: Long) = Unit
-    override suspend fun deleteByIds(ids: List<Long>) = Unit
-    override suspend fun deleteAll() = Unit
+    override suspend fun save(input: SaveNoteInput): SavedNote =
+        SavedNote(
+            id = input.id ?: 1L,
+            title = input.title,
+            content = input.content,
+            updatedAtMillis = 1L
+        )
+    override suspend fun delete(id: Long, fallbackContent: String) = Unit
+    override suspend fun deleteMany(ids: List<Long>) = Unit
+    override fun createImageFile(): File = File("unused-image")
+    override fun createAudioFile(): File = File("unused")
+    override fun fileProviderUri(file: File): Uri = Uri.EMPTY
+    override fun copyImageFromUri(uri: Uri): File = File("unused-copy")
+    override fun imageRef(file: File): String = "lighttodo://attachment/image/${file.name}"
+    override fun audioRef(file: File): String = "lighttodo://attachment/audio/${file.name}"
+    override fun resolveAttachment(ref: String): File? = null
 }

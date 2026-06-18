@@ -8,11 +8,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.zahri.lighttodo.App
-import com.zahri.lighttodo.MainActivity
+import com.zahri.lighttodo.AppLaunchIntents
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.domain.reminder.ReminderFullScreenPolicy
+import com.zahri.lighttodo.domain.reminder.ReminderRequestCodePolicy
 import com.zahri.lighttodo.integration.notification.NotificationChannels
-import com.zahri.lighttodo.feature.reminder.ReminderActivity
-import com.zahri.lighttodo.feature.home.displayTitle
+import com.zahri.lighttodo.usecase.todo.TodoReminderNotification
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,22 +30,19 @@ class ReminderReceiver : BroadcastReceiver() {
         val pending = goAsync()
         app.appScope.launch(Dispatchers.IO) {
             try {
-                val todo = app.db.todoDao().findById(id) ?: return@launch
-                if (todo.done) return@launch
+                val reminder = app.container.todoUseCases.loadReminderNotification(
+                    todoId = id,
+                    fallbackTitle = context.getString(R.string.home_no_title)
+                ) ?: return@launch
 
-                val fullScreenIntent = Intent(context, ReminderActivity::class.java).apply {
-                    putExtra(ReminderActivity.EXTRA_TODO_ID, id)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
                 val fullScreenPi = PendingIntent.getActivity(
-                    context, id.toInt(), fullScreenIntent,
+                    context, id.toInt(), AppLaunchIntents.reminder(context, id),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
                 val contentPi = PendingIntent.getActivity(
                     context, id.toInt(),
-                    Intent(context, MainActivity::class.java)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    AppLaunchIntents.main(context),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
 
@@ -53,13 +51,14 @@ class ReminderReceiver : BroadcastReceiver() {
                     Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
                         nm?.canUseFullScreenIntent() == true
                 val attachFullScreenIntent = ReminderFullScreenPolicy.shouldAttachFullScreenIntent(
+                    sdkInt = Build.VERSION.SDK_INT,
                     canUseFullScreenIntent = canUseFullScreenIntent
                 )
 
                 val builder = NotificationCompat.Builder(context, NotificationChannels.REMINDER_ID)
                     .setSmallIcon(android.R.drawable.ic_popup_reminder)
-                    .setContentTitle(todo.displayTitle(context))
-                    .setContentText(buildSubtitle(context, todo, isStart))
+                    .setContentTitle(reminder.title)
+                    .setContentText(buildSubtitle(context, reminder, isStart))
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_ALARM)
                     .setAutoCancel(true)
@@ -78,15 +77,15 @@ class ReminderReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun buildSubtitle(context: Context, t: com.zahri.lighttodo.data.TodoEntity, isStart: Boolean): String {
+    private fun buildSubtitle(context: Context, reminder: TodoReminderNotification, isStart: Boolean): String {
         val parts = mutableListOf<String>()
-        if (isStart && t.startHour != null && t.startMinute != null) {
-            parts += context.getString(R.string.notif_start_time, t.startHour, t.startMinute)
-        } else if (!isStart && t.deadlineHour != null && t.deadlineMinute != null) {
-            parts += context.getString(R.string.notif_end_time, t.deadlineHour, t.deadlineMinute)
+        if (isStart && reminder.startHour != null && reminder.startMinute != null) {
+            parts += context.getString(R.string.notif_start_time, reminder.startHour, reminder.startMinute)
+        } else if (!isStart && reminder.deadlineHour != null && reminder.deadlineMinute != null) {
+            parts += context.getString(R.string.notif_end_time, reminder.deadlineHour, reminder.deadlineMinute)
         }
-        if (!t.note.isNullOrBlank()) {
-            parts += t.note.lineSequence().firstOrNull().orEmpty()
+        if (reminder.notePreview.isNotBlank()) {
+            parts += reminder.notePreview
         }
         return parts.joinToString(" · ")
     }

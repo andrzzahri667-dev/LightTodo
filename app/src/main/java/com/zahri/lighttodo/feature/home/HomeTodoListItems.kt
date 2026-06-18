@@ -1,6 +1,6 @@
 package com.zahri.lighttodo.feature.home
 
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.usecase.todo.HomeTodo
 
 sealed interface HomeTodoListItem {
     val key: String
@@ -16,7 +16,7 @@ sealed interface HomeTodoListItem {
     }
 
     data class TodoRow(
-        val todo: TodoEntity,
+        val todo: HomeTodo,
         val showDivider: Boolean,
         val strikeThrough: Boolean,
         val visible: Boolean

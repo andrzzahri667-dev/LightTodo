@@ -1,6 +1,6 @@
 package com.zahri.lighttodo.integration.widget
 
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.usecase.todo.TodoRecord
 import com.zahri.lighttodo.util.DateUtils
 import java.time.LocalDateTime
 import java.util.Locale
@@ -17,10 +17,10 @@ object TodoWidgetDisplayPolicy {
             minuteOfDay = now.hour * 60 + now.minute
         )
 
-    fun isSubtitleOverdue(item: TodoEntity, now: LocalDateTime): Boolean =
+    fun isSubtitleOverdue(item: TodoRecord, now: LocalDateTime): Boolean =
         isSubtitleOverdue(item, clockAt(now))
 
-    fun isSubtitleOverdue(item: TodoEntity, clock: Clock = clockAt()): Boolean {
+    fun isSubtitleOverdue(item: TodoRecord, clock: Clock = clockAt()): Boolean {
         if (item.done) return false
         val itemDate = item.date ?: return false
         val timeRange = item.timeRange() ?: return false
@@ -31,7 +31,7 @@ object TodoWidgetDisplayPolicy {
         return timeRange.endMinuteOfDay < clock.minuteOfDay
     }
 
-    fun deadlineSuffix(item: TodoEntity): String =
+    fun deadlineSuffix(item: TodoRecord): String =
         item.timeRange()?.let { range ->
             String.format(
                 Locale.ROOT,
@@ -43,7 +43,7 @@ object TodoWidgetDisplayPolicy {
             )
         }.orEmpty()
 
-    private fun TodoEntity.timeRange(): TimeRange? {
+    private fun TodoRecord.timeRange(): TimeRange? {
         val startHour = startHour ?: return null
         val startMinute = startMinute ?: return null
         val endHour = deadlineHour ?: return null

@@ -9,16 +9,17 @@ import org.junit.Test
 class BackupManagerSourceTest {
     @Test
     fun restoreCollectsOldTodoIdsInsideTransactionBeforeReplacingData() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
 
         assertTrue(source.contains("val oldTodoIds = db.withTransaction {"))
         assertTrue(source.indexOf("val oldTodoIds = db.todoDao().listAll().map { it.id }") < source.indexOf("db.todoDao().deleteAll()"))
-        assertTrue(source.indexOf("db.noteDao().deleteAll()") < source.indexOf("oldTodoIds.forEach { id -> ReminderScheduler.cancel(context, id) }"))
+        assertTrue(source.indexOf("db.noteDao().deleteAll()") < source.indexOf("oldTodoIds.forEach(cancelTodoReminder)"))
+        assertTrue(source.contains("rescheduleTodoReminders()"))
     }
 
     @Test
     fun restoreIfEmptyLogsDecodeOrRestoreFailures() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
 
         assertTrue(source.contains("Log.w("))
         assertTrue(source.contains("Auto restore failed"))
@@ -26,8 +27,8 @@ class BackupManagerSourceTest {
 
     @Test
     fun autoBackupWritesPublicBackupIntoDocumentsNotDownloads() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
-        val portableSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/PortableBackupStore.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
+        val portableSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/PortableBackupStore.kt").readText()
         val settingsSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/settings/SettingsScreen.kt").readText()
         val settingsViewModelSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/settings/SettingsViewModel.kt").readText()
 
@@ -57,7 +58,7 @@ class BackupManagerSourceTest {
 
     @Test
     fun restoreIfEmptyPrioritizesAppExternalJsonBeforeBestEffortPortableDocuments() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
         val appExternalRead = source.indexOf("readFromAppExternal()")
         val portableRead = source.indexOf("portableBackupStore.read()")
         val downloadsRead = source.indexOf("readFromPublicDownloads()")
@@ -72,7 +73,7 @@ class BackupManagerSourceTest {
 
     @Test
     fun autoBackupRefreshesPortableSettingsWhenPrefsChange() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
 
         assertTrue(source.contains("prefs.flow"))
         assertTrue(source.contains("writeBackup(bundle, snapshot.settings)"))
@@ -82,7 +83,7 @@ class BackupManagerSourceTest {
 
     @Test
     fun portableRestoreAppliesSettingsOnlyAfterBundleRestoreSucceeds() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
         val restoreFunction = source.substringAfter("private suspend fun restorePortableBackup")
         val restoreBundle = restoreFunction.indexOf("restoreFromBundle(portableBackup.bundle)")
         val restoreSettings = restoreFunction.indexOf("prefs.restore(it)")
@@ -94,8 +95,8 @@ class BackupManagerSourceTest {
 
     @Test
     fun portableReadFailuresFallBackToLegacyJsonInsteadOfFailingCoroutine() {
-        val portableSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/PortableBackupStore.kt").readText()
-        val managerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
+        val portableSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/PortableBackupStore.kt").readText()
+        val managerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
 
         assertTrue(portableSource.contains("runCatching { readUsing("))
         assertTrue(portableSource.contains("}.getOrNull()"))
@@ -105,7 +106,7 @@ class BackupManagerSourceTest {
 
     @Test
     fun portableBackupUsesManifestIntegritySignalAndWritesManifestLast() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/PortableBackupStore.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/PortableBackupStore.kt").readText()
         val writeFunction = source.substringAfter("fun write(bundle").substringBefore("\n    fun read()")
         val pendingManifestFileWrite = writeFunction.indexOf("\"manifest.json\"")
         val completeManifestFileWrite = writeFunction.lastIndexOf("\"manifest.json\"")
@@ -133,7 +134,7 @@ class BackupManagerSourceTest {
 
     @Test
     fun portableAttachmentImportCreatesUniqueFilesInsteadOfOverwritingByOriginalName() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteAttachmentStore.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/note/NoteAttachmentStore.kt").readText()
         val importFunction = source.substringAfter("fun importAttachment(").substringBefore("\n    fun resolve")
 
         assertTrue(importFunction.contains("uniqueImportedFile("))

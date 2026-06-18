@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.feature.noteeditor
+package com.zahri.lighttodo.domain.note
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals

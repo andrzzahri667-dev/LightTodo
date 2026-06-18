@@ -1,6 +1,6 @@
 package com.zahri.lighttodo.feature.home.note
 
-import com.zahri.lighttodo.data.NoteEntity
+import com.zahri.lighttodo.usecase.note.NoteListItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
@@ -15,10 +15,12 @@ class NoteGridItemsTest {
     fun buildNoteGridItems_precomputesMarkdownPreview() {
         val items = buildNoteGridItems(
             listOf(
-                NoteEntity(
+                NoteListItem(
                     id = 7L,
                     title = "Plan",
-                    content = "# Heading\n- **Done**"
+                    content = "# Heading\n- **Done**",
+                    createdAtMillis = 0L,
+                    updatedAtMillis = 0L
                 )
             )
         )
@@ -34,7 +36,7 @@ class NoteGridItemsTest {
     @Test
     fun buildNoteGridItems_usesMorePreviewLinesWhenTitleMissing() {
         val item = buildNoteGridItems(
-            listOf(NoteEntity(id = 8L, title = " ", content = "Body"))
+            listOf(note(id = 8L, title = " ", content = "Body"))
         ).single()
 
         assertNull(item.title)
@@ -46,7 +48,7 @@ class NoteGridItemsTest {
     @Test
     fun buildNoteGridItems_marksEmptyUntitledNotes() {
         val item = buildNoteGridItems(
-            listOf(NoteEntity(id = 9L, title = null, content = "   "))
+            listOf(note(id = 9L, title = null, content = "   "))
         ).single()
 
         assertNull(item.title)
@@ -57,7 +59,7 @@ class NoteGridItemsTest {
     @Test
     fun noteGridItemMemoizer_reusesUnchangedItemsAcrossNewListInstances() {
         val memoizer = NoteGridItemMemoizer()
-        val note = NoteEntity(id = 10L, title = "Plan", content = "**Body**")
+        val note = note(id = 10L, title = "Plan", content = "**Body**")
 
         val first = memoizer.itemsFor(listOf(note)).single()
         val second = memoizer.itemsFor(listOf(note.copy(updatedAtMillis = note.updatedAtMillis + 1))).single()
@@ -67,4 +69,13 @@ class NoteGridItemsTest {
         assertNotSame(first, changed)
         assertEquals("Changed", changed.preview)
     }
+
+    private fun note(id: Long, title: String?, content: String): NoteListItem =
+        NoteListItem(
+            id = id,
+            title = title,
+            content = content,
+            createdAtMillis = 0L,
+            updatedAtMillis = 0L
+        )
 }

@@ -9,7 +9,7 @@ class TodoDaoSourceTest {
 
     @Test
     fun todoDaoDoesNotExposeUnusedReplaceAllHelper() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Daos.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/local/Daos.kt")
             .readText()
 
         assertFalse(source.contains("suspend fun replaceAll("))

@@ -7,8 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.zahri.lighttodo.AppLaunchIntents
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.feature.quickadd.QuickAddActivity
 
 /**
  * 一个低优先级的常驻前台服务，挂一条"+ 快速添加"通知。
@@ -31,7 +31,7 @@ class QuickAddService : Service() {
     private fun buildNotification(): Notification {
         val pi = PendingIntent.getActivity(
             this, 0,
-            Intent(this, QuickAddActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            AppLaunchIntents.quickAdd(this),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, NotificationChannels.QUICK_ADD_ID)

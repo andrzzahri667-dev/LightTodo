@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.integration.widget
+package com.zahri.lighttodo.widget
 
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -9,7 +9,7 @@ class TodoWidgetDeadCodeTest {
     fun obsoleteWidgetServicePlaceholderIsRemoved() {
         val repo = repoRoot()
 
-        assertFalse(File(repo, "app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetService.kt").exists())
+        assertFalse(File(repo, "app/src/main/java/com/zahri/lighttodo/widget/TodoWidgetService.kt").exists())
     }
 
     private fun repoRoot(): File {

@@ -9,8 +9,6 @@ object PermissionRequestPolicy {
             if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             }
-            add(Manifest.permission.READ_CALENDAR)
-            add(Manifest.permission.WRITE_CALENDAR)
             if (sdkInt < Build.VERSION_CODES.Q) {
                 add(Manifest.permission.READ_EXTERNAL_STORAGE)
                 add(Manifest.permission.WRITE_EXTERNAL_STORAGE)

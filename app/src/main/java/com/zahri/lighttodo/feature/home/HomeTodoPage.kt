@@ -42,7 +42,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.domain.todo.TodoDisplayText
+import com.zahri.lighttodo.usecase.todo.HomeTodo
 import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
 import com.zahri.lighttodo.ui.motion.components.motionCompletionSettleLayer
@@ -189,7 +190,7 @@ private fun SectionHeader(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TodoRow(
-    todo: TodoEntity,
+    todo: HomeTodo,
     selected: Boolean = false,
     inSelectionMode: Boolean = false,
     onToggle: () -> Unit,
@@ -201,8 +202,12 @@ private fun TodoRow(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val titleText = todo.displayTitle(context)
-    val isOverdue = todo.isOverdueDate()
+    val titleText = TodoDisplayText.title(
+        title = todo.title,
+        note = todo.note,
+        fallback = context.getString(R.string.home_no_title)
+    )
+    val isOverdue = TodoDisplayText.isOverdueDate(done = todo.done, date = todo.date)
     val selectedBackground by rememberMotionSelectionColor(
         selected = selected,
         selectedColor = AppColors.Brand.copy(alpha = 0.12f),
@@ -287,7 +292,7 @@ private fun TodoRow(
                     else -> null
                 }
                 val subtitle = buildString {
-                    append(todo.dateLabel())
+                    append(TodoDisplayText.dateLabel(todo.date))
                     if (timeSuffix != null) {
                         append("  ")
                         append(timeSuffix)

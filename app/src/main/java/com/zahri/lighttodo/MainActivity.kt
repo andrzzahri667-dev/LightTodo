@@ -1,7 +1,6 @@
 package com.zahri.lighttodo
 
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -23,7 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -46,7 +44,6 @@ import com.zahri.lighttodo.feature.noteeditor.NoteSourceAnimationKey
 import com.zahri.lighttodo.feature.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val sourceAnimationResetHandler = Handler(Looper.getMainLooper())
@@ -62,9 +59,6 @@ class MainActivity : ComponentActivity() {
                     it.key == android.Manifest.permission.WRITE_EXTERNAL_STORAGE) && it.value
             }
             if (storageGranted) app.retryRestore()
-            if (PermissionRequestPolicy.calendarPermissionsGranted(results)) {
-                enableCalendarSync()
-            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,9 +67,6 @@ class MainActivity : ComponentActivity() {
         val startupPermissions = PermissionRequestPolicy.startupPermissions()
         if (startupPermissions.isNotEmpty()) {
             permLauncher.launch(startupPermissions.toTypedArray())
-        }
-        if (hasCalendarPermission()) {
-            enableCalendarSync()
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             (application as App).retryRestore()
@@ -158,16 +149,6 @@ class MainActivity : ComponentActivity() {
         } else if (hiddenNoteSource == sourceKey) {
             hiddenNoteSource = null
         }
-    }
-
-    private fun hasCalendarPermission(): Boolean =
-        PermissionRequestPolicy.calendarPermissions().all { permission ->
-            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-        }
-
-    private fun enableCalendarSync() {
-        val app = application as App
-        app.appScope.launch { app.prefs.setCalendarSyncEnabled(true) }
     }
 
     private fun requestExactAlarmPermissionForReminder(hasReminder: Boolean) {

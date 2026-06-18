@@ -1,16 +1,16 @@
 package com.zahri.lighttodo.feature.home
 
-import com.zahri.lighttodo.data.HomeData
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.usecase.todo.HomeTodo
+import com.zahri.lighttodo.usecase.todo.HomeTodoSnapshot
 
 fun buildHomeUiState(
-    data: HomeData,
+    data: HomeTodoSnapshot,
     uncategorizedTitle: String
 ): HomeUiState {
     val (done, undone) = data.todos.partition { it.done }
     val doneItems = done.sortedByDescending { it.doneAtMillis ?: 0L }
-    val byTag: Map<Long?, List<TodoEntity>> = undone.groupBy { it.tagId }
-    val itemOrder = compareBy<TodoEntity>({ it.dateMillis == null }, { it.createdAtMillis })
+    val byTag: Map<Long?, List<HomeTodo>> = undone.groupBy { it.tagId }
+    val itemOrder = compareBy<HomeTodo>({ it.dateMillis == null }, { it.createdAtMillis })
     val groups = mutableListOf<TagGroup>()
 
     data.tags.forEach { tag ->
@@ -26,7 +26,7 @@ fun buildHomeUiState(
     return HomeUiState(
         groups = groups,
         doneItems = doneItems,
-        collapsedTagIds = data.prefs.collapsedTagIds,
-        doneExpanded = data.prefs.doneSectionExpanded
+        collapsedTagIds = data.collapsedTagIds,
+        doneExpanded = data.doneSectionExpanded
     )
 }

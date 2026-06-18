@@ -19,6 +19,7 @@ import android.text.style.StrikethroughSpan
 import android.view.View
 import android.util.LruCache
 import androidx.annotation.ColorInt
+import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 import kotlin.math.roundToInt
 
 /** Marker interface for all markdown-related spans. Enables bulk removal. */
@@ -297,7 +298,8 @@ class MarkdownLinkSpan(
 
 class MarkdownImageSpan(
     private val context: Context,
-    val attachment: NoteAttachmentMarkdown.Attachment
+    val attachment: NoteAttachmentMarkdown.Attachment,
+    private val resolveAttachment: NoteAttachmentResolver
 ) : ReplacementSpan(), MarkdownSpan {
     private val density = context.resources.displayMetrics.density
     private val maxBoxWidthPx = minOf(
@@ -351,7 +353,7 @@ class MarkdownImageSpan(
         paint.color = Color.parseColor("#F1F1F3")
         canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
 
-        val bitmap = MarkdownBitmapCache.get(context, attachment.ref, size.first)
+        val bitmap = MarkdownBitmapCache.get(attachment.ref, size.first, resolveAttachment)
         if (bitmap != null) {
             val src = Rect(0, 0, bitmap.width, bitmap.height)
             val path = Path().apply { addRoundRect(rect, radiusPx, radiusPx, Path.Direction.CW) }
@@ -370,7 +372,7 @@ class MarkdownImageSpan(
     }
 
     private fun displaySize(): Pair<Int, Int> {
-        val sourceSize = MarkdownBitmapCache.size(context, attachment.ref) ?: return fallbackWidthPx to fallbackHeightPx
+        val sourceSize = MarkdownBitmapCache.size(attachment.ref, resolveAttachment) ?: return fallbackWidthPx to fallbackHeightPx
         val sourceWidth = sourceSize.first.coerceAtLeast(1)
         val sourceHeight = sourceSize.second.coerceAtLeast(1)
         var targetWidth = maxBoxWidthPx
@@ -465,9 +467,9 @@ private object MarkdownBitmapCache {
     private val bitmapCache = LruCache<String, Bitmap>(8)
     private val sizeCache = LruCache<String, Pair<Int, Int>>(32)
 
-    fun size(context: Context, ref: String): Pair<Int, Int>? {
+    fun size(ref: String, resolveAttachment: NoteAttachmentResolver): Pair<Int, Int>? {
         sizeCache.get(ref)?.let { return it }
-        val file = NoteAttachmentStore.resolve(context, ref) ?: return null
+        val file = resolveAttachment(ref) ?: return null
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, opts)
         val size = opts.outWidth.takeIf { it > 0 }?.let { it to opts.outHeight } ?: return null
@@ -475,10 +477,10 @@ private object MarkdownBitmapCache {
         return size
     }
 
-    fun get(context: Context, ref: String, targetWidth: Int): Bitmap? {
+    fun get(ref: String, targetWidth: Int, resolveAttachment: NoteAttachmentResolver): Bitmap? {
         bitmapCache.get(ref)?.let { return it }
-        val file = NoteAttachmentStore.resolve(context, ref) ?: return null
-        val size = size(context, ref) ?: return null
+        val file = resolveAttachment(ref) ?: return null
+        val size = size(ref, resolveAttachment) ?: return null
         val sample = calculateInSampleSize(size.first, targetWidth)
         val bitmap = BitmapFactory.decodeFile(
             file.absolutePath,

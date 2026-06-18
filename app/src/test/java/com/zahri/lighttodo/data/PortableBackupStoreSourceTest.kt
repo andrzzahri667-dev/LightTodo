@@ -7,7 +7,7 @@ import org.junit.Test
 
 class PortableBackupStoreSourceTest {
     private val source by lazy {
-        sourceFile("app/src/main/java/com/zahri/lighttodo/data/PortableBackupStore.kt").readText()
+        sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/PortableBackupStore.kt").readText()
     }
 
     @Test

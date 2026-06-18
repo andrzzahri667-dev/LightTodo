@@ -10,6 +10,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
+import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 
 /**
  * Applies Markdown formatting spans to an Editable buffer.
@@ -90,7 +91,12 @@ object MarkdownSpanApplier {
         UnderlineSpan::class.java
     )
 
-    fun apply(editable: Editable, activeOffset: Int? = null, context: Context? = null) {
+    fun apply(
+        editable: Editable,
+        activeOffset: Int? = null,
+        context: Context? = null,
+        resolveAttachment: NoteAttachmentResolver? = null
+    ) {
         // 1. Remove all managed spans
         for (type in MANAGED_SPANS) {
             val spans = editable.getSpans(0, editable.length, type)
@@ -134,7 +140,11 @@ object MarkdownSpanApplier {
                 val attachment = NoteAttachmentMarkdown.parseLine(line)
                 if (attachment != null) {
                     val span = when (attachment.kind) {
-                        NoteAttachmentMarkdown.Kind.Image -> MarkdownImageSpan(context, attachment)
+                        NoteAttachmentMarkdown.Kind.Image -> MarkdownImageSpan(
+                            context,
+                            attachment,
+                            resolveAttachment ?: { _: String -> null }
+                        )
                         NoteAttachmentMarkdown.Kind.Audio -> MarkdownAudioSpan(context, attachment)
                     }
                     editable.setSpan(span, lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)

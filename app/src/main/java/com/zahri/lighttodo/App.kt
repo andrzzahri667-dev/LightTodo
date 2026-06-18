@@ -3,10 +3,6 @@ package com.zahri.lighttodo
 import android.app.Application
 import com.zahri.lighttodo.integration.calendar.CalendarObserver
 import com.zahri.lighttodo.integration.calendar.CalendarSync
-import com.zahri.lighttodo.data.AppDatabase
-import com.zahri.lighttodo.data.BackupManager
-import com.zahri.lighttodo.data.Repository
-import com.zahri.lighttodo.data.UserPrefs
 import com.zahri.lighttodo.integration.notification.NotificationChannels
 import com.zahri.lighttodo.integration.notification.QuickAddService
 import kotlinx.coroutines.CancellationException
@@ -23,36 +19,28 @@ class App : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val db by lazy { AppDatabase.get(this) }
-    val prefs by lazy { UserPrefs(this) }
-    val repository by lazy { Repository(this, db.todoDao(), db.tagDao(), prefs) }
-    val backupManager by lazy { BackupManager(this, db, repository, prefs, appScope) }
+    val container by lazy { AppContainer(this, appScope) }
+    val viewModelFactory get() = container.viewModelFactory
 
     private var calendarObserver: CalendarObserver? = null
     private var calendarSyncJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
         NotificationChannels.ensure(this)
         watchQuickAddPref()
         watchCalendarSync()
-        backupManager.restoreIfEmpty()
-        backupManager.startAutoBackup()
+        container.backupManager.restoreIfEmpty()
+        container.backupManager.startAutoBackup()
     }
 
-    fun retryRestore() { backupManager.restoreIfEmpty() }
-
-    companion object {
-        @Volatile lateinit var instance: App
-            private set
-    }
+    fun retryRestore() { container.backupManager.restoreIfEmpty() }
 
     private fun watchQuickAddPref() {
         // DataStore 是 IO 操作,QuickAddService.start/stop 内部走 Intent 调度,
         // 任意线程都安全,直接放在 IO 池上.
         appScope.launch(Dispatchers.IO) {
-            prefs.flow.collectLatest { snap ->
+            container.prefs.flow.collectLatest { snap ->
                 if (snap.quickAddNotifEnabled) QuickAddService.start(this@App)
                 else QuickAddService.stop(this@App)
             }
@@ -63,7 +51,7 @@ class App : Application() {
         // collect prefs(IO) → 操作 ContentResolver 注册/注销 observer(线程无关) →
         // 启动 IO 子任务跑 CalendarSync.runOnce. 整体放 IO 池,不需要 Main.immediate.
         appScope.launch(Dispatchers.IO) {
-            prefs.flow
+            container.prefs.flow
                 .map { it.calendarSyncEnabled }
                 .distinctUntilChanged()
                 .collect { enabled ->

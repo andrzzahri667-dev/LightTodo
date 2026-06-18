@@ -1,6 +1,6 @@
 package com.zahri.lighttodo.feature.home
 
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.usecase.todo.HomeTodo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -64,12 +64,21 @@ class HomeTodoListItemsTest {
         assertTrue(firstDone.strikeThrough)
     }
 
-    private fun todo(id: Long, done: Boolean = false): TodoEntity =
-        TodoEntity(
+    private fun todo(id: Long, done: Boolean = false): HomeTodo =
+        HomeTodo(
             id = id,
             title = "Todo $id",
+            note = null,
+            date = null,
+            dateMillis = null,
+            startHour = null,
+            startMinute = null,
+            deadlineHour = null,
+            deadlineMinute = null,
+            tagId = null,
             done = done,
             doneAtMillis = if (done) id else null,
-            createdAtMillis = id
+            createdAtMillis = id,
+            calendarEventId = null
         )
 }

@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.TodoReminderDefaults
+import com.zahri.lighttodo.domain.todo.TodoReminderDefaults
 import com.zahri.lighttodo.ui.theme.AppColors
 import java.time.LocalDate
 import java.time.format.TextStyle

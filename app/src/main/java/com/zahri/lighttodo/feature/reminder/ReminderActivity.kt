@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,17 +33,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
-import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.feature.home.displayTitle
+import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class ReminderActivity : ComponentActivity() {
+    private val reminderViewModel: ReminderViewModel by viewModels {
+        lightTodoViewModelFactory(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,16 +62,9 @@ class ReminderActivity : ComponentActivity() {
         val todoId = intent.getLongExtra(EXTRA_TODO_ID, -1L)
         if (todoId <= 0) { finish(); return }
 
-        val app = applicationContext as App
         lifecycleScope.launch {
-            val reminder = withContext(Dispatchers.IO) {
-                app.db.todoDao().findByIdSync(todoId)?.let { todo ->
-                    ReminderDialogState(
-                        title = todo.displayTitle(applicationContext),
-                        note = todo.note?.lineSequence()?.firstOrNull().orEmpty()
-                    )
-                }
-            }
+            val fallbackTitle = getString(R.string.home_no_title)
+            val reminder = reminderViewModel.load(todoId, fallbackTitle)
             if (reminder == null) {
                 finish()
                 return@launch
@@ -121,9 +115,7 @@ class ReminderActivity : ComponentActivity() {
                                 ) {
                                     Button(
                                         onClick = {
-                                            lifecycleScope.launch(Dispatchers.IO) {
-                                                app.repository.setDone(todoId, true)
-                                            }
+                                            reminderViewModel.complete(todoId)
                                             finish()
                                         },
                                         colors = ButtonDefaults.buttonColors(
@@ -160,8 +152,3 @@ class ReminderActivity : ComponentActivity() {
         const val EXTRA_TODO_ID = "todo_id"
     }
 }
-
-private data class ReminderDialogState(
-    val title: String,
-    val note: String
-)

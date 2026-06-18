@@ -2,18 +2,16 @@ package com.zahri.lighttodo.feature.todoedit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zahri.lighttodo.App
-import com.zahri.lighttodo.data.Repository
-import com.zahri.lighttodo.data.TagDao
-import com.zahri.lighttodo.data.TagEntity
-import com.zahri.lighttodo.data.TodoDao
-import com.zahri.lighttodo.data.TodoInput
-import com.zahri.lighttodo.data.TodoReminderDefaults
-import com.zahri.lighttodo.data.UserPrefs
+import com.zahri.lighttodo.domain.todo.TodoInput
+import com.zahri.lighttodo.domain.todo.TodoReminderDefaults
+import com.zahri.lighttodo.usecase.todo.DeleteTodoUseCase
+import com.zahri.lighttodo.usecase.todo.LoadTodoEditUseCase
+import com.zahri.lighttodo.usecase.todo.SaveTodoUseCase
+import com.zahri.lighttodo.usecase.todo.TodoEditSnapshot
+import com.zahri.lighttodo.usecase.todo.TodoEditTagOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -32,7 +30,7 @@ data class EditUiState(
     val defaultHoursBefore: Int = 2,
     val defaultRemindLabel: String = "09:00",
     val tagName: String = "",
-    val allTags: List<TagEntity> = emptyList(),
+    val allTags: List<TodoEditTagOption> = emptyList(),
     val readOnly: Boolean = false
 ) {
     val hasReminder: Boolean
@@ -40,10 +38,9 @@ data class EditUiState(
 }
 
 class EditViewModel(
-    private val repo: Repository = App.instance.repository,
-    private val prefs: UserPrefs = App.instance.prefs,
-    private val tagDao: TagDao = App.instance.db.tagDao(),
-    private val todoDao: TodoDao = App.instance.db.todoDao()
+    private val loadTodoEdit: LoadTodoEditUseCase,
+    private val saveTodo: SaveTodoUseCase,
+    private val deleteTodo: DeleteTodoUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditUiState())
@@ -51,41 +48,7 @@ class EditViewModel(
 
     fun load(id: Long?, initialTitle: String?) {
         viewModelScope.launch {
-            val p = prefs.flow.first()
-            val tags = tagDao.listAll()
-            val label = "%02d:%02d".format(p.defaultRemindHour, p.defaultRemindMinute)
-            if (id != null) {
-                val t = todoDao.findById(id) ?: return@launch
-                val tag = t.tagId?.let { tags.firstOrNull { tg -> tg.id == it } }
-                _state.value = EditUiState(
-                    id = t.id,
-                    title = t.title.orEmpty(),
-                    note = t.note.orEmpty(),
-                    date = t.date?.let {
-                        LocalDate.of(it / 10000, (it / 100) % 100, it % 100)
-                    },
-                    startTime = if (t.startHour != null && t.startMinute != null)
-                        t.startHour to t.startMinute else null,
-                    endTime = if (t.deadlineHour != null && t.deadlineMinute != null)
-                        t.deadlineHour to t.deadlineMinute else null,
-                    customHoursBefore = t.customRemindHoursBefore,
-                    defaultHoursBefore = p.defaultHoursBefore,
-                    defaultRemindLabel = label,
-                    tagName = tag?.name.orEmpty(),
-                    allTags = tags,
-                    readOnly = t.calendarEventId != null && !t.calendarCreatedByApp
-                )
-            } else {
-                _state.value = EditUiState(
-                    id = null,
-                    title = initialTitle.orEmpty(),
-                    // 新建任务默认带日期=今天，与历史行为一致；用户可通过"设置日期"开关切到无日期。
-                    date = LocalDate.now(),
-                    defaultHoursBefore = p.defaultHoursBefore,
-                    defaultRemindLabel = label,
-                    allTags = tags
-                )
-            }
+            _state.value = loadTodoEdit(id, initialTitle)?.toUiState() ?: return@launch
         }
     }
 
@@ -161,7 +124,7 @@ class EditViewModel(
         val s = _state.value
         if (s.readOnly) return
         viewModelScope.launch {
-            repo.saveTodo(
+            saveTodo(
                 TodoInput(
                     id = s.id,
                     title = s.title,
@@ -182,6 +145,22 @@ class EditViewModel(
 
     fun delete() {
         val id = _state.value.id ?: return
-        viewModelScope.launch { repo.delete(id) }
+        viewModelScope.launch { deleteTodo.delete(id) }
     }
 }
+
+private fun TodoEditSnapshot.toUiState(): EditUiState =
+    EditUiState(
+        id = id,
+        title = title,
+        note = note,
+        date = date,
+        startTime = startTime,
+        endTime = endTime,
+        customHoursBefore = customHoursBefore,
+        defaultHoursBefore = defaultHoursBefore,
+        defaultRemindLabel = defaultRemindLabel,
+        tagName = tagName,
+        allTags = allTags,
+        readOnly = readOnly
+    )

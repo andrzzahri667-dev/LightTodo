@@ -55,11 +55,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.BuildConfig
 import com.zahri.lighttodo.PermissionRequestPolicy
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
+fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel(factory = lightTodoViewModelFactory())) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
     var feedbackMessage by remember { mutableStateOf<String?>(null) }

@@ -21,12 +21,11 @@ class BootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         app.appScope.launch(Dispatchers.IO) {
             try {
-                app.repository.rescheduleAllAlarms()
-                val snap = app.prefs.snapshot()
-                if (snap.quickAddNotifEnabled) {
+                val actions = app.container.handleBootCompleted()
+                if (actions.startQuickAddService) {
                     QuickAddService.start(context)
                 }
-                if (snap.calendarSyncEnabled) {
+                if (actions.syncCalendar) {
                     // observer registration happens in App.onCreate (process start);
                     // here we just make sure existing events are pulled in promptly.
                     try {

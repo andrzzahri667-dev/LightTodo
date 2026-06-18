@@ -17,6 +17,9 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputConnectionWrapper
 import android.widget.EditText
+import com.zahri.lighttodo.domain.markdown.MarkdownKeyboardDeletePolicy
+import com.zahri.lighttodo.domain.markdown.MarkdownTextTransforms
+import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 
 /**
  * EditText that applies Markdown spans in real-time.
@@ -31,6 +34,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
     var linkClickCallback: ((String) -> Unit)? = null
     var selectionChangedCallback: ((Int, Int) -> Unit)? = null
     var deletePreviousMediaCallback: (() -> Boolean)? = null
+    var attachmentResolver: NoteAttachmentResolver? = null
 
     private var isApplyingSpans = false
     private var pendingNewlineIndex: Int? = null
@@ -74,7 +78,12 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 isApplyingSpans = true
                 try {
                     applyPendingListContinuation(s)
-                    MarkdownSpanApplier.apply(s, selectionStart.takeIf { it >= 0 }, context)
+                    MarkdownSpanApplier.apply(
+                        editable = s,
+                        activeOffset = selectionStart.takeIf { it >= 0 },
+                        context = context,
+                        resolveAttachment = attachmentResolver
+                    )
                     contentUpdateCallback?.invoke(s.toString())
                 } finally {
                     isApplyingSpans = false
@@ -89,7 +98,12 @@ class MarkdownEditText(context: Context) : EditText(context) {
         selectionChangedCallback?.invoke(selStart.coerceAtLeast(0), selEnd.coerceAtLeast(0))
         isApplyingSpans = true
         try {
-            MarkdownSpanApplier.apply(editableText, selStart.takeIf { it >= 0 }, context)
+            MarkdownSpanApplier.apply(
+                editable = editableText,
+                activeOffset = selStart.takeIf { it >= 0 },
+                context = context,
+                resolveAttachment = attachmentResolver
+            )
         } finally {
             isApplyingSpans = false
         }
@@ -155,7 +169,12 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 val toggled = MarkdownTextTransforms.toggleTaskListLine(line)
                 if (toggled != null) {
                     editableText.replace(lineStart, lineEnd, toggled)
-                    MarkdownSpanApplier.apply(editableText, selectionStart.takeIf { it >= 0 }, context)
+                    MarkdownSpanApplier.apply(
+                        editable = editableText,
+                        activeOffset = selectionStart.takeIf { it >= 0 },
+                        context = context,
+                        resolveAttachment = attachmentResolver
+                    )
                     return true
                 }
             }
@@ -216,7 +235,12 @@ class MarkdownEditText(context: Context) : EditText(context) {
         try {
             val sel = selectionStart.coerceAtMost(text.length).coerceAtLeast(0)
             setText(text)
-            MarkdownSpanApplier.apply(editableText, sel, context)
+            MarkdownSpanApplier.apply(
+                editable = editableText,
+                activeOffset = sel,
+                context = context,
+                resolveAttachment = attachmentResolver
+            )
             setSelection(sel)
         } finally {
             isApplyingSpans = false

@@ -3,16 +3,15 @@ package com.zahri.lighttodo.feature.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.NoteEntity
-import com.zahri.lighttodo.data.NoteDao
-import com.zahri.lighttodo.data.Repository
-import com.zahri.lighttodo.data.TodoEntity
-import com.zahri.lighttodo.data.UserPrefs
-import com.zahri.lighttodo.feature.noteeditor.NoteAttachmentMarkdown
-import com.zahri.lighttodo.feature.noteeditor.NoteAttachmentStore
-import com.zahri.lighttodo.util.DateUtils
+import com.zahri.lighttodo.usecase.note.DeleteNoteUseCase
+import com.zahri.lighttodo.usecase.note.NoteListItem
+import com.zahri.lighttodo.usecase.note.ObserveNotesUseCase
+import com.zahri.lighttodo.usecase.todo.CompleteTodoUseCase
+import com.zahri.lighttodo.usecase.todo.DeleteTodoUseCase
+import com.zahri.lighttodo.usecase.todo.HomeTodo
+import com.zahri.lighttodo.usecase.todo.ObserveHomeUseCase
+import com.zahri.lighttodo.usecase.todo.UpdateHomePreferencesUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,25 +24,29 @@ import kotlinx.coroutines.launch
 data class TagGroup(
     val tagId: Long?,
     val name: String,
-    val items: List<TodoEntity>
+    val items: List<HomeTodo>
 )
 
 data class HomeUiState(
     val groups: List<TagGroup>,
-    val doneItems: List<TodoEntity>,
+    val doneItems: List<HomeTodo>,
     val collapsedTagIds: Set<String>,
     val doneExpanded: Boolean
 )
 
 class HomeViewModel(
-    private val appContext: Context = App.instance,
-    private val repo: Repository = App.instance.repository,
-    private val prefs: UserPrefs = App.instance.prefs,
-    private val noteDao: NoteDao = App.instance.db.noteDao()
+    context: Context,
+    observeHome: ObserveHomeUseCase,
+    private val completeTodo: CompleteTodoUseCase,
+    private val deleteTodo: DeleteTodoUseCase,
+    private val updateHomePreferences: UpdateHomePreferencesUseCase,
+    observeNotes: ObserveNotesUseCase,
+    private val deleteNote: DeleteNoteUseCase
 ) : ViewModel() {
+    private val appContext: Context = runCatching { context.applicationContext }.getOrNull() ?: context
 
     val state: StateFlow<HomeUiState> =
-        repo.homeFlow().distinctUntilChanged().map { data ->
+        observeHome().distinctUntilChanged().map { data ->
             buildHomeUiState(
                 data = data,
                 uncategorizedTitle = appContext.getString(R.string.home_uncategorized)
@@ -56,8 +59,8 @@ class HomeViewModel(
             )
 
     // ── Notes ────────────────────────────────────────────────
-    val notes: StateFlow<List<NoteEntity>> =
-        noteDao.observeAll()
+    val notes: StateFlow<List<NoteListItem>> =
+        observeNotes()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
 
     private val _noteSelectedIds = MutableStateFlow<Set<Long>>(emptySet())
@@ -75,14 +78,7 @@ class HomeViewModel(
         val ids = _noteSelectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            noteDao.findByIds(ids).forEach { note ->
-                NoteAttachmentStore.deleteRefs(appContext, NoteAttachmentMarkdown.refsIn(note.content))
-            }
-            noteDao.deleteByIds(ids)
-            val refs = noteDao.listAll()
-                .flatMap { NoteAttachmentMarkdown.refsIn(it.content) }
-                .toSet()
-            NoteAttachmentStore.deleteUnreferenced(appContext, refs)
+            deleteNote.deleteMany(ids)
             _noteSelectedIds.value = emptySet()
         }
     }
@@ -93,7 +89,7 @@ class HomeViewModel(
      */
     fun toggleDone(id: Long, done: Boolean) {
         if (!done) {
-            viewModelScope.launch { repo.setDone(id, false) }
+            viewModelScope.launch { completeTodo(id, false) }
             return
         }
         // 已经在动画中,忽略重复点击
@@ -101,25 +97,27 @@ class HomeViewModel(
         _pendingCompleteIds.value = _pendingCompleteIds.value + id
         viewModelScope.launch {
             kotlinx.coroutines.delay(320)
-            repo.setDone(id, true)
+            completeTodo(id, true)
             _pendingCompleteIds.value = _pendingCompleteIds.value - id
         }
     }
 
     fun setGroupExpanded(key: String, expanded: Boolean) {
         viewModelScope.launch {
-            val cur = state.value.collapsedTagIds.toMutableSet()
-            if (expanded) cur -= key else cur += key
-            prefs.setCollapsedTagIds(cur)
+            updateHomePreferences.setGroupExpanded(
+                currentCollapsedTagIds = state.value.collapsedTagIds,
+                key = key,
+                expanded = expanded
+            )
         }
     }
 
     fun setDoneExpanded(expanded: Boolean) {
-        viewModelScope.launch { prefs.setDoneSectionExpanded(expanded) }
+        viewModelScope.launch { updateHomePreferences.setDoneExpanded(expanded) }
     }
 
     fun delete(id: Long) {
-        viewModelScope.launch { repo.delete(id) }
+        viewModelScope.launch { deleteTodo.delete(id) }
     }
 
     // ── Batch selection ──────────────────────────────────────
@@ -144,7 +142,7 @@ class HomeViewModel(
         val ids = _selectedIds.value.toList()
         if (ids.isEmpty()) return
         viewModelScope.launch {
-            repo.deleteMany(ids)
+            deleteTodo.deleteMany(ids)
             _selectedIds.value = emptySet()
         }
     }
@@ -153,14 +151,3 @@ class HomeViewModel(
         fun groupKey(tagId: Long?): String = if (tagId == null) "uncat" else "tag-$tagId"
     }
 }
-
-fun TodoEntity.displayTitle(fallback: String): String =
-    title?.takeIf { it.isNotBlank() }
-        ?: note?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
-        ?: fallback
-
-fun TodoEntity.displayTitle(context: android.content.Context): String =
-    displayTitle(fallback = context.getString(R.string.home_no_title))
-
-fun TodoEntity.dateLabel(): String = DateUtils.displayDateOrEmpty(date)
-fun TodoEntity.isOverdueDate(): Boolean = !done && DateUtils.isOverdueOrFalse(date)

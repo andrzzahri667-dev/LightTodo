@@ -3,6 +3,7 @@ package com.zahri.lighttodo.feature.quickadd
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -41,14 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.lifecycleScope
-import com.zahri.lighttodo.App
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.data.TodoInput
+import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * 半透明对话框风格的 Activity。从通知或小组件 + 按钮拉起。
@@ -60,6 +58,9 @@ import kotlinx.coroutines.launch
  *  - LaunchedEffect 中 delay 一帧再 requestFocus + keyboardController.show()
  */
 class QuickAddActivity : ComponentActivity() {
+    private val quickAddViewModel: QuickAddViewModel by viewModels {
+        lightTodoViewModelFactory(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,18 +77,7 @@ class QuickAddActivity : ComponentActivity() {
             LightTodoTheme {
                 QuickAddDialog(
                     onSave = { text ->
-                        if (text.isNotBlank()) {
-                            lifecycleScope.launch {
-                                App.instance.repository.saveTodo(
-                                    TodoInput(
-                                        title = text,
-                                        note = null
-                                        // year/month/day 全部 null = 无日期任务
-                                    )
-                                )
-                                finish()
-                            }
-                        } else finish()
+                        quickAddViewModel.save(text) { finish() }
                     },
                     onCancel = { finish() }
                 )

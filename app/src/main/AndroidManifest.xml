@@ -132,15 +132,16 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="miui.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.zahri.lighttodo.WIDGET_TOGGLE_DONE" />
-                <action android:name="com.zahri.lighttodo.WIDGET_ITEM_CLICK" />
-                <action android:name="com.zahri.lighttodo.WIDGET_REFRESH" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info" />
 
         </receiver>
+
+        <receiver
+            android:name=".integration.widget.WidgetActionReceiver"
+            android:exported="false" />
 
 
     </application>

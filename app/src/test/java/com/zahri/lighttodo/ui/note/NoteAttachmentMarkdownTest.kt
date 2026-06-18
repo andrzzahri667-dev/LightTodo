@@ -1,5 +1,6 @@
-package com.zahri.lighttodo.feature.noteeditor
+package com.zahri.lighttodo.domain.note
 
+import com.zahri.lighttodo.feature.noteeditor.MarkdownSpanApplier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

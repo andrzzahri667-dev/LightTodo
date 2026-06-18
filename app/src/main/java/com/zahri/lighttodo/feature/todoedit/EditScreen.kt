@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.ui.theme.AppType
 
 @Composable
@@ -50,7 +51,7 @@ fun EditScreen(
     onBack: () -> Unit,
     initialTitle: String? = null,
     onRequestExactAlarmPermission: (Boolean) -> Unit = {},
-    vm: EditViewModel = viewModel()
+    vm: EditViewModel = viewModel(factory = lightTodoViewModelFactory())
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     var showFromPicker by remember { mutableStateOf(false) }

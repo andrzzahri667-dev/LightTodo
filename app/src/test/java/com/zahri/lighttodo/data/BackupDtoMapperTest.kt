@@ -1,5 +1,9 @@
-package com.zahri.lighttodo.data
+package com.zahri.lighttodo.data.backup
 
+import com.zahri.lighttodo.data.local.NoteEntity
+import com.zahri.lighttodo.data.local.TagEntity
+import com.zahri.lighttodo.domain.backup.BackupBundle
+import com.zahri.lighttodo.domain.backup.BackupNote
 import com.zahri.lighttodo.test.sourceFile
 
 import org.junit.Assert.assertEquals
@@ -59,9 +63,9 @@ class BackupDtoMapperTest {
 
     @Test
     fun backupTodoDtoIncludesCalendarCreatedByAppFlag() {
-        val entitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Entities.kt")
+        val entitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/local/Entities.kt")
             .readText()
-        val mapperSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupDtoMapper.kt")
+        val mapperSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupDtoMapper.kt")
             .readText()
 
         assertTrue(entitySource.contains("val calendarCreatedByApp: Boolean = false"))

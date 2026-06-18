@@ -5,14 +5,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.zahri.lighttodo.data.TodoEntity
+import com.zahri.lighttodo.domain.reminder.ReminderRequestCodePolicy
+import com.zahri.lighttodo.usecase.todo.TodoRecord
 
 object ReminderScheduler {
 
     private const val EXTRA_TODO_ID = "todo_id"
     const val EXTRA_IS_START = "is_start"
 
-    fun schedule(context: Context, todo: TodoEntity, isStart: Boolean) {
+    fun schedule(context: Context, todo: TodoRecord, isStart: Boolean) {
         val triggerAt = if (isStart) todo.remindStartAtMillis ?: return else todo.remindAtMillis ?: return
         val am = context.getSystemService(AlarmManager::class.java) ?: return
         val pi = pendingIntentFor(context, todo.id, isStart)

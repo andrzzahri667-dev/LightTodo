@@ -1,8 +1,10 @@
 package com.zahri.lighttodo.feature.noteeditor
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import java.io.File
+
+typealias NoteAttachmentResolver = (String) -> File?
 
 data class LoadedNoteImage(
     val bitmap: Bitmap,
@@ -31,12 +33,12 @@ object NoteImageDecodePolicy {
 }
 
 fun loadNoteImage(
-    context: Context,
     ref: String,
     targetWidthPx: Int,
-    targetHeightPx: Int? = null
+    targetHeightPx: Int? = null,
+    resolveAttachment: NoteAttachmentResolver
 ): LoadedNoteImage? {
-    val file = NoteAttachmentStore.resolve(context, ref) ?: return null
+    val file = resolveAttachment(ref) ?: return null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.absolutePath, bounds)
     val sourceWidth = bounds.outWidth.takeIf { it > 0 } ?: return null

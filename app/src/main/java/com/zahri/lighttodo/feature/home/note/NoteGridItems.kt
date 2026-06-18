@@ -1,7 +1,7 @@
 package com.zahri.lighttodo.feature.home.note
 
-import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.feature.noteeditor.MarkdownSpanApplier
+import com.zahri.lighttodo.usecase.note.NoteListItem
 
 data class NoteGridItem(
     val id: Long,
@@ -11,13 +11,13 @@ data class NoteGridItem(
     val showEmptyPlaceholder: Boolean
 )
 
-fun buildNoteGridItems(notes: List<NoteEntity>): List<NoteGridItem> =
+fun buildNoteGridItems(notes: List<NoteListItem>): List<NoteGridItem> =
     notes.map(::buildNoteGridItem)
 
 class NoteGridItemMemoizer {
     private val cache = mutableMapOf<NoteGridItemCacheKey, NoteGridItem>()
 
-    fun itemsFor(notes: List<NoteEntity>): List<NoteGridItem> {
+    fun itemsFor(notes: List<NoteListItem>): List<NoteGridItem> {
         val liveKeys = notes.map { it.cacheKey() }.toSet()
         cache.keys.retainAll(liveKeys)
         return notes.map { note ->
@@ -26,7 +26,7 @@ class NoteGridItemMemoizer {
     }
 }
 
-private fun buildNoteGridItem(note: NoteEntity): NoteGridItem {
+private fun buildNoteGridItem(note: NoteListItem): NoteGridItem {
     val title = note.title?.takeIf { it.isNotBlank() }
     val preview = note.content
         .takeIf { it.isNotBlank() }
@@ -48,5 +48,5 @@ private data class NoteGridItemCacheKey(
     val content: String
 )
 
-private fun NoteEntity.cacheKey(): NoteGridItemCacheKey =
+private fun NoteListItem.cacheKey(): NoteGridItemCacheKey =
     NoteGridItemCacheKey(id = id, title = title, content = content)
