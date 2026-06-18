@@ -92,6 +92,41 @@ class ArchitectureDependencySourceTest {
     }
 
     @Test
+    fun rootRepositoryAggregateHasBeenSplitByUseCaseBoundary() {
+        assertFalse(sourcePath("app/src/main/java/com/zahri/lighttodo/data/Repository.kt").exists())
+        assertTrue(sourceFile("app/src/main/java/com/zahri/lighttodo/data/todo/TodoRepositoryImpl.kt").readText().contains("class TodoRepositoryImpl"))
+        assertTrue(sourceFile("app/src/main/java/com/zahri/lighttodo/data/calendar/CalendarSyncRepositoryImpl.kt").readText().contains("class CalendarSyncRepositoryImpl"))
+    }
+
+    @Test
+    fun dataLayerUsesFileGatewayInsteadOfAndroidFileProviders() {
+        val dataDir = sourcePath("app/src/main/java/com/zahri/lighttodo/data")
+        val forbiddenImports = listOf(
+            "import android.provider.MediaStore",
+            "import android.provider.DocumentsContract",
+            "import android.os.Environment",
+            "import androidx.core.content.FileProvider",
+            "import android.webkit.MimeTypeMap"
+        )
+        val offenders = dataDir
+            .walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .mapNotNull { file ->
+                val source = file.readText()
+                val imports = forbiddenImports.filter { it in source }
+                if (imports.isNotEmpty()) "${file.relativeTo(dataDir).path}: $imports" else null
+            }
+            .toList()
+        val fileGatewaySource = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/file/AndroidFileGateway.kt").readText()
+
+        assertTrue("data file IO must go through FileGateway: $offenders", offenders.isEmpty())
+        assertTrue(fileGatewaySource.contains("class AndroidFileGateway"))
+        assertTrue(fileGatewaySource.contains("FileProvider.getUriForFile"))
+        assertTrue(fileGatewaySource.contains("MediaStore.Files.getContentUri"))
+        assertTrue(fileGatewaySource.contains("DocumentsContract"))
+    }
+
+    @Test
     fun todoUseCasesCoordinateSystemSideEffects() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/usecase/todo/TodoUseCases.kt").readText()
 
