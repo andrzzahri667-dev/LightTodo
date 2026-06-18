@@ -31,7 +31,7 @@ class CalendarBidirectionalSourceTest {
     fun appCreatedCalendarTodosRemainEditable() {
         val entitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Entities.kt")
             .readText()
-        val editSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/EditViewModel.kt")
+        val editSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/todoedit/EditViewModel.kt")
             .readText()
         val repositorySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Repository.kt")
             .readText()

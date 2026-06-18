@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.edit
+package com.zahri.lighttodo.feature.todoedit
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -9,8 +9,8 @@ import org.junit.Test
 class WheelPickerMotionSourceTest {
     @Test
     fun wheelPickerUsesCentralAppMotionForItemAlpha() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/WheelPicker.kt").readText()
-        val dateTimeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/EditDateTimePicker.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/todoedit/WheelPicker.kt").readText()
+        val dateTimeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/todoedit/EditDateTimePicker.kt").readText()
         val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/WheelPickerItemMotion.kt").readText()
         val policySource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/WheelPickerMotionPolicy.kt").readText()
 
@@ -40,7 +40,7 @@ class WheelPickerMotionSourceTest {
         assertFalse(source.contains("WheelPickerMotionPolicy.alphaForProximity"))
         assertFalse(source.contains("AppMotion.PickerItemAlphaMillis"))
         assertFalse(source.contains("import androidx.compose.animation.core.Animatable"))
-        assertFalse(source.contains("package com.zahri.lighttodo.ui.edit\n\nobject WheelPickerMotionPolicy"))
+        assertFalse(source.contains("package com.zahri.lighttodo.feature.todoedit\n\nobject WheelPickerMotionPolicy"))
         assertFalse(source.contains("tween(durationMillis = 150)"))
         assertFalse(source.contains("val targetAlpha = if (isSelected) 1f else 0.4f"))
         assertTrue(componentSource.contains("animateFloatAsState"))

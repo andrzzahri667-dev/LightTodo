@@ -23,7 +23,7 @@ class MainActivityExactAlarmSourceTest {
     fun editSaveCanRequestExactAlarmSettingsWhenTodoHasReminder() {
         val activitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/MainActivity.kt")
             .readText()
-        val editSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/EditScreen.kt")
+        val editSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/todoedit/EditScreen.kt")
             .readText()
 
         assertTrue(activitySource.contains("onRequestExactAlarmPermission"))

@@ -256,7 +256,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel()) {
 
     // ── Default reminder time picker ─────────────────────────────
     if (showRemindTimePicker) {
-        com.zahri.lighttodo.ui.edit.WheelTimePickerDialog(
+        com.zahri.lighttodo.feature.todoedit.WheelTimePickerDialog(
             title = stringResource(R.string.settings_default_remind_time_short),
             initialHour = state.defaultRemindHour,
             initialMinute = state.defaultRemindMinute,

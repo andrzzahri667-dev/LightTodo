@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.edit
+package com.zahri.lighttodo.feature.todoedit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

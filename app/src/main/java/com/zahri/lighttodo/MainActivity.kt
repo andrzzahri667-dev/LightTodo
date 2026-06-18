@@ -30,7 +30,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.zahri.lighttodo.ui.edit.EditScreen
+import com.zahri.lighttodo.feature.todoedit.EditScreen
 import com.zahri.lighttodo.feature.home.HomeScreen
 import com.zahri.lighttodo.ui.motion.components.NoteSourceVisibilityMotion
 import com.zahri.lighttodo.ui.motion.components.motionRouteEnterTransition

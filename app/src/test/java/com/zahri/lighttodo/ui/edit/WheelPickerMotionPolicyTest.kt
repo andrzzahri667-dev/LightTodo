@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.edit
+package com.zahri.lighttodo.feature.todoedit
 
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 import androidx.compose.ui.graphics.Color
