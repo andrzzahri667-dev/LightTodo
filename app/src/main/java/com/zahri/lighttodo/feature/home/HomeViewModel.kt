@@ -10,8 +10,8 @@ import com.zahri.lighttodo.data.NoteDao
 import com.zahri.lighttodo.data.Repository
 import com.zahri.lighttodo.data.TodoEntity
 import com.zahri.lighttodo.data.UserPrefs
-import com.zahri.lighttodo.ui.note.NoteAttachmentMarkdown
-import com.zahri.lighttodo.ui.note.NoteAttachmentStore
+import com.zahri.lighttodo.feature.noteeditor.NoteAttachmentMarkdown
+import com.zahri.lighttodo.feature.noteeditor.NoteAttachmentStore
 import com.zahri.lighttodo.util.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

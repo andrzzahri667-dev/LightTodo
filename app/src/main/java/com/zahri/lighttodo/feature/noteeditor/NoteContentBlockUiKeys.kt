@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 object NoteContentBlockUiKeys {
     fun keyFor(index: Int, block: NoteContentBlock): String =

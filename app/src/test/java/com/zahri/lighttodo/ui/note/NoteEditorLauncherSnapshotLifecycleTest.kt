@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -9,7 +9,7 @@ import org.junit.Test
 class NoteEditorLauncherSnapshotLifecycleTest {
     @Test
     fun miuiSnapshotIsNotRecycledImmediatelyAfterBundleHandoff() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditorLauncher.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditorLauncher.kt")
             .readText()
 
         assertTrue(

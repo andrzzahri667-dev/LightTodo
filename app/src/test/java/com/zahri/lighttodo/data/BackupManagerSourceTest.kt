@@ -133,7 +133,7 @@ class BackupManagerSourceTest {
 
     @Test
     fun portableAttachmentImportCreatesUniqueFilesInsteadOfOverwritingByOriginalName() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteAttachmentStore.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteAttachmentStore.kt").readText()
         val importFunction = source.substringAfter("fun importAttachment(").substringBefore("\n    fun resolve")
 
         assertTrue(importFunction.contains("uniqueImportedFile("))

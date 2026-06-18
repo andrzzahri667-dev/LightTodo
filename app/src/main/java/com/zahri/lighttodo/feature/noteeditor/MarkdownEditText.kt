@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 import android.content.ClipboardManager
 import android.content.Context

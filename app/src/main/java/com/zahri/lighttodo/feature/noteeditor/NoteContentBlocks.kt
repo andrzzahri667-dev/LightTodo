@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 sealed interface NoteContentBlock {
     data class Text(val text: String) : NoteContentBlock

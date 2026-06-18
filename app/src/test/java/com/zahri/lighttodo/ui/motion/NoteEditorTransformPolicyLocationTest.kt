@@ -11,7 +11,7 @@ class NoteEditorTransformPolicyLocationTest {
     @Test
     fun noteEditorTransformPolicyLivesInMotionPackage() {
         val motionSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/NoteEditorContainerTransformPolicy.kt").readText()
-        val noteSource = File(sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditorWindowPolicy.kt").parentFile, "NoteEditorContainerTransformPolicy.kt")
+        val noteSource = File(sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditorWindowPolicy.kt").parentFile, "NoteEditorContainerTransformPolicy.kt")
 
         assertTrue(motionSource.startsWith("package com.zahri.lighttodo.ui.motion"))
         assertTrue(motionSource.contains("object NoteEditorContainerTransformPolicy"))

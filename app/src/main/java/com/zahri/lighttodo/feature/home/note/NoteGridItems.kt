@@ -1,7 +1,7 @@
 package com.zahri.lighttodo.feature.home.note
 
 import com.zahri.lighttodo.data.NoteEntity
-import com.zahri.lighttodo.ui.note.MarkdownSpanApplier
+import com.zahri.lighttodo.feature.noteeditor.MarkdownSpanApplier
 
 data class NoteGridItem(
     val id: Long,

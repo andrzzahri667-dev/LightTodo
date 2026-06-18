@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 data class NoteSourceAnimationKey private constructor(private val noteId: Long?) {
     fun matches(noteId: Long?): Boolean = this.noteId == noteId

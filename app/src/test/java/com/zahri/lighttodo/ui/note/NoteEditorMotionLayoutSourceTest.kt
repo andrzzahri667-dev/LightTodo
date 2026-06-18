@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -9,7 +9,7 @@ import org.junit.Test
 class NoteEditorMotionLayoutSourceTest {
     @Test
     fun customContainerTransformUsesMotionLayoutFallbackEngine() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditActivity.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditActivity.kt")
             .readText()
         val hostSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteEditorTransformHost.kt")
             .readText()

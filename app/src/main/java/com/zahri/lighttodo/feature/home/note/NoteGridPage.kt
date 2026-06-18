@@ -37,8 +37,8 @@ import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.ui.motion.components.motionNoteGridItem
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionNoteCardSelectionColor
-import com.zahri.lighttodo.ui.note.NoteEmptyPlaceholder
-import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
+import com.zahri.lighttodo.feature.noteeditor.NoteEmptyPlaceholder
+import com.zahri.lighttodo.feature.noteeditor.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 

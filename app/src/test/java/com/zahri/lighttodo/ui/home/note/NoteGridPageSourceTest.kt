@@ -20,8 +20,8 @@ class NoteGridPageSourceTest {
     @Test
     fun emptyNotePlaceholderIsSharedBetweenGridAndEditorPreview() {
         val gridSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
-        val editorSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditActivity.kt").readText()
-        val placeholderSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEmptyPlaceholder.kt").readText()
+        val editorSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditActivity.kt").readText()
+        val placeholderSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEmptyPlaceholder.kt").readText()
 
         assertTrue(gridSource.contains("NoteEmptyPlaceholder()"))
         assertTrue(editorSource.contains("NoteEmptyPlaceholder()"))

@@ -7,8 +7,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import com.zahri.lighttodo.ui.note.NoteAttachmentMarkdown
-import com.zahri.lighttodo.ui.note.NoteAttachmentStore
+import com.zahri.lighttodo.feature.noteeditor.NoteAttachmentMarkdown
+import com.zahri.lighttodo.feature.noteeditor.NoteAttachmentStore
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

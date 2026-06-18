@@ -49,8 +49,8 @@ import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.motionPressScaleLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionPressScale
-import com.zahri.lighttodo.ui.note.NoteEditLaunchSeed
-import com.zahri.lighttodo.ui.note.NoteSourceAnimationKey
+import com.zahri.lighttodo.feature.noteeditor.NoteEditLaunchSeed
+import com.zahri.lighttodo.feature.noteeditor.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
 import kotlinx.coroutines.launch

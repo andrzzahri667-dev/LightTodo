@@ -9,7 +9,7 @@ import org.junit.Test
 class MotionContentSizeSourceTest {
     @Test
     fun noteContentSizeMotionIsCentralizedOutsideEditorScreen() {
-        val noteSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditScreen.kt").readText()
+        val noteSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditScreen.kt").readText()
         val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionContentSize.kt").readText()
 
         assertTrue(noteSource.contains("import com.zahri.lighttodo.ui.motion.components.motionNoteContentSize"))

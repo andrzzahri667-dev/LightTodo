@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -14,7 +14,7 @@ class NoteEditorWindowThemeTest {
         val manifest = xmlDocument(sourceFile("app/src/main/AndroidManifest.xml"))
         val noteActivity = manifest.getElementsByTagName("activity")
             .asElements()
-            .first { it.getAttribute("android:name") == ".ui.note.NoteEditActivity" }
+            .first { it.getAttribute("android:name") == ".feature.noteeditor.NoteEditActivity" }
 
         assertEquals("@style/Theme.LightTodo.NoteTransform", noteActivity.getAttribute("android:theme"))
     }

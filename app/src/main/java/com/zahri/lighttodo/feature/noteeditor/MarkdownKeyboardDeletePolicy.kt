@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 internal object MarkdownKeyboardDeletePolicy {
     fun shouldRequestPreviousMediaDelete(

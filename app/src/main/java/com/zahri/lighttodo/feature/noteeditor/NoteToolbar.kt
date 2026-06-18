@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.note
+package com.zahri.lighttodo.feature.noteeditor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

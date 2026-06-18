@@ -23,7 +23,7 @@ class AccessibilitySourceTest {
 
     @Test
     fun audioPlayPauseButtonHasContentDescription() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditScreen.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditScreen.kt").readText()
 
         assertTrue(source.contains("if (playing) R.string.note_audio_pause else R.string.note_audio_play"))
     }

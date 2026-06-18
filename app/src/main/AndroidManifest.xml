@@ -55,7 +55,7 @@
         </activity>
 
         <activity
-            android:name=".ui.note.NoteEditActivity"
+            android:name=".feature.noteeditor.NoteEditActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.LightTodo.NoteTransform" />
