@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.settings
+package com.zahri.lighttodo.feature.settings
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -10,7 +10,7 @@ class SettingsScreenSourceTest {
 
     @Test
     fun feedbackUsesSnackbarOverlayInsteadOfInlineLayoutText() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/settings/SettingsScreen.kt")
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/settings/SettingsScreen.kt")
             .readText()
 
         assertTrue(source.contains("SnackbarHostState"))

@@ -43,7 +43,7 @@ import com.zahri.lighttodo.feature.noteeditor.NoteEditorLauncher
 import com.zahri.lighttodo.feature.noteeditor.NoteScaleDownUpdateAction
 import com.zahri.lighttodo.feature.noteeditor.NoteScaleDownUpdatePolicy
 import com.zahri.lighttodo.feature.noteeditor.NoteSourceAnimationKey
-import com.zahri.lighttodo.ui.settings.SettingsScreen
+import com.zahri.lighttodo.feature.settings.SettingsScreen
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 import kotlinx.coroutines.launch

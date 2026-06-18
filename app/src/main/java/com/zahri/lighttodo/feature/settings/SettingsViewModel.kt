@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.settings
+package com.zahri.lighttodo.feature.settings
 
 import android.content.Context
 import android.net.Uri

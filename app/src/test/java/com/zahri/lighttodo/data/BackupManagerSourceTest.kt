@@ -28,8 +28,8 @@ class BackupManagerSourceTest {
     fun autoBackupWritesPublicBackupIntoDocumentsNotDownloads() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/BackupManager.kt").readText()
         val portableSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/PortableBackupStore.kt").readText()
-        val settingsSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/settings/SettingsScreen.kt").readText()
-        val settingsViewModelSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/settings/SettingsViewModel.kt").readText()
+        val settingsSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/settings/SettingsScreen.kt").readText()
+        val settingsViewModelSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/settings/SettingsViewModel.kt").readText()
 
         assertTrue(source.contains("writeToAppExternal(bytes)"))
         assertTrue(source.contains("portableBackupStore.write(bundle, settings)"))
