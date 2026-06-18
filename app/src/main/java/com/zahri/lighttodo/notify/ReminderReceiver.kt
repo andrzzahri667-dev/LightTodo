@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.feature.reminder.ReminderActivity
 import com.zahri.lighttodo.feature.home.displayTitle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers

@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.feature.quickadd
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

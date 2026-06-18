@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.feature.quickadd.QuickAddActivity
 
 /**
  * 一个低优先级的常驻前台服务，挂一条"+ 快速添加"通知。

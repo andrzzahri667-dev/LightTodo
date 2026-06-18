@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.notify
+package com.zahri.lighttodo.feature.reminder
 
 import android.content.Intent
 import android.os.Bundle

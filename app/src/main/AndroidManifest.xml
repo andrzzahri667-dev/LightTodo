@@ -62,7 +62,7 @@
 
         <!-- Quick-add transparent activity, opened from the persistent notification -->
         <activity
-            android:name=".notify.QuickAddActivity"
+            android:name=".feature.quickadd.QuickAddActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
@@ -71,7 +71,7 @@
 
         <!-- Full-screen reminder activity -->
         <activity
-            android:name=".notify.ReminderActivity"
+            android:name=".feature.reminder.ReminderActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
