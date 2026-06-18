@@ -9,7 +9,7 @@ import org.junit.Test
 class MotionTransientVisibilitySourceTest {
     @Test
     fun transientVisibilityIsCentralizedOutsideScreens() {
-        val homeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeScreen.kt").readText()
+        val homeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeScreen.kt").readText()
         val noteSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditScreen.kt").readText()
         val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionTransientVisibility.kt").readText()
 

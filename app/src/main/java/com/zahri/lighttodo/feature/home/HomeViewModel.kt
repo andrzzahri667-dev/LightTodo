@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home
+package com.zahri.lighttodo.feature.home
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

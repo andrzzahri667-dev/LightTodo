@@ -9,8 +9,8 @@ import org.junit.Test
 class MotionSelectionAndExpansionSourceTest {
     @Test
     fun selectionColorAndExpansionRotationAreCentralizedOutsideScreens() {
-        val todoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
-        val noteGridSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
+        val todoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeTodoPage.kt").readText()
+        val noteGridSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
         val selectionSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionSelectionColor.kt").readText()
         val expansionSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionExpansionRotation.kt").readText()
 

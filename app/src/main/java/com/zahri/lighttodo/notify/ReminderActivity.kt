@@ -35,7 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.ui.home.displayTitle
+import com.zahri.lighttodo.feature.home.displayTitle
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
 import kotlinx.coroutines.Dispatchers

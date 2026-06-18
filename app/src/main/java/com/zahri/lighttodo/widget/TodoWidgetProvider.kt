@@ -20,8 +20,8 @@ import android.widget.RemoteViews
 import com.zahri.lighttodo.App
 import com.zahri.lighttodo.MainActivity
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.ui.home.dateLabel
-import com.zahri.lighttodo.ui.home.displayTitle
+import com.zahri.lighttodo.feature.home.dateLabel
+import com.zahri.lighttodo.feature.home.displayTitle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

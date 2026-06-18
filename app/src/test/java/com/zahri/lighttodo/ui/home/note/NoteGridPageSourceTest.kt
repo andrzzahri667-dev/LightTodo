@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home.note
+package com.zahri.lighttodo.feature.home.note
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -10,7 +10,7 @@ import org.junit.Test
 class NoteGridPageSourceTest {
     @Test
     fun noteCardsUseMinimumHeightInsteadOfFixedHeight() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
 
         assertTrue(source.contains("private val CARD_MIN_HEIGHT = 160.dp"))
         assertTrue(source.contains(".defaultMinSize(minHeight = CARD_MIN_HEIGHT)"))
@@ -19,7 +19,7 @@ class NoteGridPageSourceTest {
 
     @Test
     fun emptyNotePlaceholderIsSharedBetweenGridAndEditorPreview() {
-        val gridSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
+        val gridSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
         val editorSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEditActivity.kt").readText()
         val placeholderSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/note/NoteEmptyPlaceholder.kt").readText()
 
@@ -32,7 +32,7 @@ class NoteGridPageSourceTest {
 
     @Test
     fun noteGridPlacementUsesCurrentLazyItemMotionApi() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/note/NoteGridPage.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
         val placementSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteGridItemPlacement.kt").readText()
         val selectionSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionSelectionColor.kt").readText()
         val visibilitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/NoteSourceVisibilityMotion.kt").readText()

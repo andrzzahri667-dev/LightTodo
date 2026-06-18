@@ -9,7 +9,7 @@ import org.junit.Test
 class MotionCompletionSettleSourceTest {
     @Test
     fun todoCompletionContentSettleIsCentralizedOutsideTodoRow() {
-        val todoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
+        val todoSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeTodoPage.kt").readText()
         val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionCompletionSettle.kt").readText()
 
         assertTrue(todoSource.contains("import com.zahri.lighttodo.ui.motion.components.rememberMotionCompletionSettle"))

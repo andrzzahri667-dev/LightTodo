@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home.note
+package com.zahri.lighttodo.feature.home.note
 
 import com.zahri.lighttodo.data.NoteEntity
 import com.zahri.lighttodo.ui.note.MarkdownSpanApplier

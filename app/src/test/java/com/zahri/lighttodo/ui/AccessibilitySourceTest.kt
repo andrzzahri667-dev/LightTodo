@@ -8,14 +8,14 @@ import org.junit.Test
 class AccessibilitySourceTest {
     @Test
     fun selectionCloseButtonsHaveContentDescriptions() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeScreen.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeScreen.kt").readText()
 
         assertTrue(source.contains("contentDescription = stringResource(R.string.home_clear_selection)"))
     }
 
     @Test
     fun todoSelectionIndicatorHasStateDescription() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeTodoPage.kt").readText()
 
         assertTrue(source.contains("R.string.home_selected_indicator"))
         assertTrue(source.contains("R.string.home_not_selected_indicator"))

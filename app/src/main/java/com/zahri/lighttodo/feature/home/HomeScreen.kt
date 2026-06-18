@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home
+package com.zahri.lighttodo.feature.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.ui.home.note.NoteGridPage
+import com.zahri.lighttodo.feature.home.note.NoteGridPage
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.motionPressScaleLayer

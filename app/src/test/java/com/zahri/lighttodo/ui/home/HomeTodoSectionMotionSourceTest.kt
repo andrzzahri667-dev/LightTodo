@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home
+package com.zahri.lighttodo.feature.home
 
 import com.zahri.lighttodo.test.sourceFile
 
@@ -9,7 +9,7 @@ import org.junit.Test
 class HomeTodoSectionMotionSourceTest {
     @Test
     fun todoSectionRowsAnimateEnterExitAndPlacement() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeTodoPage.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeTodoPage.kt").readText()
         val visibilitySource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionSectionVisibility.kt").readText()
         val listItemSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionListItemPlacement.kt").readText()
 

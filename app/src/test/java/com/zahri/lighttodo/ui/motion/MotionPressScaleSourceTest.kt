@@ -9,7 +9,7 @@ import org.junit.Test
 class MotionPressScaleSourceTest {
     @Test
     fun pressScaleFeedbackIsCentralizedOutsideHomeScreen() {
-        val homeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeScreen.kt").readText()
+        val homeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeScreen.kt").readText()
         val componentSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionPressScale.kt").readText()
 
         assertTrue(homeSource.contains("import com.zahri.lighttodo.ui.motion.components.rememberMotionPressScale"))

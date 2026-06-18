@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home.note
+package com.zahri.lighttodo.feature.home.note
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background

@@ -1,4 +1,4 @@
-package com.zahri.lighttodo.ui.home
+package com.zahri.lighttodo.feature.home
 
 import com.zahri.lighttodo.data.HomeData
 import com.zahri.lighttodo.data.TagEntity

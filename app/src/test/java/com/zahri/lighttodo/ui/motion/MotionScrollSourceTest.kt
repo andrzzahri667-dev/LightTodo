@@ -10,7 +10,7 @@ class MotionScrollSourceTest {
     @Test
     fun scrollCallsUseComposeApisDirectlyWithoutSingleLineMotionWrappers() {
         val wheelSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/edit/WheelPicker.kt").readText()
-        val homeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/home/HomeScreen.kt").readText()
+        val homeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/HomeScreen.kt").readText()
 
         assertFalse(wheelSource.contains("import com.zahri.lighttodo.ui.motion.components.motionWheelPickerScrollToItem"))
         assertFalse(wheelSource.contains("listState.motionWheelPickerScrollToItem(target)"))
