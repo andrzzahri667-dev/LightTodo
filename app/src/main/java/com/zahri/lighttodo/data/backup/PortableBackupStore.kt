@@ -1,19 +1,14 @@
 package com.zahri.lighttodo.data.backup
 
-import android.content.ContentUris
-import android.content.ContentValues
-import android.content.Context
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import com.zahri.lighttodo.data.prefs.UserPrefs
-import com.zahri.lighttodo.data.note.NoteAttachmentStore
 import com.zahri.lighttodo.domain.backup.BackupBundle
 import com.zahri.lighttodo.domain.backup.BackupNote
 import com.zahri.lighttodo.domain.backup.BackupTag
 import com.zahri.lighttodo.domain.backup.BackupTodo
 import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
+import com.zahri.lighttodo.usecase.file.FileGateway
+import com.zahri.lighttodo.usecase.note.NoteAttachmentGateway
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,7 +16,8 @@ import java.io.ByteArrayInputStream
 import java.io.File
 
 internal class PortableBackupStore(
-    private val context: Context
+    private val fileGateway: FileGateway,
+    private val noteAttachmentGateway: NoteAttachmentGateway
 ) {
     private val json = Json { prettyPrint = true; encodeDefaults = true; ignoreUnknownKeys = true }
 
@@ -128,8 +124,9 @@ internal class PortableBackupStore(
     fun read(): PortableRestore? = runCatching { readUsing(::readBytes) }.getOrNull()
 
     fun readFromTree(treeUri: Uri): PortableRestore? = runCatching {
-        val reader = TreeReader(context, treeUri)
-        readUsing(reader::readBytes)
+        readUsing { subdir, displayName ->
+            fileGateway.readDocumentTreeFile(treeUri, RootDir, subdir, displayName)
+        }
     }.getOrNull()
 
     private fun readUsing(readFile: (String, String) -> ByteArray?): PortableRestore? {
@@ -212,7 +209,7 @@ internal class PortableBackupStore(
     ): String =
         lineSequence().joinToString("\n") { line ->
             val attachment = NoteAttachmentMarkdown.parseLine(line) ?: return@joinToString line
-            val source = NoteAttachmentStore.resolve(context, attachment.ref) ?: return@joinToString line
+            val source = noteAttachmentGateway.resolveAttachment(attachment.ref) ?: return@joinToString line
             val kindDir = attachment.kind.dirName()
             val targetSubdir = "$HiddenAttachmentsDir/$kindDir"
             val legacySubdir = "$AttachmentsDir/$kindDir"
@@ -266,8 +263,7 @@ internal class PortableBackupStore(
                 ?: return@joinToString line
             val internalRef = importedAttachments.getOrPut(portableRef) {
                 val bytes = readFile(importTarget.subdir, importTarget.fileName) ?: return@joinToString line
-                NoteAttachmentStore.importAttachment(
-                    context = context,
+                noteAttachmentGateway.importAttachment(
                     kind = importTarget.kind,
                     fileName = importTarget.fileName,
                     input = ByteArrayInputStream(bytes)
@@ -291,7 +287,7 @@ internal class PortableBackupStore(
         if (usesDirectBackupFile(subdir)) return writeDirectFile(subdir, displayName, bytes)
         return when (BackupStoragePolicy.publicDocumentsMode()) {
             BackupStoragePolicy.PublicDocumentsMode.MediaStore ->
-                writeMediaStoreFile(subdir, displayName, mimeType, bytes)
+                writePublicDocumentFile(subdir, displayName, mimeType, bytes)
             BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
                 writeDirectFile(subdir, displayName, bytes)
         }
@@ -306,29 +302,12 @@ internal class PortableBackupStore(
     }
 
     private fun deleteOrphanNoteFiles(currentNoteFiles: Set<String>) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching {
-                val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                val projection = arrayOf(
-                    MediaStore.MediaColumns._ID,
-                    MediaStore.MediaColumns.DISPLAY_NAME
-                )
-                val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-                val args = arrayOf(relativePath(NotesDir))
-                val ids = mutableListOf<Long>()
-                context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
-                    while (cursor.moveToNext()) {
-                        val displayName = cursor.getString(1).orEmpty()
-                        if (displayName.endsWith(".md") && displayName !in currentNoteFiles) {
-                            ids += cursor.getLong(0)
-                        }
-                    }
+        runCatching {
+            fileGateway.listPublicDocumentFiles(RootDir, NotesDir, requireMimeType = false)
+                .filter { file -> file.displayName.endsWith(".md") && file.displayName !in currentNoteFiles }
+                .forEach { file ->
+                    fileGateway.deletePublicDocumentFile(RootDir, NotesDir, file.displayName)
                 }
-                ids.forEach { id ->
-                    val uri = ContentUris.withAppendedId(collection, id)
-                    context.contentResolver.delete(uri, null, null)
-                }
-            }
         }
         runCatching {
             directDir(NotesDir).listFiles()
@@ -367,58 +346,29 @@ internal class PortableBackupStore(
             "$SanitizedHiddenAttachmentsDir/audio"
         )
         legacyAttachmentSubdirs.forEach { subdir ->
-            deleteLegacyMediaStoreFilesInDir(subdir)
+            deleteLegacyPublicDocumentFilesInDir(subdir)
             deleteLegacyBackupDirContents(subdir)
         }
-        deleteLegacyRootMediaStoreAttachmentFiles()
+        deleteLegacyRootPublicDocumentAttachmentFiles()
         deleteLegacyRootAttachmentFiles()
     }
 
-    private fun deleteLegacyMediaStoreFilesInDir(subdir: String) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+    private fun deleteLegacyPublicDocumentFilesInDir(subdir: String) {
         runCatching {
-            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val projection = arrayOf(MediaStore.MediaColumns._ID)
-            val selection =
-                "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} IS NOT NULL"
-            val args = arrayOf(relativePath(subdir))
-            val ids = mutableListOf<Long>()
-            context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    ids += cursor.getLong(0)
+            fileGateway.listPublicDocumentFiles(RootDir, subdir, requireMimeType = true)
+                .forEach { file ->
+                    fileGateway.deletePublicDocumentFile(RootDir, subdir, file.displayName)
                 }
-            }
-            ids.forEach { id ->
-                val uri = ContentUris.withAppendedId(collection, id)
-                context.contentResolver.delete(uri, null, null)
-            }
         }
     }
 
-    private fun deleteLegacyRootMediaStoreAttachmentFiles() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+    private fun deleteLegacyRootPublicDocumentAttachmentFiles() {
         runCatching {
-            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val projection = arrayOf(
-                MediaStore.MediaColumns._ID,
-                MediaStore.MediaColumns.DISPLAY_NAME
-            )
-            val selection =
-                "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} IS NOT NULL"
-            val args = arrayOf(relativePath(""))
-            val ids = mutableListOf<Long>()
-            context.contentResolver.query(collection, projection, selection, args, null)?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    val displayName = cursor.getString(1).orEmpty()
-                    if (displayName.isLegacyRootAttachmentName()) {
-                        ids += cursor.getLong(0)
-                    }
+            fileGateway.listPublicDocumentFiles(RootDir, "", requireMimeType = true)
+                .filter { it.displayName.isLegacyRootAttachmentName() }
+                .forEach { file ->
+                    fileGateway.deletePublicDocumentFile(RootDir, "", file.displayName)
                 }
-            }
-            ids.forEach { id ->
-                val uri = ContentUris.withAppendedId(collection, id)
-                context.contentResolver.delete(uri, null, null)
-            }
         }
     }
 
@@ -476,7 +426,7 @@ internal class PortableBackupStore(
         if (usesDirectBackupFile(subdir)) return deleteDirectFile(subdir, displayName)
         return when (BackupStoragePolicy.publicDocumentsMode()) {
             BackupStoragePolicy.PublicDocumentsMode.MediaStore ->
-                deleteMediaStoreFile(subdir, displayName)
+                deletePublicDocumentFile(subdir, displayName)
             BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
                 deleteDirectFile(subdir, displayName)
         }
@@ -509,27 +459,10 @@ internal class PortableBackupStore(
         }
         return when (BackupStoragePolicy.publicDocumentsMode()) {
             BackupStoragePolicy.PublicDocumentsMode.MediaStore -> {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                    false
-                } else {
-                    runCatching {
-                        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                        val projection = arrayOf(
-                            MediaStore.MediaColumns.SIZE,
-                            MediaStore.MediaColumns.DATE_MODIFIED
-                        )
-                        val selection =
-                            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-                        val args = arrayOf(displayName, relativePath(subdir))
-                        val sort = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
-                        context.contentResolver.query(collection, projection, selection, args, sort)?.use { cursor ->
-                            if (!cursor.moveToFirst()) return@use false
-                            val existingSize = cursor.getLong(0)
-                            val existingModifiedSec = cursor.getLong(1)
-                            existingSize == sourceSize && existingModifiedSec * 1000 >= sourceLastModified
-                        } ?: false
-                    }.getOrDefault(false)
-                }
+                val existing = fileGateway.findPublicDocumentFile(RootDir, subdir, displayName)
+                    ?: return false
+                existing.sizeBytes == sourceSize &&
+                    (existing.modifiedAtMillis ?: 0L) >= sourceLastModified
             }
             BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
                 runCatching {
@@ -552,73 +485,25 @@ internal class PortableBackupStore(
         if (usesDirectBackupFile(subdir)) return readDirectFile(subdir, displayName)
         return when (BackupStoragePolicy.publicDocumentsMode()) {
             BackupStoragePolicy.PublicDocumentsMode.MediaStore ->
-                readMediaStoreFile(subdir, displayName)
+                readPublicDocumentFile(subdir, displayName)
             BackupStoragePolicy.PublicDocumentsMode.LegacyDirectPath ->
                 readDirectFile(subdir, displayName)
         }
     }
 
-    private fun writeMediaStoreFile(
+    private fun writePublicDocumentFile(
         subdir: String,
         displayName: String,
         mimeType: String,
         bytes: ByteArray
-    ): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        return runCatching {
-            val resolver = context.contentResolver
-            val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            var inserted = false
-            val uri = findMediaStoreFile(subdir, displayName) ?: resolver.insert(
-                collection,
-                ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath(subdir))
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
-                }
-            )?.also { inserted = true } ?: return false
+    ): Boolean =
+        fileGateway.writePublicDocumentFile(RootDir, subdir, displayName, mimeType, bytes)
 
-            resolver.openOutputStream(uri, "wt")?.use { it.write(bytes) } ?: return false
-            if (inserted) {
-                ContentValues().apply {
-                    put(MediaStore.MediaColumns.IS_PENDING, 0)
-                }.also { resolver.update(uri, it, null, null) }
-            }
-            true
-        }.getOrDefault(false)
-    }
+    private fun readPublicDocumentFile(subdir: String, displayName: String): ByteArray? =
+        fileGateway.readPublicDocumentFile(RootDir, subdir, displayName)
 
-    private fun readMediaStoreFile(subdir: String, displayName: String): ByteArray? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-        return runCatching {
-            val uri = findMediaStoreFile(subdir, displayName) ?: return null
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        }.getOrNull()
-    }
-
-    private fun findMediaStoreFile(subdir: String, displayName: String): Uri? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-        val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val projection = arrayOf(MediaStore.MediaColumns._ID)
-        val selection =
-            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-        val args = arrayOf(displayName, relativePath(subdir))
-        val sort = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
-        return context.contentResolver.query(collection, projection, selection, args, sort)?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-            ContentUris.withAppendedId(collection, cursor.getLong(0))
-        }
-    }
-
-    private fun deleteMediaStoreFile(subdir: String, displayName: String): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
-        return runCatching {
-            val uri = findMediaStoreFile(subdir, displayName) ?: return true
-            context.contentResolver.delete(uri, null, null)
-            true
-        }.getOrDefault(false)
-    }
+    private fun deletePublicDocumentFile(subdir: String, displayName: String): Boolean =
+        fileGateway.deletePublicDocumentFile(RootDir, subdir, displayName)
 
     private fun writeDirectFile(subdir: String, displayName: String, bytes: ByteArray): Boolean =
         runCatching {
@@ -640,30 +525,11 @@ internal class PortableBackupStore(
             if (file.exists() && file.canRead()) file.readBytes() else null
         }.getOrNull()
 
-    private fun directFile(subdir: String, displayName: String): File {
-        val dir = directDir(subdir)
-        return File(dir, displayName)
-    }
+    private fun directFile(subdir: String, displayName: String): File =
+        fileGateway.publicDocumentFile(RootDir, subdir, displayName)
 
-    private fun directDir(subdir: String): File {
-        val root = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-            RootDir
-        )
-        return if (subdir.isBlank()) root else File(root, subdir)
-    }
-
-    private fun relativePath(subdir: String): String =
-        buildString {
-            append(Environment.DIRECTORY_DOCUMENTS)
-            append('/')
-            append(RootDir)
-            append('/')
-            if (subdir.isNotBlank()) {
-                append(subdir)
-                append('/')
-            }
-        }
+    private fun directDir(subdir: String): File =
+        fileGateway.publicDocumentDir(RootDir, subdir)
 
     private fun noteFileName(note: BackupNote): String {
         val title = note.title?.takeIf { it.isNotBlank() } ?: "note"
@@ -729,60 +595,6 @@ internal class PortableBackupStore(
         val subdir: String,
         val fileName: String
     )
-
-    private class TreeReader(
-        private val context: Context,
-        treeUri: Uri
-    ) {
-        private val resolver = context.contentResolver
-        private val backupRoot: Uri? = backupRoot(treeUri)
-
-        fun readBytes(subdir: String, displayName: String): ByteArray? {
-            val root = backupRoot ?: return null
-            val parent = subdir.split('/')
-                .filter { it.isNotBlank() }
-                .fold(root) { current, segment ->
-                    child(current, segment, directory = true) ?: return null
-                }
-            val file = child(parent, displayName, directory = false) ?: return null
-            return resolver.openInputStream(file)?.use { it.readBytes() }
-        }
-
-        private fun backupRoot(treeUri: Uri): Uri? {
-            val root = android.provider.DocumentsContract.buildDocumentUriUsingTree(
-                treeUri,
-                android.provider.DocumentsContract.getTreeDocumentId(treeUri)
-            )
-            if (child(root, "manifest.json", directory = false) != null) return root
-            return child(root, RootDir, directory = true)
-        }
-
-        private fun child(parent: Uri, name: String, directory: Boolean): Uri? {
-            val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(
-                parent,
-                android.provider.DocumentsContract.getDocumentId(parent)
-            )
-            val projection = arrayOf(
-                android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE
-            )
-            return resolver.query(children, projection, null, null, null)?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    val displayName = cursor.getString(1)
-                    val mimeType = cursor.getString(2)
-                    val isDirectory = mimeType == android.provider.DocumentsContract.Document.MIME_TYPE_DIR
-                    if (displayName == name && isDirectory == directory) {
-                        return@use android.provider.DocumentsContract.buildDocumentUriUsingTree(
-                            parent,
-                            cursor.getString(0)
-                        )
-                    }
-                }
-                null
-            }
-        }
-    }
 
     @Serializable
     private data class PortableManifest(

@@ -1,12 +1,14 @@
 package com.zahri.lighttodo.feature.noteeditor
 
 import android.net.Uri
+import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 import com.zahri.lighttodo.usecase.note.CopyNoteImageFromUriUseCase
 import com.zahri.lighttodo.usecase.note.CreateNoteAudioFileUseCase
 import com.zahri.lighttodo.usecase.note.CreateNoteImageFileUseCase
 import com.zahri.lighttodo.usecase.note.DeleteNoteUseCase
 import com.zahri.lighttodo.usecase.note.LoadNoteUseCase
 import com.zahri.lighttodo.usecase.note.NoteAudioRefUseCase
+import com.zahri.lighttodo.usecase.note.NoteAttachmentGateway
 import com.zahri.lighttodo.usecase.note.NoteEditorSnapshot
 import com.zahri.lighttodo.usecase.note.NoteFileProviderUriUseCase
 import com.zahri.lighttodo.usecase.note.NoteImageRefUseCase
@@ -21,6 +23,7 @@ import com.zahri.lighttodo.usecase.note.SavedNote
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import java.io.File
+import java.io.InputStream
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -65,20 +68,40 @@ class NoteEditViewModelLaunchSeedTest {
     }
 }
 
-private fun noteUseCases(repository: NoteRepository): NoteUseCases =
-    NoteUseCases(
+private fun noteUseCases(repository: NoteRepository): NoteUseCases {
+    val attachmentGateway = FakeNoteAttachmentGateway()
+    return NoteUseCases(
         observeNotes = ObserveNotesUseCase(repository),
         loadNote = LoadNoteUseCase(repository),
         saveNote = SaveNoteUseCase(repository),
         deleteNote = DeleteNoteUseCase(repository),
-        createImageFile = CreateNoteImageFileUseCase(repository),
-        createAudioFile = CreateNoteAudioFileUseCase(repository),
-        fileProviderUri = NoteFileProviderUriUseCase(repository),
-        copyImageFromUri = CopyNoteImageFromUriUseCase(repository),
-        imageRef = NoteImageRefUseCase(repository),
-        audioRef = NoteAudioRefUseCase(repository),
-        resolveAttachment = ResolveNoteAttachmentUseCase(repository)
+        createImageFile = CreateNoteImageFileUseCase(attachmentGateway),
+        createAudioFile = CreateNoteAudioFileUseCase(attachmentGateway),
+        fileProviderUri = NoteFileProviderUriUseCase(attachmentGateway),
+        copyImageFromUri = CopyNoteImageFromUriUseCase(attachmentGateway),
+        imageRef = NoteImageRefUseCase(attachmentGateway),
+        audioRef = NoteAudioRefUseCase(attachmentGateway),
+        resolveAttachment = ResolveNoteAttachmentUseCase(attachmentGateway)
     )
+}
+
+private class FakeNoteAttachmentGateway : NoteAttachmentGateway {
+    override fun createImageFile(): File = File("unused-image")
+    override fun createAudioFile(): File = File("unused")
+    override fun fileProviderUri(file: File): Uri = Uri.EMPTY
+    override fun copyImageFromUri(uri: Uri): File = File("unused-copy")
+    override fun imageRef(file: File): String = "lighttodo://attachment/image/${file.name}"
+    override fun audioRef(file: File): String = "lighttodo://attachment/audio/${file.name}"
+    override fun resolveAttachment(ref: String): File? = null
+    override fun importAttachment(
+        kind: NoteAttachmentMarkdown.Kind,
+        fileName: String,
+        input: InputStream
+    ): String = "lighttodo://attachment/${kind.name.lowercase()}/$fileName"
+    override fun deleteRefs(refs: Iterable<String>) = Unit
+    override fun deleteRemovedRefs(previousContent: String, currentContent: String) = Unit
+    override fun deleteUnreferenced(referencedRefs: Set<String>) = Unit
+}
 
 private class CountingNoteRepository : NoteRepository {
     var loadCalls = 0
@@ -97,11 +120,4 @@ private class CountingNoteRepository : NoteRepository {
         )
     override suspend fun delete(id: Long, fallbackContent: String) = Unit
     override suspend fun deleteMany(ids: List<Long>) = Unit
-    override fun createImageFile(): File = File("unused-image")
-    override fun createAudioFile(): File = File("unused")
-    override fun fileProviderUri(file: File): Uri = Uri.EMPTY
-    override fun copyImageFromUri(uri: Uri): File = File("unused-copy")
-    override fun imageRef(file: File): String = "lighttodo://attachment/image/${file.name}"
-    override fun audioRef(file: File): String = "lighttodo://attachment/audio/${file.name}"
-    override fun resolveAttachment(ref: String): File? = null
 }

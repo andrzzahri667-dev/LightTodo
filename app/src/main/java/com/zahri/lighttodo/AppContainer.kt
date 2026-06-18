@@ -7,12 +7,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.zahri.lighttodo.integration.calendar.AndroidCalendarGateway
 import com.zahri.lighttodo.integration.calendar.AndroidCalendarSyncGateway
-import com.zahri.lighttodo.data.local.AppDatabase
-import com.zahri.lighttodo.data.Repository
 import com.zahri.lighttodo.data.prefs.UserPrefs
 import com.zahri.lighttodo.data.backup.BackupManager
+import com.zahri.lighttodo.data.calendar.CalendarSyncRepositoryImpl
+import com.zahri.lighttodo.data.local.AppDatabase
 import com.zahri.lighttodo.data.note.NoteRepositoryImpl
+import com.zahri.lighttodo.data.note.NoteAttachmentStore
 import com.zahri.lighttodo.data.settings.SettingsRepositoryImpl
+import com.zahri.lighttodo.data.todo.TodoRepositoryImpl
+import com.zahri.lighttodo.integration.file.AndroidFileGateway
 import com.zahri.lighttodo.integration.reminder.AndroidReminderGateway
 import com.zahri.lighttodo.feature.quickadd.QuickAddViewModel
 import com.zahri.lighttodo.feature.reminder.ReminderViewModel
@@ -64,17 +67,27 @@ class AppContainer(
     val appContext: Context = app.applicationContext ?: app
     val db by lazy { AppDatabase.get(appContext) }
     val prefs by lazy { UserPrefs(appContext) }
-    val repository by lazy {
-        Repository(
+    private val todoRepository by lazy {
+        TodoRepositoryImpl(
             todoDao = db.todoDao(),
             tagDao = db.tagDao(),
             prefs = prefs
         )
     }
+    private val calendarSyncRepository by lazy {
+        CalendarSyncRepositoryImpl(todoDao = db.todoDao())
+    }
+    private val fileGateway by lazy { AndroidFileGateway(appContext) }
+    private val noteAttachmentGateway by lazy {
+        NoteAttachmentStore(
+            filesDir = appContext.filesDir,
+            fileGateway = fileGateway
+        )
+    }
     private val noteRepository by lazy {
         NoteRepositoryImpl(
-            context = appContext,
-            noteDao = db.noteDao()
+            noteDao = db.noteDao(),
+            attachmentGateway = noteAttachmentGateway
         )
     }
     private val reminderGateway by lazy { AndroidReminderGateway(appContext) }
@@ -87,6 +100,8 @@ class AppContainer(
             db = db,
             prefs = prefs,
             scope = appScope,
+            fileGateway = fileGateway,
+            noteAttachmentGateway = noteAttachmentGateway,
             cancelTodoReminder = reminderGateway::cancel,
             rescheduleTodoReminders = { todoUseCases.rescheduleReminders() }
         )
@@ -101,17 +116,17 @@ class AppContainer(
     }
     val todoUseCases by lazy {
         TodoUseCases(
-            observeHome = ObserveHomeUseCase(repository),
-            loadTodoEdit = LoadTodoEditUseCase(repository),
+            observeHome = ObserveHomeUseCase(todoRepository),
+            loadTodoEdit = LoadTodoEditUseCase(todoRepository),
             updateHomePreferences = UpdateHomePreferencesUseCase(prefs),
-            saveTodo = SaveTodoUseCase(repository, reminderGateway, calendarGateway, widgetUpdater),
-            completeTodo = CompleteTodoUseCase(repository, reminderGateway, calendarGateway, widgetUpdater),
-            deleteTodo = DeleteTodoUseCase(repository, reminderGateway, calendarGateway, widgetUpdater),
-            rescheduleReminders = RescheduleRemindersUseCase(repository, reminderGateway),
-            loadReminderDialog = LoadReminderDialogUseCase(repository),
-            loadReminderNotification = LoadReminderNotificationUseCase(repository),
-            loadWidgetCompletionAnimation = LoadWidgetCompletionAnimationUseCase(repository),
-            loadWidgetTodos = LoadWidgetTodosUseCase(repository)
+            saveTodo = SaveTodoUseCase(todoRepository, reminderGateway, calendarGateway, widgetUpdater),
+            completeTodo = CompleteTodoUseCase(todoRepository, reminderGateway, calendarGateway, widgetUpdater),
+            deleteTodo = DeleteTodoUseCase(todoRepository, reminderGateway, calendarGateway, widgetUpdater),
+            rescheduleReminders = RescheduleRemindersUseCase(todoRepository, reminderGateway),
+            loadReminderDialog = LoadReminderDialogUseCase(todoRepository),
+            loadReminderNotification = LoadReminderNotificationUseCase(todoRepository),
+            loadWidgetCompletionAnimation = LoadWidgetCompletionAnimationUseCase(todoRepository),
+            loadWidgetTodos = LoadWidgetTodosUseCase(todoRepository)
         )
     }
     val noteUseCases by lazy {
@@ -120,13 +135,13 @@ class AppContainer(
             loadNote = LoadNoteUseCase(noteRepository),
             saveNote = SaveNoteUseCase(noteRepository),
             deleteNote = DeleteNoteUseCase(noteRepository),
-            createImageFile = CreateNoteImageFileUseCase(noteRepository),
-            createAudioFile = CreateNoteAudioFileUseCase(noteRepository),
-            fileProviderUri = NoteFileProviderUriUseCase(noteRepository),
-            copyImageFromUri = CopyNoteImageFromUriUseCase(noteRepository),
-            imageRef = NoteImageRefUseCase(noteRepository),
-            audioRef = NoteAudioRefUseCase(noteRepository),
-            resolveAttachment = ResolveNoteAttachmentUseCase(noteRepository)
+            createImageFile = CreateNoteImageFileUseCase(noteAttachmentGateway),
+            createAudioFile = CreateNoteAudioFileUseCase(noteAttachmentGateway),
+            fileProviderUri = NoteFileProviderUriUseCase(noteAttachmentGateway),
+            copyImageFromUri = CopyNoteImageFromUriUseCase(noteAttachmentGateway),
+            imageRef = NoteImageRefUseCase(noteAttachmentGateway),
+            audioRef = NoteAudioRefUseCase(noteAttachmentGateway),
+            resolveAttachment = ResolveNoteAttachmentUseCase(noteAttachmentGateway)
         )
     }
     val handleBootCompleted by lazy {
@@ -138,7 +153,7 @@ class AppContainer(
     val syncCalendar by lazy {
         SyncCalendarUseCase(
             prefs = prefs,
-            repository = repository,
+            repository = calendarSyncRepository,
             calendarSyncGateway = calendarSyncGateway,
             widgetUpdater = widgetUpdater
         )

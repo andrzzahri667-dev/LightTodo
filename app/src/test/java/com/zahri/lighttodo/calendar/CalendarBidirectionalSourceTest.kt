@@ -37,7 +37,7 @@ class CalendarBidirectionalSourceTest {
             .readText()
         val editSource = sourceFile("app/src/main/java/com/zahri/lighttodo/usecase/todo/TodoUseCases.kt")
             .readText()
-        val repositorySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Repository.kt")
+        val repositorySource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/todo/TodoInputRecordBuilder.kt")
             .readText()
 
         assertTrue(entitySource.contains("calendarCreatedByApp"))

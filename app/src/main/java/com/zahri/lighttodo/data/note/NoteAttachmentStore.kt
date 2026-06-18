@@ -1,44 +1,37 @@
 package com.zahri.lighttodo.data.note
 
-import android.content.Context
 import android.net.Uri
-import android.webkit.MimeTypeMap
-import androidx.core.content.FileProvider
 import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
+import com.zahri.lighttodo.usecase.file.FileGateway
+import com.zahri.lighttodo.usecase.note.NoteAttachmentGateway
 import java.io.File
 import java.io.InputStream
 
-object NoteAttachmentStore {
-    private const val ROOT_DIR = "note_attachments"
-    private const val IMAGE_DIR = "image"
-    private const val AUDIO_DIR = "audio"
-    private const val REF_PREFIX = "lighttodo://attachment"
+class NoteAttachmentStore(
+    private val filesDir: File,
+    private val fileGateway: FileGateway
+) : NoteAttachmentGateway {
+    override fun createImageFile(): File =
+        uniqueFile(IMAGE_DIR, "photo", "jpg")
 
-    fun createImageFile(context: Context): File =
-        uniqueFile(context, IMAGE_DIR, "photo", "jpg")
+    override fun createAudioFile(): File =
+        uniqueFile(AUDIO_DIR, "audio", "m4a")
 
-    fun createAudioFile(context: Context): File =
-        uniqueFile(context, AUDIO_DIR, "audio", "m4a")
+    override fun imageRef(file: File): String = "$REF_PREFIX/$IMAGE_DIR/${file.name}"
 
-    fun imageRef(file: File): String = "$REF_PREFIX/$IMAGE_DIR/${file.name}"
+    override fun audioRef(file: File): String = "$REF_PREFIX/$AUDIO_DIR/${file.name}"
 
-    fun audioRef(file: File): String = "$REF_PREFIX/$AUDIO_DIR/${file.name}"
+    override fun fileProviderUri(file: File): Uri =
+        fileGateway.providerUri(file)
 
-    fun fileProviderUri(context: Context, file: File): Uri =
-        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-
-    fun copyImageFromUri(context: Context, uri: Uri): File {
-        val extension = imageExtension(context, uri)
-        val target = uniqueFile(context, IMAGE_DIR, "image", extension)
-        context.contentResolver.openInputStream(uri).use { input ->
-            requireNotNull(input) { "Cannot open selected image" }
-            target.outputStream().use { output -> input.copyTo(output) }
-        }
+    override fun copyImageFromUri(uri: Uri): File {
+        val extension = fileGateway.imageExtension(uri)
+        val target = uniqueFile(IMAGE_DIR, "image", extension)
+        fileGateway.copyUriToFile(uri, target)
         return target
     }
 
-    fun importAttachment(
-        context: Context,
+    override fun importAttachment(
         kind: NoteAttachmentMarkdown.Kind,
         fileName: String,
         input: InputStream
@@ -52,7 +45,7 @@ object NoteAttachmentStore {
             .substringAfterLast(File.separatorChar)
             .takeIf { it.isNotBlank() && !it.contains("..") }
             ?: "attachment_${System.currentTimeMillis()}.bin"
-        val target = uniqueImportedFile(context, type, safeName)
+        val target = uniqueImportedFile(type, safeName)
         target.parentFile?.mkdirs()
         input.use { source ->
             target.outputStream().use { output -> source.copyTo(output) }
@@ -63,7 +56,7 @@ object NoteAttachmentStore {
         }
     }
 
-    fun resolve(context: Context, ref: String): File? {
+    override fun resolveAttachment(ref: String): File? {
         if (!ref.startsWith("$REF_PREFIX/")) return null
         val parts = ref.removePrefix("$REF_PREFIX/").split('/')
         if (parts.size != 2) return null
@@ -71,23 +64,19 @@ object NoteAttachmentStore {
         val name = parts[1].takeIf { it.isNotBlank() } ?: return null
         if (name.contains("..") || name.contains(File.separatorChar)) return null
         if (type != IMAGE_DIR && type != AUDIO_DIR) return null
-        return File(attachmentDir(context, type), name).takeIf { it.exists() }
+        return File(attachmentDir(type), name).takeIf { it.exists() }
     }
 
-    fun delete(context: Context, ref: String) {
-        resolve(context, ref)?.delete()
+    override fun deleteRefs(refs: Iterable<String>) {
+        refs.forEach { delete(it) }
     }
 
-    fun deleteRefs(context: Context, refs: Iterable<String>) {
-        refs.forEach { delete(context, it) }
+    override fun deleteRemovedRefs(previousContent: String, currentContent: String) {
+        deleteRefs(NoteAttachmentMarkdown.removedRefs(previousContent, currentContent))
     }
 
-    fun deleteRemovedRefs(context: Context, previousContent: String, currentContent: String) {
-        deleteRefs(context, NoteAttachmentMarkdown.removedRefs(previousContent, currentContent))
-    }
-
-    fun deleteUnreferenced(context: Context, referencedRefs: Set<String>) {
-        attachmentFiles(context).forEach { file ->
+    override fun deleteUnreferenced(referencedRefs: Set<String>) {
+        attachmentFiles().forEach { file ->
             val ref = when (file.parentFile?.name) {
                 IMAGE_DIR -> imageRef(file)
                 AUDIO_DIR -> audioRef(file)
@@ -99,15 +88,19 @@ object NoteAttachmentStore {
         }
     }
 
-    private fun uniqueFile(context: Context, type: String, prefix: String, extension: String): File {
-        val dir = attachmentDir(context, type)
+    private fun delete(ref: String) {
+        resolveAttachment(ref)?.delete()
+    }
+
+    private fun uniqueFile(type: String, prefix: String, extension: String): File {
+        val dir = attachmentDir(type)
         dir.mkdirs()
         val safeExtension = extension.trimStart('.').ifBlank { "bin" }
         return File(dir, "${prefix}_${System.currentTimeMillis()}.$safeExtension")
     }
 
-    private fun uniqueImportedFile(context: Context, type: String, fileName: String): File {
-        val dir = attachmentDir(context, type)
+    private fun uniqueImportedFile(type: String, fileName: String): File {
+        val dir = attachmentDir(type)
         dir.mkdirs()
         val baseName = fileName.substringBeforeLast('.', missingDelimiterValue = fileName)
         val extension = fileName.substringAfterLast('.', missingDelimiterValue = "")
@@ -125,22 +118,18 @@ object NoteAttachmentStore {
         return candidate
     }
 
-    private fun attachmentDir(context: Context, type: String): File =
-        File(File(context.filesDir, ROOT_DIR), type)
+    private fun attachmentDir(type: String): File =
+        File(File(filesDir, ROOT_DIR), type)
 
-    private fun attachmentFiles(context: Context): List<File> =
+    private fun attachmentFiles(): List<File> =
         listOf(IMAGE_DIR, AUDIO_DIR)
-            .flatMap { type -> attachmentDir(context, type).listFiles()?.toList().orEmpty() }
+            .flatMap { type -> attachmentDir(type).listFiles()?.toList().orEmpty() }
             .filter { it.isFile }
 
-    private fun imageExtension(context: Context, uri: Uri): String {
-        val mimeType = context.contentResolver.getType(uri)
-        val fromMime = mimeType?.let {
-            MimeTypeMap.getSingleton().getExtensionFromMimeType(it)
-        }
-        return when (fromMime?.lowercase()) {
-            "png", "webp", "gif", "jpg", "jpeg" -> fromMime.lowercase()
-            else -> "jpg"
-        }
+    private companion object {
+        const val ROOT_DIR = "note_attachments"
+        const val IMAGE_DIR = "image"
+        const val AUDIO_DIR = "audio"
+        const val REF_PREFIX = "lighttodo://attachment"
     }
 }

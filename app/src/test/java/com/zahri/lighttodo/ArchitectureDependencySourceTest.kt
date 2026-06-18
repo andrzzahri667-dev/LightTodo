@@ -46,7 +46,7 @@ class ArchitectureDependencySourceTest {
 
     @Test
     fun repositoryDoesNotImportSystemIntegrationImplementations() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Repository.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/todo/TodoRepositoryImpl.kt").readText()
 
         assertFalse(source.contains("import com.zahri.lighttodo.calendar."))
         assertFalse(source.contains("import com.zahri.lighttodo.notify."))
@@ -75,7 +75,7 @@ class ArchitectureDependencySourceTest {
 
     @Test
     fun todoRepositoryDoesNotCoordinateSystemSideEffects() {
-        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/Repository.kt").readText()
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/todo/TodoRepositoryImpl.kt").readText()
         val forbiddenTokens = listOf(
             "ReminderGateway",
             "CalendarGateway",

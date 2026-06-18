@@ -1,8 +1,10 @@
 package com.zahri.lighttodo.usecase.note
 
 import android.net.Uri
+import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 import kotlinx.coroutines.flow.Flow
 import java.io.File
+import java.io.InputStream
 
 interface NoteRepository {
     fun observeNotes(): Flow<List<NoteListItem>>
@@ -10,6 +12,9 @@ interface NoteRepository {
     suspend fun save(input: SaveNoteInput): SavedNote
     suspend fun delete(id: Long, fallbackContent: String)
     suspend fun deleteMany(ids: List<Long>)
+}
+
+interface NoteAttachmentGateway {
     fun createImageFile(): File
     fun createAudioFile(): File
     fun fileProviderUri(file: File): Uri
@@ -17,6 +22,10 @@ interface NoteRepository {
     fun imageRef(file: File): String
     fun audioRef(file: File): String
     fun resolveAttachment(ref: String): File?
+    fun importAttachment(kind: NoteAttachmentMarkdown.Kind, fileName: String, input: InputStream): String
+    fun deleteRefs(refs: Iterable<String>)
+    fun deleteRemovedRefs(previousContent: String, currentContent: String)
+    fun deleteUnreferenced(referencedRefs: Set<String>)
 }
 
 data class NoteListItem(
@@ -83,45 +92,45 @@ class DeleteNoteUseCase(
 }
 
 class CreateNoteAudioFileUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(): File = repository.createAudioFile()
+    operator fun invoke(): File = attachmentGateway.createAudioFile()
 }
 
 class CreateNoteImageFileUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(): File = repository.createImageFile()
+    operator fun invoke(): File = attachmentGateway.createImageFile()
 }
 
 class NoteFileProviderUriUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(file: File): Uri = repository.fileProviderUri(file)
+    operator fun invoke(file: File): Uri = attachmentGateway.fileProviderUri(file)
 }
 
 class CopyNoteImageFromUriUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(uri: Uri): File = repository.copyImageFromUri(uri)
+    operator fun invoke(uri: Uri): File = attachmentGateway.copyImageFromUri(uri)
 }
 
 class NoteImageRefUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(file: File): String = repository.imageRef(file)
+    operator fun invoke(file: File): String = attachmentGateway.imageRef(file)
 }
 
 class NoteAudioRefUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(file: File): String = repository.audioRef(file)
+    operator fun invoke(file: File): String = attachmentGateway.audioRef(file)
 }
 
 class ResolveNoteAttachmentUseCase(
-    private val repository: NoteRepository
+    private val attachmentGateway: NoteAttachmentGateway
 ) {
-    operator fun invoke(ref: String): File? = repository.resolveAttachment(ref)
+    operator fun invoke(ref: String): File? = attachmentGateway.resolveAttachment(ref)
 }
 
 data class NoteUseCases(

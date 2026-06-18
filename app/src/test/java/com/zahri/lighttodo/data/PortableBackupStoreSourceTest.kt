@@ -45,7 +45,7 @@ class PortableBackupStoreSourceTest {
 
         assertTrue(source.contains("private fun deleteLegacyAttachment("))
         assertTrue(source.contains("private fun deleteFile("))
-        assertTrue(source.contains("private fun deleteMediaStoreFile("))
+        assertTrue(source.contains("private fun deletePublicDocumentFile("))
         assertTrue(markdownFunction.contains("deleteLegacyAttachment(legacySubdir, source.name)"))
         assertTrue(markdownFunction.contains("deleteLegacyAttachment(sanitizedHiddenSubdir, source.name)"))
         assertTrue(markdownFunction.contains("deleteLegacyAttachment(legacyRootSubdir, source.name)"))
@@ -58,7 +58,7 @@ class PortableBackupStoreSourceTest {
             .substringBefore("\n    private fun deleteLegacyAttachment")
         val readBytesFunction = source
             .substringAfter("private fun readBytes(")
-            .substringBefore("\n    private fun writeMediaStoreFile")
+            .substringBefore("\n    private fun writePublicDocumentFile")
         val upToDateFunction = source
             .substringAfter("private fun attachmentUpToDate(")
             .substringBefore("\n    private fun readText")
@@ -101,7 +101,7 @@ class PortableBackupStoreSourceTest {
         assertTrue(cleanupHelper.contains("\"\$AttachmentsDir/audio\""))
         assertTrue(cleanupHelper.contains("\"\$SanitizedHiddenAttachmentsDir/image\""))
         assertTrue(cleanupHelper.contains("\"\$SanitizedHiddenAttachmentsDir/audio\""))
-        assertTrue(cleanupHelper.contains("deleteLegacyMediaStoreFilesInDir"))
+        assertTrue(cleanupHelper.contains("deleteLegacyPublicDocumentFilesInDir"))
         assertTrue(cleanupHelper.contains("deleteLegacyBackupDirContents"))
         assertTrue(cleanupHelper.contains("deleteLegacyRootAttachmentFiles()"))
     }
@@ -164,17 +164,16 @@ class PortableBackupStoreSourceTest {
     @Test
     fun sweepsLegacyMediaStoreRowsByRelativePath() {
         val mediaStoreDirCleanup = source
-            .substringAfter("private fun deleteLegacyMediaStoreFilesInDir(")
+            .substringAfter("private fun deleteLegacyPublicDocumentFilesInDir(")
             .substringBefore("\n    private fun deleteLegacyBackupDirContents")
         val mediaStoreRootCleanup = source
-            .substringAfter("private fun deleteLegacyRootMediaStoreAttachmentFiles()")
+            .substringAfter("private fun deleteLegacyRootPublicDocumentAttachmentFiles()")
             .substringBefore("\n    private fun deleteLegacyRootAttachmentFiles")
 
-        assertTrue(mediaStoreDirCleanup.contains("MediaStore.MediaColumns.RELATIVE_PATH"))
-        assertTrue(mediaStoreDirCleanup.contains("relativePath(subdir)"))
-        assertTrue(mediaStoreDirCleanup.contains("MediaStore.MediaColumns.MIME_TYPE"))
-        assertTrue(mediaStoreDirCleanup.contains("context.contentResolver.delete(uri, null, null)"))
-        assertTrue(mediaStoreRootCleanup.contains("relativePath(\"\")"))
+        assertTrue(mediaStoreDirCleanup.contains("fileGateway.listPublicDocumentFiles(RootDir, subdir, requireMimeType = true)"))
+        assertTrue(mediaStoreDirCleanup.contains("fileGateway.deletePublicDocumentFile(RootDir, subdir, file.displayName)"))
+        assertTrue(mediaStoreRootCleanup.contains("fileGateway.listPublicDocumentFiles(RootDir, \"\", requireMimeType = true)"))
+        assertTrue(mediaStoreRootCleanup.contains("fileGateway.deletePublicDocumentFile(RootDir, \"\", file.displayName)"))
         assertTrue(mediaStoreRootCleanup.contains("isLegacyRootAttachmentName()"))
     }
 
@@ -217,10 +216,9 @@ class PortableBackupStoreSourceTest {
     fun comparesExistingSizeAndModifiedDateFromMediaStore() {
         val helper = source.substringAfter("private fun attachmentUpToDate(")
 
-        assertTrue(helper.contains("MediaStore.MediaColumns.SIZE"))
-        assertTrue(helper.contains("MediaStore.MediaColumns.DATE_MODIFIED"))
-        assertTrue(helper.contains("existingSize == sourceSize"))
-        assertTrue(helper.contains("existingModifiedSec * 1000 >= sourceLastModified"))
+        assertTrue(helper.contains("fileGateway.findPublicDocumentFile(RootDir, subdir, displayName)"))
+        assertTrue(helper.contains("existing.sizeBytes == sourceSize"))
+        assertTrue(helper.contains("(existing.modifiedAtMillis ?: 0L) >= sourceLastModified"))
     }
 
     @Test

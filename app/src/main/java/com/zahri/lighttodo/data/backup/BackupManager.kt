@@ -2,9 +2,6 @@ package com.zahri.lighttodo.data.backup
 
 import android.content.Context
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import android.util.Log
 import androidx.room.withTransaction
 import com.zahri.lighttodo.data.local.AppDatabase
@@ -13,6 +10,8 @@ import com.zahri.lighttodo.data.local.TagEntity
 import com.zahri.lighttodo.data.local.TodoEntity
 import com.zahri.lighttodo.data.prefs.UserPrefs
 import com.zahri.lighttodo.domain.backup.BackupBundle
+import com.zahri.lighttodo.usecase.file.FileGateway
+import com.zahri.lighttodo.usecase.note.NoteAttachmentGateway
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -21,7 +20,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.ByteArrayOutputStream
 import java.io.File
 
 /**
@@ -36,11 +34,13 @@ class BackupManager(
     private val db: AppDatabase,
     private val prefs: UserPrefs,
     private val scope: CoroutineScope,
+    private val fileGateway: FileGateway,
+    private val noteAttachmentGateway: NoteAttachmentGateway,
     private val cancelTodoReminder: (Long) -> Unit,
     private val rescheduleTodoReminders: suspend () -> Unit
 ) {
     private val fileName = "lighttodo-auto-backup.json"
-    private val portableBackupStore = PortableBackupStore(context)
+    private val portableBackupStore = PortableBackupStore(fileGateway, noteAttachmentGateway)
 
     suspend fun buildBackupBundle(): BackupBundle {
         val tags = db.tagDao().listAll()
@@ -149,43 +149,22 @@ class BackupManager(
 
     private fun readFromPublicDownloads(): String? =
         when (BackupStoragePolicy.publicDownloadsMode()) {
-            BackupStoragePolicy.PublicDownloadsMode.MediaStore -> readFromDownloadsMediaStore()
+            BackupStoragePolicy.PublicDownloadsMode.MediaStore -> readFromPublicDownloadsGateway()
             BackupStoragePolicy.PublicDownloadsMode.LegacyDirectPath -> readFromDirectPath()
         }
 
-    private fun readFromDownloadsMediaStore(): String? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+    private fun readFromPublicDownloadsGateway(): String? {
         return runCatching {
-            val entry = findDownloadsMediaStoreEntry() ?: return null
-            if (!BackupReadPolicy.canReadBackupSize(entry.sizeBytes)) return null
-            context.contentResolver.openInputStream(entry.uri)?.use {
-                it.readUtf8WithLimit()
-            }
+            val entry = fileGateway.findPublicDownloadFile(fileName) ?: return null
+            if (!BackupReadPolicy.canReadBackupSize(entry.sizeBytes ?: 0L)) return null
+            val bytes = fileGateway.readPublicDownloadFile(fileName) ?: return null
+            if (!BackupReadPolicy.canReadBackupSize(bytes.size.toLong())) return null
+            bytes.toString(Charsets.UTF_8)
         }.getOrNull()
     }
 
-    private fun findDownloadsMediaStoreEntry(): BackupMediaStoreEntry? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.MediaColumns.SIZE)
-        val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ?"
-        val args = arrayOf(fileName)
-        val sort = "${MediaStore.Downloads.DATE_MODIFIED} DESC"
-        return context.contentResolver.query(collection, projection, selection, args, sort)?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-            val id = cursor.getLong(0)
-            BackupMediaStoreEntry(
-                uri = Uri.withAppendedPath(collection, id.toString()),
-                sizeBytes = if (cursor.isNull(1)) 0L else cursor.getLong(1)
-            )
-        }
-    }
-
     private fun readFromDirectPath(): String? = runCatching {
-        val file = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            fileName
-        )
+        val file = fileGateway.publicDownloadFile(fileName)
         if (
             file.exists() &&
             file.canRead() &&
@@ -196,25 +175,6 @@ class BackupManager(
             null
         }
     }.getOrNull()
-
-    private fun java.io.InputStream.readUtf8WithLimit(): String? {
-        val out = ByteArrayOutputStream()
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var total = 0L
-        while (true) {
-            val read = read(buffer)
-            if (read == -1) break
-            total += read
-            if (!BackupReadPolicy.canReadBackupSize(total)) return null
-            out.write(buffer, 0, read)
-        }
-        return out.toString(Charsets.UTF_8.name())
-    }
-
-    private data class BackupMediaStoreEntry(
-        val uri: Uri,
-        val sizeBytes: Long
-    )
 
     private data class AutoBackupSnapshot(
         val todos: List<TodoEntity>,
