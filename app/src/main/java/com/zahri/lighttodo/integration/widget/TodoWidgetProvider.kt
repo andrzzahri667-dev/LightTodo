@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver.PendingResult
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
@@ -150,6 +151,19 @@ class TodoWidgetProvider : AppWidgetProvider() {
             )
             val clock = TodoWidgetDisplayPolicy.clockAt()
 
+            views.setWidgetTextColor(
+                R.id.widget_title,
+                lightColor = LIGHT_TEXT_PRIMARY,
+                darkColor = DARK_TEXT_PRIMARY,
+                context = context
+            )
+            views.setWidgetTextColor(
+                R.id.widget_empty,
+                lightColor = TEXT_SECONDARY,
+                darkColor = TEXT_SECONDARY,
+                context = context
+            )
+
             // Populate rows
             for (i in 0..2) {
                 val item = items.getOrNull(i)
@@ -165,7 +179,12 @@ class TodoWidgetProvider : AppWidgetProvider() {
                     )
                     // Explicitly reset all properties that animation may have changed,
                     // because partiallyUpdateAppWidget diffs can survive updateAppWidget.
-                    views.setTextColor(TITLE_IDS[i], context.getColor(R.color.widget_text_primary))
+                    views.setWidgetTextColor(
+                        TITLE_IDS[i],
+                        lightColor = LIGHT_TEXT_PRIMARY,
+                        darkColor = DARK_TEXT_PRIMARY,
+                        context = context
+                    )
 
                     val datePart = if (DateUtils.isTodayOrFalse(item.date)) {
                         ""
@@ -178,13 +197,16 @@ class TodoWidgetProvider : AppWidgetProvider() {
                         SUBTITLE_IDS[i],
                         if (subText.isEmpty()) View.GONE else View.VISIBLE
                     )
-                    views.setTextColor(
+                    val subtitleColor = if (TodoWidgetDisplayPolicy.isSubtitleOverdue(item, clock)) {
+                        WIDGET_OVERDUE
+                    } else {
+                        TEXT_SECONDARY
+                    }
+                    views.setWidgetTextColor(
                         SUBTITLE_IDS[i],
-                        if (TodoWidgetDisplayPolicy.isSubtitleOverdue(item, clock)) {
-                            context.getColor(R.color.widget_overdue)
-                        } else {
-                            context.getColor(R.color.widget_text_secondary)
-                        }
+                        lightColor = subtitleColor,
+                        darkColor = subtitleColor,
+                        context = context
                     )
 
                     views.setImageViewResource(CHECK_IDS[i], R.drawable.widget_checkbox)
@@ -250,5 +272,27 @@ class TodoWidgetProvider : AppWidgetProvider() {
 
         private fun widgetRequestCode(widgetId: Int, itemId: Long, rowIndex: Int, offset: Int): Int =
             Objects.hash(widgetId, itemId, rowIndex, offset)
+
+        private fun RemoteViews.setWidgetTextColor(
+            viewId: Int,
+            lightColor: Int,
+            darkColor: Int,
+            context: Context
+        ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                setColorInt(viewId, "setTextColor", lightColor, darkColor)
+            } else {
+                setTextColor(viewId, if (context.isNightMode()) darkColor else lightColor)
+            }
+        }
+
+        private fun Context.isNightMode(): Boolean =
+            resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+                Configuration.UI_MODE_NIGHT_YES
+
+        private val LIGHT_TEXT_PRIMARY = 0xFF000000.toInt()
+        private val DARK_TEXT_PRIMARY = 0xFFFFFFFF.toInt()
+        private val TEXT_SECONDARY = 0xFF8E8E93.toInt()
+        private val WIDGET_OVERDUE = 0xFFFF453A.toInt()
     }
 }

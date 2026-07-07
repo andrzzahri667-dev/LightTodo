@@ -36,6 +36,21 @@ class TodoWidgetProviderSourceTest {
     }
 
     @Test
+    fun dayModeWidgetTextUsesDarkColorAndAllStaticLabelsAreReset() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
+            .readText()
+
+        assertTrue(source.contains("private val LIGHT_TEXT_PRIMARY = 0xFF000000.toInt()"))
+        assertTrue(source.contains("private val DARK_TEXT_PRIMARY = 0xFFFFFFFF.toInt()"))
+        assertTrue(source.contains("R.id.widget_title,\n                lightColor = LIGHT_TEXT_PRIMARY"))
+        assertTrue(source.contains("R.id.widget_empty,\n                lightColor = TEXT_SECONDARY"))
+        assertTrue(source.contains("TITLE_IDS[i],\n                        lightColor = LIGHT_TEXT_PRIMARY"))
+        assertTrue(source.contains("val subtitleColor = if (TodoWidgetDisplayPolicy.isSubtitleOverdue(item, clock))"))
+        assertTrue(source.contains("SUBTITLE_IDS[i],\n                        lightColor = subtitleColor"))
+        assertTrue(source.contains("setColorInt(viewId, \"setTextColor\", lightColor, darkColor)"))
+    }
+
+    @Test
     fun dataChangeWidgetUpdatesAreDebounced() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()
