@@ -1,6 +1,9 @@
 package com.zahri.lighttodo
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.zahri.lighttodo.integration.calendar.CalendarObserver
 import com.zahri.lighttodo.integration.calendar.CalendarSync
 import com.zahri.lighttodo.integration.notification.NotificationChannels
@@ -56,6 +59,10 @@ class App : Application() {
                 .distinctUntilChanged()
                 .collect { enabled ->
                     if (enabled) {
+                        if (!hasCalendarPermissions()) {
+                            stopCalendarSync()
+                            return@collect
+                        }
                         if (calendarObserver == null) {
                             calendarObserver = CalendarObserver.register(this@App)
                             calendarSyncJob = appScope.launch(Dispatchers.IO) {
@@ -64,12 +71,22 @@ class App : Application() {
                             }
                         }
                     } else {
-                        calendarSyncJob?.cancel()
-                        calendarSyncJob = null
-                        calendarObserver?.let { CalendarObserver.unregister(this@App, it) }
-                        calendarObserver = null
+                        stopCalendarSync()
                     }
                 }
         }
     }
+
+    private fun stopCalendarSync() {
+        calendarSyncJob?.cancel()
+        calendarSyncJob = null
+        calendarObserver?.let { CalendarObserver.unregister(this@App, it) }
+        calendarObserver = null
+    }
+
+    private fun hasCalendarPermissions(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
 }
