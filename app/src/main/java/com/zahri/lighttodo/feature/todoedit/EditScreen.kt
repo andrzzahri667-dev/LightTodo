@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.ui.theme.AppType
+import kotlinx.coroutines.launch
 
 @Composable
 fun EditScreen(
@@ -54,6 +56,7 @@ fun EditScreen(
     vm: EditViewModel = viewModel(factory = lightTodoViewModelFactory())
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
 
@@ -74,15 +77,22 @@ fun EditScreen(
             }
             Spacer(Modifier.weight(1f))
             if (editingId != null && !state.readOnly) {
-                IconButton(onClick = { vm.delete(); onBack() }) {
+                IconButton(onClick = {
+                    scope.launch {
+                        vm.delete()
+                        onBack()
+                    }
+                }) {
                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.edit_delete), tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
             if (!state.readOnly) {
                 IconButton(onClick = {
-                    onRequestExactAlarmPermission(state.hasReminder)
-                    vm.save()
-                    onBack()
+                    scope.launch {
+                        vm.save()
+                        onRequestExactAlarmPermission(state.hasReminder)
+                        onBack()
+                    }
                 }) {
                     Icon(Icons.Default.Check, contentDescription = stringResource(R.string.edit_save), tint = MaterialTheme.colorScheme.onSurface)
                 }

@@ -9,11 +9,14 @@ import com.zahri.lighttodo.usecase.todo.LoadTodoEditUseCase
 import com.zahri.lighttodo.usecase.todo.SaveTodoUseCase
 import com.zahri.lighttodo.usecase.todo.TodoEditSnapshot
 import com.zahri.lighttodo.usecase.todo.TodoEditTagOption
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 data class EditUiState(
@@ -120,10 +123,10 @@ class EditViewModel(
         it.copy(customHoursBefore = next)
     }
 
-    fun save() {
+    suspend fun save() {
         val s = _state.value
         if (s.readOnly) return
-        viewModelScope.launch {
+        withContext(NonCancellable + Dispatchers.IO) {
             saveTodo(
                 TodoInput(
                     id = s.id,
@@ -143,9 +146,9 @@ class EditViewModel(
         }
     }
 
-    fun delete() {
+    suspend fun delete() {
         val id = _state.value.id ?: return
-        viewModelScope.launch { deleteTodo.delete(id) }
+        withContext(NonCancellable + Dispatchers.IO) { deleteTodo.delete(id) }
     }
 }
 
