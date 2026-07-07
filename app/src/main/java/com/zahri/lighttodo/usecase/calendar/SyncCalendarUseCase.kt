@@ -2,6 +2,7 @@ package com.zahri.lighttodo.usecase.calendar
 
 import com.zahri.lighttodo.domain.calendar.CalendarSyncPolicy
 import com.zahri.lighttodo.domain.todo.TodoDateFields
+import com.zahri.lighttodo.usecase.todo.ReminderGateway
 import com.zahri.lighttodo.usecase.todo.TodoRecord
 import com.zahri.lighttodo.usecase.todo.WidgetUpdater
 import com.zahri.lighttodo.util.DateUtils
@@ -16,7 +17,7 @@ interface CalendarSyncGateway {
 interface CalendarSyncRepository {
     suspend fun listUndoneCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long>
     suspend fun findTodosByCalendarEventIds(eventIds: List<Long>): List<TodoRecord>
-    suspend fun upsertTodos(todos: List<TodoRecord>)
+    suspend fun upsertTodos(todos: List<TodoRecord>): List<TodoRecord>
     suspend fun setTodoCalendarLink(id: Long, eventId: Long?, createdByApp: Boolean)
     suspend fun deleteLocalTodos(ids: List<Long>)
 }
@@ -49,7 +50,8 @@ class SyncCalendarUseCase(
     private val prefs: CalendarSyncPreferencesRepository,
     private val repository: CalendarSyncRepository,
     private val calendarSyncGateway: CalendarSyncGateway,
-    private val widgetUpdater: WidgetUpdater
+    private val widgetUpdater: WidgetUpdater,
+    private val reminderGateway: ReminderGateway
 ) {
     suspend operator fun invoke(force: Boolean, noTitleFallback: String): Int {
         val prefsSnapshot = prefs.calendarSyncPreferences()
@@ -82,21 +84,57 @@ class SyncCalendarUseCase(
         val existingMap = existingEntities.associateBy { it.calendarEventId }
         val nowMillis = System.currentTimeMillis()
 
-        val toUpsert = events.map { event ->
+        val toUpsertWithExisting = events.map { event ->
+            val existing = existingMap[event.id]
             event.toTodoRecord(
-                existing = existingMap[event.id],
+                existing = existing,
                 nowMillis = nowMillis,
                 noTitleFallback = noTitleFallback
-            )
+            ) to existing
         }
+        val toUpsert = toUpsertWithExisting.map { it.first }
         if (toUpsert.isNotEmpty()) {
-            repository.upsertTodos(toUpsert)
+            val persisted = repository.upsertTodos(toUpsert)
+            val persistedWithExisting = persisted.map { todo ->
+                todo to existingMap[todo.calendarEventId]
+            }
+            rescheduleChangedTodos(persistedWithExisting, nowMillis)
         }
 
         if (toUpsert.isNotEmpty() || orphanEventIds.isNotEmpty()) {
             widgetUpdater.notifyTodosChanged()
         }
         return toUpsert.size
+    }
+
+    private suspend fun rescheduleChangedTodos(
+        synced: List<Pair<TodoRecord, TodoRecord?>>,
+        nowMillis: Long
+    ) {
+        synced.forEach { (t, existing) ->
+            if (t.id == 0L) return@forEach
+            if (existing == null) {
+                if (!t.done) scheduleFutureReminders(t, nowMillis)
+                return@forEach
+            }
+            val startChanged = t.remindStartAtMillis != existing.remindStartAtMillis
+            val endChanged = t.remindAtMillis != existing.remindAtMillis
+            val doneChanged = t.done != existing.done
+            if (startChanged || endChanged || doneChanged) {
+                reminderGateway.cancel(t.id)
+            }
+            if (t.done) return@forEach
+            scheduleFutureReminders(t, nowMillis)
+        }
+    }
+
+    private fun scheduleFutureReminders(todo: TodoRecord, nowMillis: Long) {
+        if (todo.remindStartAtMillis != null && todo.remindStartAtMillis > nowMillis) {
+            reminderGateway.schedule(todo, isStart = true)
+        }
+        if (todo.remindAtMillis != null && todo.remindAtMillis > nowMillis) {
+            reminderGateway.schedule(todo, isStart = false)
+        }
     }
 
     private suspend fun unlinkOrDeleteOrphanTodos(orphanEventIds: List<Long>) {
@@ -142,9 +180,9 @@ class SyncCalendarUseCase(
             startMinute = startM,
             deadlineHour = endH ?: startH,
             deadlineMinute = endM ?: startM,
-            remindStartAtMillis = null,
-            remindAtMillis = null,
-            customRemindHoursBefore = null,
+            remindStartAtMillis = if (allDay) existing?.remindStartAtMillis else startMillis,
+            remindAtMillis = if (allDay || endMillis == null) existing?.remindAtMillis else endMillis,
+            customRemindHoursBefore = existing?.customRemindHoursBefore,
             tagId = existing?.tagId,
             done = doneMerge.done,
             doneAtMillis = doneMerge.doneAtMillis,

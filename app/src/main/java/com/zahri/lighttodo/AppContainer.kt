@@ -155,7 +155,8 @@ class AppContainer(
             prefs = prefs,
             repository = calendarSyncRepository,
             calendarSyncGateway = calendarSyncGateway,
-            widgetUpdater = widgetUpdater
+            widgetUpdater = widgetUpdater,
+            reminderGateway = reminderGateway
         )
     }
     val settingsUseCases by lazy {

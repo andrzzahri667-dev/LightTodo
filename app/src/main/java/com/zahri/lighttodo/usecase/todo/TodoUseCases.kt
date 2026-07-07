@@ -248,18 +248,35 @@ class SaveTodoUseCase(
         now: Long,
         inputId: Long?
     ): Long {
-        val mirrored = mirrorTodoToCalendar(record, prefsSnapshot)
-        val saved = repository.upsertTodo(mirrored, inputId)
-        reminderGateway.cancel(saved.id)
-        if (!saved.done) {
-            val t = saved
-            if (t.remindStartAtMillis != null && t.remindStartAtMillis > now)
-                reminderGateway.schedule(t, isStart = true)
-            if (t.remindAtMillis != null && t.remindAtMillis > now)
-                reminderGateway.schedule(t, isStart = false)
+        var saved = repository.upsertTodo(record, inputId)
+        scheduleReminders(saved, now)
+        val mirrored = mirrorTodoToCalendar(saved, prefsSnapshot)
+        if (
+            mirrored.calendarEventId != saved.calendarEventId ||
+            mirrored.calendarCreatedByApp != saved.calendarCreatedByApp
+        ) {
+            repository.setTodoCalendarLink(
+                id = saved.id,
+                eventId = mirrored.calendarEventId,
+                createdByApp = mirrored.calendarCreatedByApp
+            )
+            saved = saved.copy(
+                calendarEventId = mirrored.calendarEventId,
+                calendarCreatedByApp = mirrored.calendarCreatedByApp
+            )
         }
         widgetUpdater.notifyTodosChanged()
         return saved.id
+    }
+
+    private fun scheduleReminders(todo: TodoRecord, now: Long) {
+        reminderGateway.cancel(todo.id)
+        if (!todo.done) {
+            if (todo.remindStartAtMillis != null && todo.remindStartAtMillis > now)
+                reminderGateway.schedule(todo, isStart = true)
+            if (todo.remindAtMillis != null && todo.remindAtMillis > now)
+                reminderGateway.schedule(todo, isStart = false)
+        }
     }
 
     private suspend fun mirrorTodoToCalendar(todo: TodoRecord, prefs: TodoPreferencesSnapshot): TodoRecord {

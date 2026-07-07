@@ -75,7 +75,7 @@ interface TodoDao {
     suspend fun upsert(todo: TodoEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(todos: List<TodoEntity>)
+    suspend fun upsertAll(todos: List<TodoEntity>): List<Long>
 
     @Update
     suspend fun update(todo: TodoEntity)

@@ -15,8 +15,12 @@ class CalendarSyncRepositoryImpl(
     override suspend fun findTodosByCalendarEventIds(eventIds: List<Long>): List<TodoRecord> =
         todoDao.findByCalendarEventIds(eventIds).map { it.toTodoRecord() }
 
-    override suspend fun upsertTodos(todos: List<TodoRecord>) {
-        todoDao.upsertAll(todos.map { it.toEntity() })
+    override suspend fun upsertTodos(todos: List<TodoRecord>): List<TodoRecord> {
+        val entities = todos.map { it.toEntity() }
+        val ids = todoDao.upsertAll(entities)
+        return entities.zip(ids).map { (entity, generatedId) ->
+            entity.copy(id = entity.id.takeIf { it != 0L } ?: generatedId).toTodoRecord()
+        }
     }
 
     override suspend fun setTodoCalendarLink(id: Long, eventId: Long?, createdByApp: Boolean) {
