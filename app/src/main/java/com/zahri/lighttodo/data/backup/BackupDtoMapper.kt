@@ -26,12 +26,20 @@ internal object BackupDtoMapper {
         notes = notes.map { it.toBackupNote() }
     )
 
-    fun toEntities(bundle: BackupBundle) = BackupEntities(
-        tags = bundle.tags.map { it.toEntity() },
-        todos = bundle.todos.map { it.toEntity() },
-        notes = bundle.notes.map { it.toEntity() }
-    )
+    fun toEntities(bundle: BackupBundle): BackupEntities {
+        val validTagIds = bundle.validTagIds()
+        return BackupEntities(
+            tags = bundle.tags.map { it.toEntity() },
+            todos = bundle.todos.map { it.toEntity(validTagIds) },
+            notes = bundle.notes.map { it.toEntity(validTagIds) }
+        )
+    }
 }
+
+private fun BackupBundle.validTagIds(): Set<Long> = tags.map { it.id }.toSet()
+
+private fun Long?.takeIfValidTag(validTagIds: Set<Long>): Long? =
+    takeIf { it in validTagIds }
 
 private fun TagEntity.toBackupTag() = BackupTag(
     id = id,
@@ -65,7 +73,7 @@ private fun TodoEntity.toBackupTodo() = BackupTodo(
     calendarCreatedByApp = calendarCreatedByApp
 )
 
-private fun BackupTodo.toEntity() = TodoEntity(
+private fun BackupTodo.toEntity(validTagIds: Set<Long>) = TodoEntity(
     id = id,
     title = title,
     note = note,
@@ -78,7 +86,7 @@ private fun BackupTodo.toEntity() = TodoEntity(
     remindStartAtMillis = remindStartAtMillis,
     remindAtMillis = remindAtMillis,
     customRemindHoursBefore = customRemindHoursBefore,
-    tagId = tagId,
+    tagId = tagId.takeIfValidTag(validTagIds),
     done = done,
     doneAtMillis = doneAtMillis,
     createdAtMillis = createdAtMillis,
@@ -95,11 +103,11 @@ private fun NoteEntity.toBackupNote() = BackupNote(
     updatedAtMillis = updatedAtMillis
 )
 
-private fun BackupNote.toEntity() = NoteEntity(
+private fun BackupNote.toEntity(validTagIds: Set<Long>) = NoteEntity(
     id = id,
     title = title,
     content = content,
-    tagId = tagId,
+    tagId = tagId.takeIfValidTag(validTagIds),
     createdAtMillis = createdAtMillis,
     updatedAtMillis = updatedAtMillis
 )

@@ -4,6 +4,8 @@ import com.zahri.lighttodo.data.local.NoteEntity
 import com.zahri.lighttodo.data.local.TagEntity
 import com.zahri.lighttodo.domain.backup.BackupBundle
 import com.zahri.lighttodo.domain.backup.BackupNote
+import com.zahri.lighttodo.domain.backup.BackupTag
+import com.zahri.lighttodo.domain.backup.BackupTodo
 import com.zahri.lighttodo.test.sourceFile
 
 import org.junit.Assert.assertEquals
@@ -59,6 +61,44 @@ class BackupDtoMapperTest {
         assertEquals(9L, entities.notes.single().id)
         assertEquals("Restored", entities.notes.single().title)
         assertEquals(bundle.notes.single().content, entities.notes.single().content)
+    }
+
+    @Test
+    fun toEntities_clearsTagReferencesMissingFromImportedTags() {
+        val bundle = BackupBundle(
+            version = 2,
+            tags = listOf(BackupTag(id = 1L, name = "Work", sortOrder = 0)),
+            todos = listOf(
+                BackupTodo(
+                    id = 10L,
+                    title = "Foreign todo",
+                    note = null,
+                    deadlineHour = null,
+                    deadlineMinute = null,
+                    remindAtMillis = null,
+                    customRemindHoursBefore = null,
+                    tagId = 99L,
+                    done = false,
+                    doneAtMillis = null,
+                    createdAtMillis = 100L
+                )
+            ),
+            notes = listOf(
+                BackupNote(
+                    id = 11L,
+                    title = "Foreign note",
+                    content = "body",
+                    tagId = 100L,
+                    createdAtMillis = 200L,
+                    updatedAtMillis = 300L
+                )
+            )
+        )
+
+        val entities = BackupDtoMapper.toEntities(bundle)
+
+        assertEquals(null, entities.todos.single().tagId)
+        assertEquals(null, entities.notes.single().tagId)
     }
 
     @Test
