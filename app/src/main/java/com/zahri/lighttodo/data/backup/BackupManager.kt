@@ -76,13 +76,6 @@ class BackupManager(
                 AutoBackupSnapshot(todos = todos, tags = tags, notes = notes, settings = settings)
             }
                 .collectLatest { snapshot ->
-                    if (
-                        snapshot.todos.isEmpty() &&
-                        snapshot.tags.isEmpty() &&
-                        snapshot.notes.isEmpty()
-                    ) {
-                        return@collectLatest
-                    }
                     delay(3000)
                     runCatching {
                         val bundle = BackupDtoMapper.buildBundle(

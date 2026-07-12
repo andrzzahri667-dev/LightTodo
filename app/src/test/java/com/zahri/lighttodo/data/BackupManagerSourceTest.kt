@@ -111,6 +111,19 @@ class BackupManagerSourceTest {
     }
 
     @Test
+    fun autoBackupPublishesAnEmptySnapshotAfterAllDataIsDeleted() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
+        val autoBackup = source
+            .substringAfter("fun startAutoBackup()")
+            .substringBefore("suspend fun restoreIfEmpty()")
+
+        assertFalse(autoBackup.contains("snapshot.todos.isEmpty()"))
+        assertFalse(autoBackup.contains("snapshot.tags.isEmpty()"))
+        assertFalse(autoBackup.contains("snapshot.notes.isEmpty()"))
+        assertTrue(autoBackup.contains("writeBackup(bundle, snapshot.settings)"))
+    }
+
+    @Test
     fun portableRestoreAppliesSettingsOnlyAfterBundleRestoreSucceeds() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
         val restoreFunction = source.substringAfter("private suspend fun restorePortableBackup")
