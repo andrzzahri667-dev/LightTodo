@@ -107,7 +107,7 @@ class NoteEditViewModel(
                 withContext(NonCancellable + Dispatchers.IO) {
                     val t = _title.value.trim()
                     val c = _content.value
-                    if (t.isEmpty() && c.isBlank()) return@withContext
+                    if (noteId == null && t.isEmpty() && c.isBlank()) return@withContext
                     if (noteId != null && t == lastSavedTitle && c == lastSavedContent) return@withContext
 
                     val saved = noteUseCases.saveNote(
