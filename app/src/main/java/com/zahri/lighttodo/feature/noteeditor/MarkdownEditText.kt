@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.feature.noteeditor
 
+import android.annotation.SuppressLint
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color
@@ -25,6 +26,7 @@ import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
  * EditText that applies Markdown spans in real-time.
  * Syntax characters stay visible but dimmed; content gets styled.
  */
+@SuppressLint("AppCompatCustomView")
 class MarkdownEditText(context: Context) : EditText(context) {
 
     var contentUpdateCallback: ((String) -> Unit)? = null
