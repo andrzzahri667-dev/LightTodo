@@ -32,7 +32,7 @@ class NoteRepositoryImpl(
             updatedAtMillis = now
         )
         val generatedId = noteDao.upsert(entity)
-        attachmentGateway.deleteRemovedRefs(input.previousContent, input.content)
+        cleanupUnreferencedAttachments()
         return SavedNote(
             id = input.id ?: generatedId,
             title = entity.title,
@@ -42,17 +42,12 @@ class NoteRepositoryImpl(
     }
 
     override suspend fun delete(id: Long, fallbackContent: String) {
-        val content = noteDao.findById(id)?.content ?: fallbackContent
-        attachmentGateway.deleteRefs(NoteAttachmentMarkdown.refsIn(content))
         noteDao.delete(id)
         cleanupUnreferencedAttachments()
     }
 
     override suspend fun deleteMany(ids: List<Long>) {
         if (ids.isEmpty()) return
-        noteDao.findByIds(ids).forEach { note ->
-            attachmentGateway.deleteRefs(NoteAttachmentMarkdown.refsIn(note.content))
-        }
         noteDao.deleteByIds(ids)
         cleanupUnreferencedAttachments()
     }
