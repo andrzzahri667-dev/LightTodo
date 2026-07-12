@@ -52,10 +52,48 @@ class HomeUiStateMapperTest {
         assertEquals(emptyList<TagGroup>(), state.groups)
     }
 
+    @Test
+    fun buildHomeUiState_sortsByDayThenStartTimeWithStableFallbacks() {
+        val state = buildHomeUiState(
+            data = HomeTodoSnapshot(
+                todos = listOf(
+                    todo(id = 1L, tagId = 2L, date = 20260714, createdAtMillis = 1L),
+                    todo(id = 2L, tagId = 2L, date = 20260713, createdAtMillis = 2L),
+                    todo(
+                        id = 3L,
+                        tagId = 2L,
+                        date = 20260713,
+                        startHour = 10,
+                        startMinute = 0,
+                        createdAtMillis = 3L
+                    ),
+                    todo(
+                        id = 4L,
+                        tagId = 2L,
+                        date = 20260713,
+                        startHour = 9,
+                        startMinute = 30,
+                        createdAtMillis = 4L
+                    ),
+                    todo(id = 5L, tagId = 2L, date = null, createdAtMillis = 5L)
+                ),
+                tags = listOf(HomeTag(id = 2L, name = "Work")),
+                collapsedTagIds = emptySet(),
+                doneSectionExpanded = false
+            ),
+            uncategorizedTitle = "Inbox"
+        )
+
+        assertEquals(listOf(4L, 3L, 2L, 1L, 5L), state.groups.single().items.map { it.id })
+    }
+
     private fun todo(
         id: Long,
         tagId: Long? = null,
         dateMillis: Long? = null,
+        date: Int? = dateMillis?.let { 20260523 },
+        startHour: Int? = null,
+        startMinute: Int? = null,
         createdAtMillis: Long = id,
         done: Boolean = false,
         doneAtMillis: Long? = null
@@ -64,10 +102,10 @@ class HomeUiStateMapperTest {
             id = id,
             title = "Todo $id",
             note = null,
-            date = dateMillis?.let { 20260523 },
+            date = date,
             dateMillis = dateMillis,
-            startHour = null,
-            startMinute = null,
+            startHour = startHour,
+            startMinute = startMinute,
             deadlineHour = null,
             deadlineMinute = null,
             tagId = tagId,

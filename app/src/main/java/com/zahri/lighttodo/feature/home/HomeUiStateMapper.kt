@@ -10,7 +10,15 @@ fun buildHomeUiState(
     val (done, undone) = data.todos.partition { it.done }
     val doneItems = done.sortedByDescending { it.doneAtMillis ?: 0L }
     val byTag: Map<Long?, List<HomeTodo>> = undone.groupBy { it.tagId }
-    val itemOrder = compareBy<HomeTodo>({ it.dateMillis == null }, { it.createdAtMillis })
+    val itemOrder = compareBy<HomeTodo>(
+        { it.date == null },
+        { it.date ?: Int.MAX_VALUE },
+        { it.startHour == null || it.startMinute == null },
+        { it.startHour ?: Int.MAX_VALUE },
+        { it.startMinute ?: Int.MAX_VALUE },
+        { it.createdAtMillis },
+        { it.id }
+    )
     val groups = mutableListOf<TagGroup>()
 
     data.tags.forEach { tag ->
