@@ -56,6 +56,7 @@ fun EditScreen(
     vm: EditViewModel = viewModel(factory = lightTodoViewModelFactory())
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
+    val canEdit = state.isLoaded && !state.readOnly
     val scope = rememberCoroutineScope()
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
@@ -76,22 +77,22 @@ fun EditScreen(
                 Icon(Icons.Default.Close, contentDescription = stringResource(R.string.edit_close), tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(Modifier.weight(1f))
-            if (editingId != null && !state.readOnly) {
+            if (editingId != null && canEdit) {
                 IconButton(onClick = {
                     scope.launch {
-                        vm.delete()
-                        onBack()
+                        if (vm.delete()) onBack()
                     }
                 }) {
                     Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.edit_delete), tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
-            if (!state.readOnly) {
+            if (canEdit) {
                 IconButton(onClick = {
                     scope.launch {
-                        vm.save()
-                        onRequestExactAlarmPermission(state.hasReminder)
-                        onBack()
+                        if (vm.save()) {
+                            onRequestExactAlarmPermission(state.hasReminder)
+                            onBack()
+                        }
                     }
                 }) {
                     Icon(Icons.Default.Check, contentDescription = stringResource(R.string.edit_save), tint = MaterialTheme.colorScheme.onSurface)
@@ -120,7 +121,7 @@ fun EditScreen(
                 BasicTextField(
                     value = state.title,
                     onValueChange = vm::setTitle,
-                    enabled = !state.readOnly,
+                    enabled = canEdit,
                     singleLine = true,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -149,23 +150,23 @@ fun EditScreen(
                                 }
                             }
                         },
-                        enabled = !state.readOnly && dateEnabled
+                        enabled = canEdit && dateEnabled
                     )
                     EditRowDivider()
                     EditDateTimeRow(
                         label = stringResource(R.string.edit_start_time),
                         date = state.date,
                         time = state.startTime,
-                        enabled = !state.readOnly && dateEnabled,
-                        onClick = { if (!state.readOnly && dateEnabled) showFromPicker = true }
+                        enabled = canEdit && dateEnabled,
+                        onClick = { if (canEdit && dateEnabled) showFromPicker = true }
                     )
                     EditRowDivider()
                     EditDateTimeRow(
                         label = stringResource(R.string.edit_end_time),
                         date = state.date,
                         time = state.endTime,
-                        enabled = !state.readOnly && dateEnabled,
-                        onClick = { if (!state.readOnly && dateEnabled) showToPicker = true }
+                        enabled = canEdit && dateEnabled,
+                        onClick = { if (canEdit && dateEnabled) showToPicker = true }
                     )
                 }
             }
@@ -177,7 +178,7 @@ fun EditScreen(
                     customHoursBefore = state.customHoursBefore,
                     defaultHoursBefore = state.defaultHoursBefore,
                     defaultRemindLabel = state.defaultRemindLabel,
-                    enabled = !state.readOnly && dateEnabled,
+                    enabled = canEdit && dateEnabled,
                     onDecrease = { vm.adjustHoursBefore(-1) },
                     onIncrease = { vm.adjustHoursBefore(+1) }
                 )
@@ -189,7 +190,7 @@ fun EditScreen(
                     label = stringResource(R.string.edit_set_date),
                     checked = dateEnabled,
                     onCheckedChange = { vm.setDateEnabled(it) },
-                    enabled = !state.readOnly
+                    enabled = canEdit
                 )
             }
 
@@ -202,7 +203,7 @@ fun EditScreen(
                         BasicTextField(
                             value = state.tagName,
                             onValueChange = vm::setTagName,
-                            enabled = !state.readOnly,
+                            enabled = canEdit,
                             singleLine = true,
                             textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -220,7 +221,7 @@ fun EditScreen(
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(state.allTags) { t ->
                                 FilterChip(
-                                    enabled = !state.readOnly,
+                                    enabled = canEdit,
                                     selected = state.tagName == t.name,
                                     onClick = { vm.setTagName(t.name) },
                                     label = { Text(t.name) }
@@ -237,7 +238,7 @@ fun EditScreen(
                     BasicTextField(
                         value = state.note,
                         onValueChange = vm::setNote,
-                        enabled = !state.readOnly,
+                        enabled = canEdit,
                         textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp),
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         decorationBox = { inner ->

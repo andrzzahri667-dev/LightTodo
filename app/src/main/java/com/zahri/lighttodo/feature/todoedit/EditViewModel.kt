@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
@@ -34,7 +35,8 @@ data class EditUiState(
     val defaultRemindLabel: String = "09:00",
     val tagName: String = "",
     val allTags: List<TodoEditTagOption> = emptyList(),
-    val readOnly: Boolean = false
+    val readOnly: Boolean = false,
+    val isLoaded: Boolean = false
 ) {
     val hasReminder: Boolean
         get() = date != null
@@ -48,6 +50,7 @@ class EditViewModel(
 
     private val _state = MutableStateFlow(EditUiState())
     val state: StateFlow<EditUiState> = _state.asStateFlow()
+    private val submissionMutex = Mutex()
 
     fun load(id: Long?, initialTitle: String?) {
         viewModelScope.launch {
@@ -123,32 +126,46 @@ class EditViewModel(
         it.copy(customHoursBefore = next)
     }
 
-    suspend fun save() {
+    suspend fun save(): Boolean {
         val s = _state.value
-        if (s.readOnly) return
-        withContext(NonCancellable + Dispatchers.IO) {
-            saveTodo(
-                TodoInput(
-                    id = s.id,
-                    title = s.title,
-                    note = s.note,
-                    year = s.date?.year,
-                    month = s.date?.monthValue,
-                    day = s.date?.dayOfMonth,
-                    startHour = s.startTime?.first,
-                    startMinute = s.startTime?.second,
-                    deadlineHour = s.endTime?.first,
-                    deadlineMinute = s.endTime?.second,
-                    customHoursBefore = s.customHoursBefore,
-                    tagName = s.tagName
+        if (!s.isLoaded || s.readOnly) return false
+        if (!submissionMutex.tryLock()) return false
+        return try {
+            withContext(NonCancellable + Dispatchers.IO) {
+                saveTodo(
+                    TodoInput(
+                        id = s.id,
+                        title = s.title,
+                        note = s.note,
+                        year = s.date?.year,
+                        month = s.date?.monthValue,
+                        day = s.date?.dayOfMonth,
+                        startHour = s.startTime?.first,
+                        startMinute = s.startTime?.second,
+                        deadlineHour = s.endTime?.first,
+                        deadlineMinute = s.endTime?.second,
+                        customHoursBefore = s.customHoursBefore,
+                        tagName = s.tagName
+                    )
                 )
-            )
+            }
+            true
+        } finally {
+            submissionMutex.unlock()
         }
     }
 
-    suspend fun delete() {
-        val id = _state.value.id ?: return
-        withContext(NonCancellable + Dispatchers.IO) { deleteTodo.delete(id) }
+    suspend fun delete(): Boolean {
+        val s = _state.value
+        if (!s.isLoaded || s.readOnly) return false
+        val id = s.id ?: return false
+        if (!submissionMutex.tryLock()) return false
+        return try {
+            withContext(NonCancellable + Dispatchers.IO) { deleteTodo.delete(id) }
+            true
+        } finally {
+            submissionMutex.unlock()
+        }
     }
 }
 
@@ -165,5 +182,6 @@ private fun TodoEditSnapshot.toUiState(): EditUiState =
         defaultRemindLabel = defaultRemindLabel,
         tagName = tagName,
         allTags = allTags,
-        readOnly = readOnly
+        readOnly = readOnly,
+        isLoaded = true
     )

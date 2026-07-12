@@ -52,4 +52,23 @@ class EditSaveLifecycleSourceTest {
         assertFalse(saveBody.contains("viewModelScope.launch"))
         assertFalse(deleteBody.contains("viewModelScope.launch"))
     }
+
+    @Test
+    fun editActionsStayDisabledUntilLoadAndRejectConcurrentSubmissions() {
+        val viewModelSource = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/todoedit/EditViewModel.kt"
+        ).readText()
+        val screenSource = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/todoedit/EditScreen.kt"
+        ).readText()
+
+        assertTrue(viewModelSource.contains("val isLoaded: Boolean = false"))
+        assertTrue(viewModelSource.contains("isLoaded = true"))
+        assertTrue(viewModelSource.contains("private val submissionMutex = Mutex()"))
+        assertTrue(viewModelSource.contains("if (!s.isLoaded || s.readOnly) return false"))
+        assertTrue(viewModelSource.contains("if (!submissionMutex.tryLock()) return false"))
+        assertTrue(screenSource.contains("val canEdit = state.isLoaded && !state.readOnly"))
+        assertTrue(screenSource.contains("if (vm.save())"))
+        assertTrue(screenSource.contains("if (vm.delete())"))
+    }
 }
