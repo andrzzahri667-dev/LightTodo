@@ -84,8 +84,8 @@ class HomeViewModel(
     }
 
     /**
-     * 勾选 → 完成:先把 id 加入 pendingCompleteIds 让 UI 播动画,
-     * 200ms 后再真正写库。从已完成区取消勾选(done=false)立刻执行,无动画。
+     * 勾选完成时先提交业务状态，再短暂保留 pending id 供 UI 播放退出动画。
+     * 从已完成区取消勾选(done=false)立刻执行，无动画。
      */
     fun toggleDone(id: Long, done: Boolean) {
         if (!done) {
@@ -96,9 +96,12 @@ class HomeViewModel(
         if (id in _pendingCompleteIds.value) return
         _pendingCompleteIds.value = _pendingCompleteIds.value + id
         viewModelScope.launch {
-            kotlinx.coroutines.delay(320)
-            completeTodo(id, true)
-            _pendingCompleteIds.value = _pendingCompleteIds.value - id
+            try {
+                completeTodo(id, true)
+                kotlinx.coroutines.delay(320)
+            } finally {
+                _pendingCompleteIds.value = _pendingCompleteIds.value - id
+            }
         }
     }
 
