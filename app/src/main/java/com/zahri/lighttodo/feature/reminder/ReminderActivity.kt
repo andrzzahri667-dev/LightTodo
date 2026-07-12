@@ -24,6 +24,10 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +42,7 @@ import com.zahri.lighttodo.R
 import com.zahri.lighttodo.lightTodoViewModelFactory
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.LightTodoTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class ReminderActivity : ComponentActivity() {
@@ -70,6 +75,7 @@ class ReminderActivity : ComponentActivity() {
                 return@launch
             }
             setContent {
+                var completing by remember { mutableStateOf(false) }
                 LightTodoTheme {
                     Box(
                         Modifier
@@ -114,9 +120,20 @@ class ReminderActivity : ComponentActivity() {
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     Button(
+                                        enabled = !completing,
                                         onClick = {
-                                            reminderViewModel.complete(todoId)
-                                            finish()
+                                            if (!completing) {
+                                                completing = true
+                                                lifecycleScope.launch {
+                                                    try {
+                                                        reminderViewModel.complete(todoId)
+                                                        finish()
+                                                    } catch (e: Exception) {
+                                                        if (e is CancellationException) throw e
+                                                        completing = false
+                                                    }
+                                                }
+                                            }
                                         },
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = AppColors.Brand,

@@ -1,12 +1,11 @@
 package com.zahri.lighttodo.feature.reminder
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.usecase.todo.CompleteTodoUseCase
 import com.zahri.lighttodo.usecase.todo.LoadReminderDialogUseCase
 import com.zahri.lighttodo.usecase.todo.TodoReminderDialog
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 class ReminderViewModel(
@@ -18,8 +17,8 @@ class ReminderViewModel(
             loadReminderDialog(todoId, fallbackTitle)
         }
 
-    fun complete(todoId: Long) {
-        viewModelScope.launch(Dispatchers.IO) {
+    suspend fun complete(todoId: Long) {
+        withContext(NonCancellable + Dispatchers.IO) {
             completeTodo(todoId, true)
         }
     }
