@@ -6,16 +6,18 @@ import com.zahri.lighttodo.usecase.todo.ReminderGateway
 import com.zahri.lighttodo.usecase.todo.TodoRecord
 import com.zahri.lighttodo.usecase.todo.WidgetUpdater
 import com.zahri.lighttodo.util.DateUtils
+import java.time.Instant
 import java.time.LocalDate
-import java.util.Calendar
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 interface CalendarSyncGateway {
     fun hasReadCalendarPermission(): Boolean
-    fun queryEvents(userFilter: String, fromMillis: Long, toMillis: Long): CalendarProviderEvents
+    fun queryEvents(userFilter: String, window: CalendarSyncWindow): CalendarProviderEvents
 }
 
 interface CalendarSyncRepository {
-    suspend fun listUndoneCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long>
+    suspend fun listUndoneCalendarEventIdsInDateRange(fromDayKey: Int, toDayKey: Int): List<Long>
     suspend fun findTodosByCalendarEventIds(eventIds: List<Long>): List<TodoRecord>
     suspend fun upsertTodos(todos: List<TodoRecord>): List<TodoRecord>
     suspend fun setTodoCalendarLink(id: Long, eventId: Long?, createdByApp: Boolean)
@@ -46,6 +48,34 @@ data class CalendarProviderEvent(
     val canceled: Boolean
 )
 
+data class CalendarSyncWindow(
+    val firstDate: LocalDate,
+    val lastDate: LocalDate,
+    val zoneId: ZoneId
+) {
+    init {
+        require(!lastDate.isBefore(firstDate))
+    }
+
+    val fromDayKey: Int = DateUtils.toDayKey(firstDate)
+    val toDayKey: Int = DateUtils.toDayKey(lastDate)
+    val timedFromMillis: Long = firstDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
+    val timedToExclusiveMillis: Long = lastDate.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+    val allDayFromMillis: Long = firstDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    val allDayToExclusiveMillis: Long =
+        lastDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+    fun dateOf(event: CalendarProviderEvent): LocalDate =
+        Instant.ofEpochMilli(event.startMillis)
+            .atZone(if (event.allDay) ZoneOffset.UTC else zoneId)
+            .toLocalDate()
+
+    fun contains(event: CalendarProviderEvent): Boolean {
+        val date = dateOf(event)
+        return !date.isBefore(firstDate) && !date.isAfter(lastDate)
+    }
+}
+
 class SyncCalendarUseCase(
     private val prefs: CalendarSyncPreferencesRepository,
     private val repository: CalendarSyncRepository,
@@ -58,20 +88,26 @@ class SyncCalendarUseCase(
         if (!force && !prefsSnapshot.calendarSyncEnabled) return -1
         if (!calendarSyncGateway.hasReadCalendarPermission()) return -1
 
-        val now = LocalDate.now()
-        val from = DateUtils.startOfDayMillis(now)
-        val to = DateUtils.endOfDayMillis(now.plusDays(60))
+        val zoneId = ZoneId.systemDefault()
+        val now = LocalDate.now(zoneId)
+        val window = CalendarSyncWindow(
+            firstDate = now,
+            lastDate = now.plusDays(60),
+            zoneId = zoneId
+        )
         val providerEvents = calendarSyncGateway.queryEvents(
             userFilter = prefsSnapshot.calendarAccountName,
-            fromMillis = from,
-            toMillis = to
+            window = window
         )
         if (!providerEvents.hasCalendars) return 0
 
-        val events = providerEvents.events
+        val events = providerEvents.events.filter(window::contains)
         val eventIds = events.map { it.id }
         val orphanEventIds = CalendarSyncPolicy.orphanEventIds(
-            importedEventIds = repository.listUndoneCalendarEventIdsInWindow(from, to),
+            importedEventIds = repository.listUndoneCalendarEventIdsInDateRange(
+                window.fromDayKey,
+                window.toDayKey
+            ),
             providerEventIds = eventIds
         )
         unlinkOrDeleteOrphanTodos(orphanEventIds)
@@ -89,7 +125,8 @@ class SyncCalendarUseCase(
             event.toTodoRecord(
                 existing = existing,
                 nowMillis = nowMillis,
-                noTitleFallback = noTitleFallback
+                noTitleFallback = noTitleFallback,
+                window = window
             ) to existing
         }
         val toUpsert = toUpsertWithExisting.map { it.first }
@@ -159,11 +196,21 @@ class SyncCalendarUseCase(
     private fun CalendarProviderEvent.toTodoRecord(
         existing: TodoRecord?,
         nowMillis: Long,
-        noTitleFallback: String
+        noTitleFallback: String,
+        window: CalendarSyncWindow
     ): TodoRecord {
-        val dateFields = TodoDateFields.fromEpochMillis(startMillis)
-        val (startH, startM) = if (allDay) null to null else hourMinuteOf(startMillis)
-        val (endH, endM) = if (allDay || endMillis == null) null to null else hourMinuteOf(endMillis)
+        val eventDate = window.dateOf(this)
+        val dateFields = TodoDateFields.fromParts(
+            eventDate.year,
+            eventDate.monthValue,
+            eventDate.dayOfMonth
+        )
+        val (startH, startM) = if (allDay) null to null else hourMinuteOf(startMillis, window.zoneId)
+        val (endH, endM) = if (allDay || endMillis == null) {
+            null to null
+        } else {
+            hourMinuteOf(endMillis, window.zoneId)
+        }
         val doneMerge = CalendarSyncPolicy.mergeDoneState(
             providerCanceled = canceled,
             existingDone = existing?.done,
@@ -192,8 +239,6 @@ class SyncCalendarUseCase(
         )
     }
 
-    private fun hourMinuteOf(millis: Long): Pair<Int, Int> {
-        val cal = Calendar.getInstance().apply { timeInMillis = millis }
-        return cal.get(Calendar.HOUR_OF_DAY) to cal.get(Calendar.MINUTE)
-    }
+    private fun hourMinuteOf(millis: Long, zoneId: ZoneId): Pair<Int, Int> =
+        Instant.ofEpochMilli(millis).atZone(zoneId).let { it.hour to it.minute }
 }

@@ -6,10 +6,13 @@ import com.zahri.lighttodo.usecase.calendar.CalendarSyncGateway
 import com.zahri.lighttodo.usecase.calendar.CalendarSyncPreferences
 import com.zahri.lighttodo.usecase.calendar.CalendarSyncPreferencesRepository
 import com.zahri.lighttodo.usecase.calendar.CalendarSyncRepository
+import com.zahri.lighttodo.usecase.calendar.CalendarSyncWindow
 import com.zahri.lighttodo.usecase.calendar.SyncCalendarUseCase
 import com.zahri.lighttodo.usecase.todo.ReminderGateway
 import com.zahri.lighttodo.usecase.todo.TodoRecord
 import com.zahri.lighttodo.usecase.todo.WidgetUpdater
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,17 +23,18 @@ class CalendarSyncReminderPreservationTest {
     @Test
     fun syncPreservesExistingReminderFieldsForAppCreatedCalendarTodos() = runBlocking {
         val eventId = 100L
+        val times = futureTimes()
         val existing = TodoRecord(
             id = 7L,
             title = "去吃",
-            date = 20260618,
-            dateMillis = 1781712000000L,
+            date = times.dayKey,
+            dateMillis = times.startOfDayMillis,
             startHour = 15,
             startMinute = 23,
             deadlineHour = 16,
             deadlineMinute = 23,
-            remindStartAtMillis = 1781767380000L,
-            remindAtMillis = 1781770980000L,
+            remindStartAtMillis = times.startMillis,
+            remindAtMillis = times.oldEndMillis,
             customRemindHoursBefore = 0,
             createdAtMillis = 1781767276400L,
             calendarEventId = eventId,
@@ -45,8 +49,8 @@ class CalendarSyncReminderPreservationTest {
                     id = eventId,
                     title = "去吃",
                     description = null,
-                    startMillis = 1781767380000L,
-                    endMillis = 1781770980000L,
+                    startMillis = times.startMillis,
+                    endMillis = times.oldEndMillis,
                     allDay = false,
                     canceled = false
                 )
@@ -68,17 +72,18 @@ class CalendarSyncReminderPreservationTest {
     @Test
     fun syncKeepsUnchangedFutureReminderScheduledWhenOtherReminderTimeChanges() = runBlocking {
         val eventId = 101L
+        val times = futureTimes()
         val existing = TodoRecord(
             id = 8L,
             title = "测试",
-            date = 20990101,
-            dateMillis = FutureStart,
+            date = times.dayKey,
+            dateMillis = times.startOfDayMillis,
             startHour = 9,
             startMinute = 0,
             deadlineHour = 10,
             deadlineMinute = 0,
-            remindStartAtMillis = FutureStart,
-            remindAtMillis = OldFutureEnd,
+            remindStartAtMillis = times.startMillis,
+            remindAtMillis = times.oldEndMillis,
             createdAtMillis = 1781767276400L,
             calendarEventId = eventId,
             calendarCreatedByApp = true
@@ -93,8 +98,8 @@ class CalendarSyncReminderPreservationTest {
                     id = eventId,
                     title = "测试",
                     description = null,
-                    startMillis = FutureStart,
-                    endMillis = NewFutureEnd,
+                    startMillis = times.startMillis,
+                    endMillis = times.newEndMillis,
                     allDay = false,
                     canceled = false
                 )
@@ -115,6 +120,7 @@ class CalendarSyncReminderPreservationTest {
     @Test
     fun syncSchedulesFutureRemindersForNewImportedCalendarEvent() = runBlocking {
         val eventId = 102L
+        val times = futureTimes()
         val reminderGateway = FakeReminderGateway()
         val repository = FakeCalendarSyncRepository(existing = null, generatedId = 60L)
         val useCase = SyncCalendarUseCase(
@@ -125,8 +131,8 @@ class CalendarSyncReminderPreservationTest {
                     id = eventId,
                     title = "出去吃",
                     description = null,
-                    startMillis = FutureStart,
-                    endMillis = NewFutureEnd,
+                    startMillis = times.startMillis,
+                    endMillis = times.newEndMillis,
                     allDay = false,
                     canceled = false
                 )
@@ -147,17 +153,18 @@ class CalendarSyncReminderPreservationTest {
     @Test
     fun syncRefreshesExistingFutureRemindersWithoutCancellingWhenTimesAreUnchanged() = runBlocking {
         val eventId = 103L
+        val times = futureTimes()
         val existing = TodoRecord(
             id = 61L,
             title = "出去吃",
-            date = 20990101,
-            dateMillis = FutureStart,
+            date = times.dayKey,
+            dateMillis = times.startOfDayMillis,
             startHour = 9,
             startMinute = 0,
             deadlineHour = 10,
             deadlineMinute = 0,
-            remindStartAtMillis = FutureStart,
-            remindAtMillis = NewFutureEnd,
+            remindStartAtMillis = times.startMillis,
+            remindAtMillis = times.newEndMillis,
             createdAtMillis = 1781833022000L,
             calendarEventId = eventId,
             calendarCreatedByApp = false
@@ -172,8 +179,8 @@ class CalendarSyncReminderPreservationTest {
                     id = eventId,
                     title = "出去吃",
                     description = null,
-                    startMillis = FutureStart,
-                    endMillis = NewFutureEnd,
+                    startMillis = times.startMillis,
+                    endMillis = times.newEndMillis,
                     allDay = false,
                     canceled = false
                 )
@@ -203,8 +210,7 @@ class CalendarSyncReminderPreservationTest {
 
         override fun queryEvents(
             userFilter: String,
-            fromMillis: Long,
-            toMillis: Long
+            window: CalendarSyncWindow
         ): CalendarProviderEvents =
             CalendarProviderEvents(hasCalendars = true, events = listOf(event))
     }
@@ -215,9 +221,9 @@ class CalendarSyncReminderPreservationTest {
     ) : CalendarSyncRepository {
         val upserted = mutableListOf<TodoRecord>()
 
-        override suspend fun listUndoneCalendarEventIdsInWindow(
-            fromMillis: Long,
-            toMillis: Long
+        override suspend fun listUndoneCalendarEventIdsInDateRange(
+            fromDayKey: Int,
+            toDayKey: Int
         ): List<Long> = existing?.calendarEventId?.let { listOf(it) } ?: emptyList()
 
         override suspend fun findTodosByCalendarEventIds(eventIds: List<Long>): List<TodoRecord> =
@@ -252,9 +258,23 @@ class CalendarSyncReminderPreservationTest {
         }
     }
 
-    private companion object {
-        const val FutureStart = 4_071_758_400_000L
-        const val OldFutureEnd = 4_071_762_000_000L
-        const val NewFutureEnd = 4_071_765_600_000L
+    private fun futureTimes(): FutureTimes {
+        val zoneId = ZoneId.systemDefault()
+        val date = LocalDate.now(zoneId).plusDays(1)
+        return FutureTimes(
+            dayKey = date.year * 10_000 + date.monthValue * 100 + date.dayOfMonth,
+            startOfDayMillis = date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+            startMillis = date.atTime(9, 0).atZone(zoneId).toInstant().toEpochMilli(),
+            oldEndMillis = date.atTime(10, 0).atZone(zoneId).toInstant().toEpochMilli(),
+            newEndMillis = date.atTime(11, 0).atZone(zoneId).toInstant().toEpochMilli()
+        )
     }
+
+    private data class FutureTimes(
+        val dayKey: Int,
+        val startOfDayMillis: Long,
+        val startMillis: Long,
+        val oldEndMillis: Long,
+        val newEndMillis: Long
+    )
 }

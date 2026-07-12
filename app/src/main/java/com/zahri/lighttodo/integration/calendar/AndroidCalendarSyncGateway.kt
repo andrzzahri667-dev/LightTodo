@@ -9,6 +9,7 @@ import com.zahri.lighttodo.domain.calendar.CalendarSyncPolicy
 import com.zahri.lighttodo.usecase.calendar.CalendarProviderEvent
 import com.zahri.lighttodo.usecase.calendar.CalendarProviderEvents
 import com.zahri.lighttodo.usecase.calendar.CalendarSyncGateway
+import com.zahri.lighttodo.usecase.calendar.CalendarSyncWindow
 
 class AndroidCalendarSyncGateway(
     private val context: Context
@@ -17,14 +18,14 @@ class AndroidCalendarSyncGateway(
         ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
             PackageManager.PERMISSION_GRANTED
 
-    override fun queryEvents(userFilter: String, fromMillis: Long, toMillis: Long): CalendarProviderEvents {
+    override fun queryEvents(userFilter: String, window: CalendarSyncWindow): CalendarProviderEvents {
         val calendarIds = pickCalendarIds(userFilter)
         if (calendarIds.isEmpty()) {
             return CalendarProviderEvents(hasCalendars = false, events = emptyList())
         }
         return CalendarProviderEvents(
             hasCalendars = true,
-            events = queryEvents(calendarIds, fromMillis, toMillis)
+            events = queryEvents(calendarIds, window)
         )
     }
 
@@ -60,15 +61,19 @@ class AndroidCalendarSyncGateway(
 
     private fun queryEvents(
         calendarIds: List<Long>,
-        fromMillis: Long,
-        toMillis: Long
+        window: CalendarSyncWindow
     ): List<CalendarProviderEvent> {
         val placeholders = calendarIds.joinToString(",") { "?" }
-        val selection = "${CalendarContract.Events.CALENDAR_ID} IN ($placeholders) AND " +
-            "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ?"
+        val selection = "${CalendarContract.Events.CALENDAR_ID} IN ($placeholders) AND (" +
+            "(${CalendarContract.Events.ALL_DAY} = 1 AND " +
+            "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} < ?) OR " +
+            "((${CalendarContract.Events.ALL_DAY} IS NULL OR ${CalendarContract.Events.ALL_DAY} = 0) AND " +
+            "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} < ?))"
         val args = (calendarIds.map { it.toString() } + listOf(
-            fromMillis.toString(),
-            toMillis.toString()
+            window.allDayFromMillis.toString(),
+            window.allDayToExclusiveMillis.toString(),
+            window.timedFromMillis.toString(),
+            window.timedToExclusiveMillis.toString()
         )).toTypedArray()
 
         val cursor = context.contentResolver.query(

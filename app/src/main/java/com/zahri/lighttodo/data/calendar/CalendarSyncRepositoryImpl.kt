@@ -9,8 +9,11 @@ import com.zahri.lighttodo.usecase.todo.TodoRecord
 class CalendarSyncRepositoryImpl(
     private val todoDao: TodoDao
 ) : CalendarSyncRepository {
-    override suspend fun listUndoneCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long> =
-        todoDao.listUndoneCalendarEventIdsInWindow(fromMillis, toMillis)
+    override suspend fun listUndoneCalendarEventIdsInDateRange(
+        fromDayKey: Int,
+        toDayKey: Int
+    ): List<Long> =
+        todoDao.listUndoneCalendarEventIdsInDateRange(fromDayKey, toDayKey)
 
     override suspend fun findTodosByCalendarEventIds(eventIds: List<Long>): List<TodoRecord> =
         todoDao.findByCalendarEventIds(eventIds).map { it.toTodoRecord() }

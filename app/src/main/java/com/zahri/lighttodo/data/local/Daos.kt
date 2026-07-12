@@ -106,10 +106,10 @@ interface TodoDao {
         SELECT calendarEventId FROM todo
         WHERE calendarEventId IS NOT NULL
           AND done = 0
-          AND dateMillis >= :fromMillis
-          AND dateMillis <= :toMillis
+          AND date >= :fromDayKey
+          AND date <= :toDayKey
     """)
-    suspend fun listUndoneCalendarEventIdsInWindow(fromMillis: Long, toMillis: Long): List<Long>
+    suspend fun listUndoneCalendarEventIdsInDateRange(fromDayKey: Int, toDayKey: Int): List<Long>
 
     @Query("SELECT * FROM todo WHERE calendarEventId IN (:eventIds)")
     suspend fun findByCalendarEventIds(eventIds: List<Long>): List<TodoEntity>
