@@ -122,6 +122,9 @@ class BackupManager(
     }
 
     suspend fun restorePortableFromTree(uri: Uri): Int? {
+        if (fileGateway.hasPersistedDocumentTreeWritePermission(uri)) {
+            prefs.setPortableBackupTreeUri(uri.toString())
+        }
         val portableBackup = portableBackupStore.readFromTree(uri) ?: return null
         restorePortableBackup(portableBackup)
         return portableBackup.bundle.todos.size + portableBackup.bundle.notes.size
@@ -131,7 +134,26 @@ class BackupManager(
         val json = Json { prettyPrint = true; encodeDefaults = true }
         val bytes = json.encodeToString(bundle).toByteArray()
         writeToAppExternal(bytes)
-        portableBackupStore.write(bundle, settings)
+        val treeUri = prefs.portableBackupTreeUri()
+        val parsedTreeUri = treeUri?.let(Uri::parse)
+        val treeUriHasWritePermission =
+            parsedTreeUri?.let(fileGateway::hasPersistedDocumentTreeWritePermission) ?: false
+        if (treeUri != null && !treeUriHasWritePermission) {
+            prefs.clearPortableBackupTreeUri()
+        }
+        when (
+            PortableBackupRoutingPolicy.destination(
+                treeUri = treeUri,
+                treeUriHasWritePermission = treeUriHasWritePermission,
+                publicDocumentsMode = BackupStoragePolicy.publicDocumentsMode()
+            )
+        ) {
+            PortableBackupRoutingPolicy.Destination.DocumentTree ->
+                portableBackupStore.writeToTree(requireNotNull(parsedTreeUri), bundle, settings)
+            PortableBackupRoutingPolicy.Destination.LegacyPublicDocuments ->
+                portableBackupStore.write(bundle, settings)
+            PortableBackupRoutingPolicy.Destination.SkipPublicDocuments -> Unit
+        }
     }
 
     private fun writeToAppExternal(bytes: ByteArray) {

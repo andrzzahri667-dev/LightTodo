@@ -8,6 +8,7 @@ import com.zahri.lighttodo.domain.backup.BackupTag
 import com.zahri.lighttodo.domain.backup.BackupTodo
 import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 import com.zahri.lighttodo.usecase.file.FileGateway
+import com.zahri.lighttodo.usecase.file.PublicFileInfo
 import com.zahri.lighttodo.usecase.note.NoteAttachmentGateway
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -129,6 +130,100 @@ internal class PortableBackupStore(
         }
     }.getOrNull()
 
+    fun writeToTree(treeUri: Uri, bundle: BackupBundle, settings: UserPrefs.Snapshot) {
+        writeToTree(treeFiles(treeUri), bundle, settings)
+    }
+
+    internal fun writeToTree(
+        treeFiles: PortableTreeFiles,
+        bundle: BackupBundle,
+        settings: UserPrefs.Snapshot
+    ) {
+        val exportedAtMillis = System.currentTimeMillis()
+        treeFiles.write("", ".nomedia", "application/octet-stream", ByteArray(0))
+        val generation = "$exportedAtMillis-${java.util.UUID.randomUUID()}"
+        if (!writeTreeJson(
+                treeFiles,
+                "",
+                "manifest.json",
+                PortableManifest(
+                    generation = generation,
+                    exportedAtMillis = exportedAtMillis,
+                    tagCount = bundle.tags.size,
+                    todoCount = bundle.todos.size,
+                    noteCount = bundle.notes.size,
+                    noteFiles = bundle.notes.map { noteFileName(it) },
+                    complete = false
+                )
+            )
+        ) {
+            return
+        }
+        var allWritesSucceeded = true
+        fun recordWrite(succeeded: Boolean) {
+            allWritesSucceeded = allWritesSucceeded && succeeded
+        }
+
+        val exportedAttachments = mutableSetOf<String>()
+        val notes = bundle.notes.map { note ->
+            val fileName = noteFileName(note)
+            val markdown = note.content.toPortableMarkdownForTree(
+                treeFiles = treeFiles,
+                exportedAttachments = exportedAttachments,
+                recordWrite = ::recordWrite
+            )
+            recordWrite(
+                treeFiles.write(
+                    subdir = NotesDir,
+                    displayName = fileName,
+                    mimeType = "text/markdown",
+                    bytes = markdown.toByteArray(Charsets.UTF_8)
+                )
+            )
+            PortableNoteEntry(
+                id = note.id,
+                title = note.title,
+                tagId = note.tagId,
+                createdAtMillis = note.createdAtMillis,
+                updatedAtMillis = note.updatedAtMillis,
+                file = fileName
+            )
+        }
+        val noteIndex = PortableNoteIndex(
+            generation = generation,
+            exportedAtMillis = exportedAtMillis,
+            notes = notes
+        )
+
+        recordWrite(writeTreeJson(treeFiles, "", "tags.json", PortableTagsFile(generation, exportedAtMillis, bundle.tags)))
+        recordWrite(writeTreeJson(treeFiles, "", "todos.json", PortableTodosFile(generation, exportedAtMillis, bundle.todos)))
+        recordWrite(writeTreeJson(treeFiles, "", "settings.json", settings))
+        recordWrite(writeTreeJson(treeFiles, NotesDir, "index.json", noteIndex))
+
+        if (!allWritesSucceeded) return
+        if (writeTreeJson(
+                treeFiles,
+                "",
+                "manifest.json",
+                PortableManifest(
+                    generation = generation,
+                    exportedAtMillis = exportedAtMillis,
+                    tagCount = bundle.tags.size,
+                    todoCount = bundle.todos.size,
+                    noteCount = notes.size,
+                    noteFiles = notes.map { it.file },
+                    complete = true
+                )
+            )
+        ) {
+            cleanupTreeCurrentBackupOrphans(
+                treeFiles = treeFiles,
+                currentNoteFiles = notes.map { it.file }.toSet(),
+                currentAttachmentKeys = exportedAttachments.toSet()
+            )
+        }
+    }
+
     private fun readUsing(readFile: (String, String) -> ByteArray?): PortableRestore? {
         val manifest = readText(readFile, "", "manifest.json")
             ?.let { json.decodeFromString(PortableManifest.serializer(), it) }
@@ -173,6 +268,19 @@ internal class PortableBackupStore(
 
     private inline fun <reified T> writeJson(subdir: String, displayName: String, value: T): Boolean =
         writeFile(
+            subdir = subdir,
+            displayName = displayName,
+            mimeType = "application/json",
+            bytes = json.encodeToString(value).toByteArray(Charsets.UTF_8)
+        )
+
+    private inline fun <reified T> writeTreeJson(
+        treeFiles: PortableTreeFiles,
+        subdir: String,
+        displayName: String,
+        value: T
+    ): Boolean =
+        treeFiles.write(
             subdir = subdir,
             displayName = displayName,
             mimeType = "application/json",
@@ -252,6 +360,37 @@ internal class PortableBackupStore(
             }
         }
 
+    private fun String.toPortableMarkdownForTree(
+        treeFiles: PortableTreeFiles,
+        exportedAttachments: MutableSet<String>,
+        recordWrite: (Boolean) -> Unit
+    ): String =
+        lineSequence().joinToString("\n") { line ->
+            val attachment = NoteAttachmentMarkdown.parseLine(line) ?: return@joinToString line
+            val source = noteAttachmentGateway.resolveAttachment(attachment.ref) ?: return@joinToString line
+            val kindDir = attachment.kind.dirName()
+            val targetSubdir = "$HiddenAttachmentsDir/$kindDir"
+            val portableRef = "../$targetSubdir/${source.name}"
+            val attachmentKey = "$targetSubdir/${source.name}"
+            if (exportedAttachments.add(attachmentKey)) {
+                recordWrite(
+                    treeFiles.write(
+                        subdir = targetSubdir,
+                        displayName = source.name,
+                        mimeType = mimeTypeFor(source.name, attachment.kind),
+                        bytes = source.readBytes()
+                    )
+                )
+            }
+            when (attachment.kind) {
+                NoteAttachmentMarkdown.Kind.Image -> NoteAttachmentMarkdown.image(portableRef)
+                NoteAttachmentMarkdown.Kind.Audio -> NoteAttachmentMarkdown.audio(
+                    ref = portableRef,
+                    durationLabel = attachment.label
+                )
+            }
+        }
+
     private fun String.fromPortableMarkdown(
         importedAttachments: MutableMap<String, String>,
         readFile: (String, String) -> ByteArray?
@@ -299,6 +438,28 @@ internal class PortableBackupStore(
     ) {
         deleteOrphanNoteFiles(currentNoteFiles)
         deleteOrphanCurrentAttachmentFiles(currentAttachmentKeys)
+    }
+
+    private fun cleanupTreeCurrentBackupOrphans(
+        treeFiles: PortableTreeFiles,
+        currentNoteFiles: Set<String>,
+        currentAttachmentKeys: Set<String>
+    ) {
+        treeFiles.list(NotesDir)
+            .filter { file -> file.displayName.endsWith(".md") && file.displayName !in currentNoteFiles }
+            .forEach { file ->
+                treeFiles.delete(NotesDir, file.displayName)
+            }
+        listOf(
+            "$HiddenAttachmentsDir/image",
+            "$HiddenAttachmentsDir/audio"
+        ).forEach { subdir ->
+            treeFiles.list(subdir)
+                .filter { file -> "$subdir/${file.displayName}" !in currentAttachmentKeys }
+                .forEach { file ->
+                    treeFiles.delete(subdir, file.displayName)
+                }
+        }
     }
 
     private fun deleteOrphanNoteFiles(currentNoteFiles: Set<String>) {
@@ -531,6 +692,23 @@ internal class PortableBackupStore(
     private fun directDir(subdir: String): File =
         fileGateway.publicDocumentDir(RootDir, subdir)
 
+    private fun treeFiles(treeUri: Uri): PortableTreeFiles =
+        object : PortableTreeFiles {
+            override fun write(
+                subdir: String,
+                displayName: String,
+                mimeType: String,
+                bytes: ByteArray
+            ): Boolean =
+                fileGateway.writeDocumentTreeFile(treeUri, RootDir, subdir, displayName, mimeType, bytes)
+
+            override fun list(subdir: String): List<PublicFileInfo> =
+                fileGateway.listDocumentTreeFiles(treeUri, RootDir, subdir)
+
+            override fun delete(subdir: String, displayName: String): Boolean =
+                fileGateway.deleteDocumentTreeFile(treeUri, RootDir, subdir, displayName)
+        }
+
     private fun noteFileName(note: BackupNote): String {
         val title = note.title?.takeIf { it.isNotBlank() } ?: "note"
         val safeTitle = title
@@ -648,4 +826,10 @@ internal class PortableBackupStore(
         const val SanitizedHiddenAttachmentsDir = "_.attachments"
         const val AttachmentsDir = "attachments"
     }
+}
+
+internal interface PortableTreeFiles {
+    fun write(subdir: String, displayName: String, mimeType: String, bytes: ByteArray): Boolean
+    fun list(subdir: String): List<PublicFileInfo>
+    fun delete(subdir: String, displayName: String): Boolean
 }

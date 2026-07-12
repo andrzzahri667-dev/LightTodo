@@ -36,6 +36,26 @@ interface FileGateway {
         subdir: String,
         displayName: String
     ): ByteArray?
+    fun writeDocumentTreeFile(
+        treeUri: Uri,
+        rootDirName: String,
+        subdir: String,
+        displayName: String,
+        mimeType: String,
+        bytes: ByteArray
+    ): Boolean
+    fun deleteDocumentTreeFile(
+        treeUri: Uri,
+        rootDirName: String,
+        subdir: String,
+        displayName: String
+    ): Boolean
+    fun listDocumentTreeFiles(
+        treeUri: Uri,
+        rootDirName: String,
+        subdir: String
+    ): List<PublicFileInfo>
+    fun hasPersistedDocumentTreeWritePermission(treeUri: Uri): Boolean
 }
 
 data class PublicFileInfo(

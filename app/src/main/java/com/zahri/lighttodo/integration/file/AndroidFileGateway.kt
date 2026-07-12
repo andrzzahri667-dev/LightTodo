@@ -198,6 +198,44 @@ class AndroidFileGateway(
         return reader.readBytes(subdir, displayName)
     }
 
+    override fun writeDocumentTreeFile(
+        treeUri: Uri,
+        rootDirName: String,
+        subdir: String,
+        displayName: String,
+        mimeType: String,
+        bytes: ByteArray
+    ): Boolean {
+        val tree = TreeReader(appContext, treeUri, rootDirName)
+        return tree.writeBytes(subdir, displayName, mimeType, bytes)
+    }
+
+    override fun deleteDocumentTreeFile(
+        treeUri: Uri,
+        rootDirName: String,
+        subdir: String,
+        displayName: String
+    ): Boolean {
+        val tree = TreeReader(appContext, treeUri, rootDirName)
+        return tree.delete(subdir, displayName)
+    }
+
+    override fun listDocumentTreeFiles(
+        treeUri: Uri,
+        rootDirName: String,
+        subdir: String
+    ): List<PublicFileInfo> {
+        val tree = TreeReader(appContext, treeUri, rootDirName)
+        return tree.listFiles(subdir)
+    }
+
+    override fun hasPersistedDocumentTreeWritePermission(treeUri: Uri): Boolean =
+        appContext.contentResolver.persistedUriPermissions.any { permission ->
+            permission.uri == treeUri &&
+                permission.isReadPermission &&
+                permission.isWritePermission
+        }
+
     private fun findPublicDocumentUri(rootDirName: String, subdir: String, displayName: String): Uri? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -239,30 +277,127 @@ class AndroidFileGateway(
 
     private class TreeReader(
         private val context: Context,
-        treeUri: Uri,
+        private val treeUri: Uri,
         private val rootDirName: String
     ) {
         private val resolver = context.contentResolver
-        private val backupRoot: Uri? = backupRoot(treeUri)
+        private val backupRoot: Uri? = backupRoot(create = false)
 
         fun readBytes(subdir: String, displayName: String): ByteArray? {
             val root = backupRoot ?: return null
-            val parent = subdir.split('/')
-                .filter { it.isNotBlank() }
-                .fold(root) { current, segment ->
-                    child(current, segment, directory = true) ?: return null
-                }
+            val parent = findParent(root, subdir) ?: return null
             val file = child(parent, displayName, directory = false) ?: return null
             return resolver.openInputStream(file)?.use { it.readBytes() }
         }
 
-        private fun backupRoot(treeUri: Uri): Uri? {
+        fun writeBytes(
+            subdir: String,
+            displayName: String,
+            mimeType: String,
+            bytes: ByteArray
+        ): Boolean = runCatching {
+            val parent = ensureParent(subdir) ?: return false
+            val file = child(parent, displayName, directory = false)
+                ?: DocumentsContract.createDocument(resolver, parent, mimeType, displayName)
+                ?: return false
+            resolver.openOutputStream(file, "wt")?.use { it.write(bytes) } ?: return false
+            true
+        }.getOrDefault(false)
+
+        fun delete(subdir: String, displayName: String): Boolean = runCatching {
+            val root = backupRoot ?: return true
+            val parent = findParent(root, subdir) ?: return true
+            val file = child(parent, displayName, directory = false) ?: return true
+            DocumentsContract.deleteDocument(resolver, file)
+        }.getOrDefault(false)
+
+        fun listFiles(subdir: String): List<PublicFileInfo> {
+            val root = backupRoot ?: return emptyList()
+            val parent = findParent(root, subdir) ?: return emptyList()
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+                parent,
+                DocumentsContract.getDocumentId(parent)
+            )
+            val projection = arrayOf(
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_SIZE,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                DocumentsContract.Document.COLUMN_MIME_TYPE
+            )
+            return resolver.query(children, projection, null, null, null)?.use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        val mimeType = cursor.getString(3).orEmpty()
+                        val isDirectory = mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+                        if (!isDirectory) {
+                            add(
+                                PublicFileInfo(
+                                    displayName = cursor.getString(0).orEmpty(),
+                                    sizeBytes = if (cursor.isNull(1)) null else cursor.getLong(1),
+                                    modifiedAtMillis = if (cursor.isNull(2)) null else cursor.getLong(2)
+                                )
+                            )
+                        }
+                    }
+                }
+            }.orEmpty()
+        }
+
+        private fun backupRoot(create: Boolean): Uri? {
+            val selectedDocumentId = DocumentsContract.getTreeDocumentId(treeUri)
             val root = DocumentsContract.buildDocumentUriUsingTree(
                 treeUri,
-                DocumentsContract.getTreeDocumentId(treeUri)
+                selectedDocumentId
             )
-            if (child(root, "manifest.json", directory = false) != null) return root
-            return child(root, rootDirName, directory = true)
+            if (
+                DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot(
+                    selectedDisplayName = displayName(root),
+                    selectedDocumentId = selectedDocumentId,
+                    rootDirName = rootDirName
+                )
+            ) {
+                return root
+            }
+            val existing = child(root, rootDirName, directory = true)
+            if (existing != null) return existing
+            if (!create) return null
+            return DocumentsContract.createDocument(
+                resolver,
+                root,
+                DocumentsContract.Document.MIME_TYPE_DIR,
+                rootDirName
+            )
+        }
+
+        private fun findParent(root: Uri, subdir: String): Uri? =
+            subdir.split('/')
+                .filter { it.isNotBlank() }
+                .fold(root) { current, segment ->
+                    child(current, segment, directory = true) ?: return null
+                }
+
+        private fun ensureParent(subdir: String): Uri? {
+            val root = backupRoot(create = true) ?: return null
+            return subdir.split('/')
+                .filter { it.isNotBlank() }
+                .fold(root) { current, segment ->
+                    child(current, segment, directory = true)
+                        ?: DocumentsContract.createDocument(
+                            resolver,
+                            current,
+                            DocumentsContract.Document.MIME_TYPE_DIR,
+                            segment
+                        )
+                        ?: return null
+                }
+        }
+
+        private fun displayName(document: Uri): String? {
+            val projection = arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+            return resolver.query(document, projection, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                cursor.getString(0)
+            }
         }
 
         private fun child(parent: Uri, name: String, directory: Boolean): Uri? {

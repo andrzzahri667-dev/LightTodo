@@ -34,6 +34,7 @@ class UserPrefs(
         val QUICK_ADD_NOTIF_ENABLED = booleanPreferencesKey("quick_add_notif_enabled")
         val EXPANDED_TAG_IDS = stringPreferencesKey("collapsed_tag_ids")
         val DONE_SECTION_EXPANDED = booleanPreferencesKey("done_section_expanded")
+        val PORTABLE_BACKUP_TREE_URI = stringPreferencesKey("portable_backup_tree_uri")
     }
 
     @Serializable
@@ -63,6 +64,17 @@ class UserPrefs(
     }
 
     suspend fun snapshot(): Snapshot = flow.first()
+
+    suspend fun portableBackupTreeUri(): String? =
+        context.userPrefsDataStore.data.map { it[Keys.PORTABLE_BACKUP_TREE_URI] }.first()
+
+    suspend fun setPortableBackupTreeUri(uri: String) {
+        context.userPrefsDataStore.edit { it[Keys.PORTABLE_BACKUP_TREE_URI] = uri }
+    }
+
+    suspend fun clearPortableBackupTreeUri() {
+        context.userPrefsDataStore.edit { it.remove(Keys.PORTABLE_BACKUP_TREE_URI) }
+    }
 
     override suspend fun calendarSyncPreferences(): CalendarSyncPreferences =
         snapshot().let {

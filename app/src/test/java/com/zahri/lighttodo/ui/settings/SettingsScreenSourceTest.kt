@@ -18,4 +18,15 @@ class SettingsScreenSourceTest {
         assertTrue(source.contains("LaunchedEffect(feedbackMessage)"))
         assertFalse(source.contains("toast.value?.let"))
     }
+
+    @Test
+    fun portableTreePermissionFailureDoesNotBlockImportAttempt() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/settings/SettingsScreen.kt")
+            .readText()
+        val launcher = source.substringAfter("val importPortableLauncher").substringBefore("val readCalendarLauncher")
+
+        assertTrue(launcher.contains("persistPortableTreePermission(context, it)"))
+        assertTrue(launcher.contains("vm.importPortableFrom(context, it)"))
+        assertFalse(launcher.contains("return@let"))
+    }
 }

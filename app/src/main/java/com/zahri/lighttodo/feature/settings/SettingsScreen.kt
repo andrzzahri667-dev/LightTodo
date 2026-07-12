@@ -80,12 +80,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = viewModel(factory
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
         uri?.let {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    it,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
+            persistPortableTreePermission(context, it)
             vm.importPortableFrom(context, it) { msg -> feedbackMessage = msg }
         }
     }
@@ -392,6 +387,18 @@ private fun SettingRow(
             )
         }
     }
+}
+
+private fun persistPortableTreePermission(context: android.content.Context, uri: Uri): Boolean {
+    val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+    return runCatching {
+        context.contentResolver.takePersistableUriPermission(uri, flags)
+        context.contentResolver.persistedUriPermissions.any { permission ->
+            permission.uri == uri &&
+                permission.isReadPermission &&
+                permission.isWritePermission
+        }
+    }.getOrDefault(false)
 }
 
 @Composable
