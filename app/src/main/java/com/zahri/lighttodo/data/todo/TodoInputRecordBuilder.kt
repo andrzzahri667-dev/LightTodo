@@ -8,6 +8,7 @@ import com.zahri.lighttodo.domain.todo.TodoInput
 import com.zahri.lighttodo.domain.todo.TodoReminderDefaults
 import com.zahri.lighttodo.usecase.todo.TodoPreferencesSnapshot
 import com.zahri.lighttodo.usecase.todo.TodoRecord
+import com.zahri.lighttodo.util.DateUtils
 
 internal class TodoInputRecordBuilder(
     private val todoDao: TodoDao,
@@ -54,7 +55,7 @@ internal class TodoInputRecordBuilder(
         prefsSnapshot: TodoPreferencesSnapshot
     ): TodoTimeFields {
         val remindStart = computeRemindAt(
-            dateMillis = dateFields.dateMillis,
+            date = dateFields.date,
             hour = input.startHour,
             minute = input.startMinute,
             hoursBefore = 0,
@@ -67,7 +68,7 @@ internal class TodoInputRecordBuilder(
             defaultHoursBefore = prefsSnapshot.defaultHoursBefore
         )
         val remindEnd = computeRemindAt(
-            dateMillis = dateFields.dateMillis,
+            date = dateFields.date,
             hour = input.deadlineHour,
             minute = input.deadlineMinute,
             hoursBefore = endHoursBefore,
@@ -95,7 +96,7 @@ internal class TodoInputRecordBuilder(
     }
 
     private fun computeRemindAt(
-        dateMillis: Long,
+        date: Int,
         hour: Int?,
         minute: Int?,
         hoursBefore: Int,
@@ -104,11 +105,11 @@ internal class TodoInputRecordBuilder(
         allDayFallback: Boolean
     ): Long? {
         if (hour != null && minute != null) {
-            val target = dateMillis + hour * 3_600_000L + minute * 60_000L
+            val target = DateUtils.timeOnDayMillis(date, hour, minute)
             return target - hoursBefore * 3_600_000L
         }
         if (!allDayFallback) return null
-        return dateMillis + defaultHour * 3_600_000L + defaultMinute * 60_000L
+        return DateUtils.timeOnDayMillis(date, defaultHour, defaultMinute)
     }
 
     private data class TodoTimeFields(

@@ -20,6 +20,9 @@ object DateUtils {
     fun endOfDayMillis(d: LocalDate): Long =
         d.atTime(LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
 
+    fun timeOnDayMillis(dayKey: Int, hour: Int, minute: Int): Long =
+        fromDayKey(dayKey).atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+
     fun fromDayKey(key: Int): LocalDate {
         val y = key / 10000
         val m = (key / 100) % 100
