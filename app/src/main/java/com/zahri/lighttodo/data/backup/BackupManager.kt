@@ -122,11 +122,11 @@ class BackupManager(
     }
 
     suspend fun restorePortableFromTree(uri: Uri): Int? {
+        val portableBackup = portableBackupStore.readFromTree(uri) ?: return null
+        restorePortableBackup(portableBackup)
         if (fileGateway.hasPersistedDocumentTreeWritePermission(uri)) {
             prefs.setPortableBackupTreeUri(uri.toString())
         }
-        val portableBackup = portableBackupStore.readFromTree(uri) ?: return null
-        restorePortableBackup(portableBackup)
         return portableBackup.bundle.todos.size + portableBackup.bundle.notes.size
     }
 

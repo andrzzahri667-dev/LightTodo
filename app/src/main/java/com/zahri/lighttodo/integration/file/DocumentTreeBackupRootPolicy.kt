@@ -5,15 +5,9 @@ object DocumentTreeBackupRootPolicy {
         selectedDisplayName: String?,
         selectedDocumentId: String?,
         rootDirName: String
-    ): Boolean {
-        val segments = selectedDocumentId.documentPathSegments()
-        val isDocumentsBackupRoot =
-            segments != null &&
-                segments.size >= 2 &&
-                segments[segments.lastIndex - 1] == DocumentsDirName &&
-                segments.last() == rootDirName
-        return isDocumentsBackupRoot && (selectedDisplayName == null || selectedDisplayName == rootDirName)
-    }
+    ): Boolean =
+        selectedDisplayName == rootDirName ||
+            (selectedDisplayName == null && selectedDocumentId.documentPathSegments()?.lastOrNull() == rootDirName)
 
     private fun String?.documentPathSegments(): List<String>? =
         this
@@ -22,6 +16,4 @@ object DocumentTreeBackupRootPolicy {
             ?.split('/')
             ?.filter { it.isNotBlank() }
             ?.takeIf { it.isNotEmpty() }
-
-    private const val DocumentsDirName = "Documents"
 }

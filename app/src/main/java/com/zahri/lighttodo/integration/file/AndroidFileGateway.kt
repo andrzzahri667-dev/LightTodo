@@ -349,6 +349,7 @@ class AndroidFileGateway(
                 treeUri,
                 selectedDocumentId
             )
+            if (child(root, "manifest.json", directory = false) != null) return root
             if (
                 DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot(
                     selectedDisplayName = displayName(root),

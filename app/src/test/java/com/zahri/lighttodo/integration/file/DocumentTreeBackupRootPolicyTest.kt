@@ -1,5 +1,6 @@
 package com.zahri.lighttodo.integration.file
 
+import com.zahri.lighttodo.test.sourceFile
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -35,12 +36,33 @@ class DocumentTreeBackupRootPolicyTest {
                 rootDirName = "LightTodo"
             )
         )
-        assertFalse(
+        assertTrue(
             DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot(
                 selectedDisplayName = "LightTodo",
                 selectedDocumentId = "primary:Download/LightTodo",
                 rootDirName = "LightTodo"
             )
         )
+        assertTrue(
+            DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot(
+                selectedDisplayName = "LightTodo",
+                selectedDocumentId = "opaque-cloud-document-id",
+                rootDirName = "LightTodo"
+            )
+        )
+    }
+
+    @Test
+    fun existingManifestMakesAnySelectedTreeTheBackupRoot() {
+        val source = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/integration/file/AndroidFileGateway.kt"
+        ).readText()
+        val rootResolver = source
+            .substringAfter("private fun backupRoot(create: Boolean)")
+            .substringBefore("private fun findParent")
+        val manifestCheck = rootResolver.indexOf("child(root, \"manifest.json\", directory = false)")
+        val pathPolicy = rootResolver.indexOf("DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot")
+
+        assertTrue(manifestCheck >= 0 && manifestCheck < pathPolicy)
     }
 }
