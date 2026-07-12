@@ -68,9 +68,6 @@ class MainActivity : ComponentActivity() {
         if (startupPermissions.isNotEmpty()) {
             permLauncher.launch(startupPermissions.toTypedArray())
         }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            (application as App).retryRestore()
-        }
 
         setContent {
             LightTodoTheme {

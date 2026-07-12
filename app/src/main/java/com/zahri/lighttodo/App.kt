@@ -33,11 +33,21 @@ class App : Application() {
         NotificationChannels.ensure(this)
         watchQuickAddPref()
         watchCalendarSync()
-        container.backupManager.restoreIfEmpty()
-        container.backupManager.startAutoBackup()
+        startBackupLifecycle()
     }
 
-    fun retryRestore() { container.backupManager.restoreIfEmpty() }
+    fun retryRestore() {
+        appScope.launch(Dispatchers.IO) {
+            container.backupManager.restoreIfEmpty()
+        }
+    }
+
+    private fun startBackupLifecycle() {
+        appScope.launch(Dispatchers.IO) {
+            container.backupManager.restoreIfEmpty()
+            container.backupManager.startAutoBackup()
+        }
+    }
 
     private fun watchQuickAddPref() {
         // DataStore 是 IO 操作,QuickAddService.start/stop 内部走 Intent 调度,

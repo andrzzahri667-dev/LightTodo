@@ -96,28 +96,26 @@ class BackupManager(
         }
     }
 
-    fun restoreIfEmpty() {
-        scope.launch(Dispatchers.IO) {
-            // 只有 todos 和 notes 都为空时才认为"数据库为空，需要恢复"。
-            // 这样删除单一类型（比如清空所有笔记）不会触发备份恢复把它们再写回来。
-            val todosEmpty = db.todoDao().listAll().isEmpty()
-            val notesEmpty = db.noteDao().listAll().isEmpty()
-            if (!todosEmpty || !notesEmpty) return@launch
+    suspend fun restoreIfEmpty() {
+        // 只有 todos 和 notes 都为空时才认为"数据库为空，需要恢复"。
+        // 这样删除单一类型（比如清空所有笔记）不会触发备份恢复把它们再写回来。
+        val todosEmpty = db.todoDao().listAll().isEmpty()
+        val notesEmpty = db.noteDao().listAll().isEmpty()
+        if (!todosEmpty || !notesEmpty) return
 
-            readFromAppExternal()?.let { text ->
-                if (restoreJsonBackup(text)) return@launch
-            }
+        readFromAppExternal()?.let { text ->
+            if (restoreJsonBackup(text)) return
+        }
 
-            // Best-effort Documents/LightTodo restore: Android 10+ only exposes files still
-            // readable to this installed app instance, so failure must fall back to legacy JSON.
-            val portableBackup = portableBackupStore.read()
-            if (portableBackup != null && restoreBestEffortPortableBackup(portableBackup)) {
-                return@launch
-            }
+        // Best-effort Documents/LightTodo restore: Android 10+ only exposes files still
+        // readable to this installed app instance, so failure must fall back to legacy JSON.
+        val portableBackup = portableBackupStore.read()
+        if (portableBackup != null && restoreBestEffortPortableBackup(portableBackup)) {
+            return
+        }
 
-            readFromPublicDownloads()?.let { text ->
-                restoreJsonBackup(text)
-            }
+        readFromPublicDownloads()?.let { text ->
+            restoreJsonBackup(text)
         }
     }
 
