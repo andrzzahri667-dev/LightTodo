@@ -281,6 +281,7 @@ class SaveTodoUseCase(
 
     private suspend fun mirrorTodoToCalendar(todo: TodoRecord, prefs: TodoPreferencesSnapshot): TodoRecord {
         if (!prefs.calendarSyncEnabled) return todo
+        if (todo.calendarEventId != null && !todo.calendarCreatedByApp) return todo
         if (todo.dateMillis == null) {
             if (todo.calendarCreatedByApp) {
                 todo.calendarEventId?.let { calendarGateway.deleteEvent(it) }
@@ -316,7 +317,7 @@ class CompleteTodoUseCase(
 
     private suspend fun setDoneLocked(id: Long, done: Boolean, prefsSnapshot: TodoPreferencesSnapshot) {
         val updated = repository.setDoneLocal(id, done, System.currentTimeMillis()) ?: return
-        if (prefsSnapshot.calendarSyncEnabled) {
+        if (prefsSnapshot.calendarSyncEnabled && updated.calendarCreatedByApp) {
             if (done) {
                 updated.calendarEventId?.let { calendarGateway.setCompleted(it, true) }
             } else if (updated.dateMillis != null) {

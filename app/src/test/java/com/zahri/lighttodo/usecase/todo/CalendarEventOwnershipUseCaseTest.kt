@@ -81,6 +81,66 @@ class CalendarEventOwnershipUseCaseTest {
         assertEquals(listOf(101L), fixture.calendarGateway.deletedEventIds)
     }
 
+    @Test
+    fun saveWithDateDoesNotUpdateExternalCalendarEvent() = runBlocking {
+        val fixture = Fixture()
+        fixture.repository.recordToBuild = TodoRecord(
+            id = 1L,
+            dateMillis = 1_000L,
+            calendarEventId = 101L
+        )
+
+        fixture.saveTodo(TodoInput(id = 1L, title = "External", note = null))
+
+        assertEquals(emptyList<Long>(), fixture.calendarGateway.upsertedTodoIds)
+    }
+
+    @Test
+    fun saveWithDateStillUpdatesCalendarEventCreatedByApp() = runBlocking {
+        val fixture = Fixture()
+        fixture.repository.recordToBuild = TodoRecord(
+            id = 1L,
+            dateMillis = 1_000L,
+            calendarEventId = 101L,
+            calendarCreatedByApp = true
+        )
+
+        fixture.saveTodo(TodoInput(id = 1L, title = "Owned", note = null))
+
+        assertEquals(listOf(1L), fixture.calendarGateway.upsertedTodoIds)
+    }
+
+    @Test
+    fun completeAndReopenDoNotUpdateExternalCalendarEvent() = runBlocking {
+        val fixture = Fixture(
+            TodoRecord(id = 1L, dateMillis = 1_000L, calendarEventId = 101L)
+        )
+
+        fixture.completeTodo(1L, true)
+        fixture.completeTodo(1L, false)
+
+        assertEquals(emptyList<Pair<Long, Boolean>>(), fixture.calendarGateway.completedEvents)
+        assertEquals(emptyList<Long>(), fixture.calendarGateway.upsertedTodoIds)
+    }
+
+    @Test
+    fun completeAndReopenStillUpdateCalendarEventCreatedByApp() = runBlocking {
+        val fixture = Fixture(
+            TodoRecord(
+                id = 1L,
+                dateMillis = 1_000L,
+                calendarEventId = 101L,
+                calendarCreatedByApp = true
+            )
+        )
+
+        fixture.completeTodo(1L, true)
+        fixture.completeTodo(1L, false)
+
+        assertEquals(listOf(101L to true), fixture.calendarGateway.completedEvents)
+        assertEquals(listOf(1L), fixture.calendarGateway.upsertedTodoIds)
+    }
+
     private class Fixture(vararg todos: TodoRecord) {
         val repository = FakeTodoRepository(todos.toList())
         val reminderGateway = FakeReminderGateway()
@@ -93,6 +153,12 @@ class CalendarEventOwnershipUseCaseTest {
             widgetUpdater = widgetUpdater
         )
         val saveTodo = SaveTodoUseCase(
+            repository = repository,
+            reminderGateway = reminderGateway,
+            calendarGateway = calendarGateway,
+            widgetUpdater = widgetUpdater
+        )
+        val completeTodo = CompleteTodoUseCase(
             repository = repository,
             reminderGateway = reminderGateway,
             calendarGateway = calendarGateway,
@@ -162,12 +228,19 @@ class CalendarEventOwnershipUseCaseTest {
 
     private class FakeCalendarGateway : CalendarGateway {
         val deletedEventIds = mutableListOf<Long>()
+        val completedEvents = mutableListOf<Pair<Long, Boolean>>()
+        val upsertedTodoIds = mutableListOf<Long>()
 
         override suspend fun <T> withSyncLock(block: suspend () -> T): T = block()
 
-        override suspend fun setCompleted(eventId: Long, done: Boolean) = Unit
+        override suspend fun setCompleted(eventId: Long, done: Boolean) {
+            completedEvents += eventId to done
+        }
 
-        override suspend fun upsertFromTodo(todo: TodoRecord, accountName: String): Long? = null
+        override suspend fun upsertFromTodo(todo: TodoRecord, accountName: String): Long? {
+            upsertedTodoIds += todo.id
+            return todo.calendarEventId
+        }
 
         override suspend fun deleteEvent(eventId: Long) {
             deletedEventIds += eventId
