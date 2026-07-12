@@ -350,6 +350,7 @@ class AndroidFileGateway(
                 selectedDocumentId
             )
             if (child(root, "manifest.json", directory = false) != null) return root
+            if (hasSnapshotBackup(root)) return root
             if (
                 DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot(
                     selectedDisplayName = displayName(root),
@@ -368,6 +369,14 @@ class AndroidFileGateway(
                 DocumentsContract.Document.MIME_TYPE_DIR,
                 rootDirName
             )
+        }
+
+        private fun hasSnapshotBackup(root: Uri): Boolean {
+            val snapshots = child(root, "snapshots", directory = true) ?: return false
+            return listOf("a", "b").any { slotName ->
+                val slot = child(snapshots, slotName, directory = true) ?: return@any false
+                child(slot, "manifest.json", directory = false) != null
+            }
         }
 
         private fun findParent(root: Uri, subdir: String): Uri? =

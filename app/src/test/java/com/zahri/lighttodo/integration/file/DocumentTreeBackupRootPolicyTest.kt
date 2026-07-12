@@ -65,4 +65,20 @@ class DocumentTreeBackupRootPolicyTest {
 
         assertTrue(manifestCheck >= 0 && manifestCheck < pathPolicy)
     }
+
+    @Test
+    fun existingSnapshotSlotMakesAnySelectedTreeTheBackupRoot() {
+        val source = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/integration/file/AndroidFileGateway.kt"
+        ).readText()
+        val rootResolver = source
+            .substringAfter("private fun backupRoot(create: Boolean)")
+            .substringBefore("private fun findParent")
+        val snapshotCheck = rootResolver.indexOf("hasSnapshotBackup(root)")
+        val pathPolicy = rootResolver.indexOf("DocumentTreeBackupRootPolicy.useSelectedTreeAsBackupRoot")
+
+        assertTrue(snapshotCheck >= 0 && snapshotCheck < pathPolicy)
+        assertTrue(source.contains("child(root, \"snapshots\", directory = true)"))
+        assertTrue(source.contains("child(slot, \"manifest.json\", directory = false)"))
+    }
 }

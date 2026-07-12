@@ -59,8 +59,8 @@ class BackupManagerSourceTest {
         assertTrue(portableSource.contains("const val NotesDir = \"notes\""))
         assertTrue(portableSource.contains("const val AttachmentsDir = \"attachments\""))
         assertTrue(portableSource.contains("PortableTodosFile("))
-        assertTrue(portableSource.contains("items = bundle.todos"))
-        assertTrue(portableSource.contains("writeJson(\"\", \"settings.json\", settings)"))
+        assertTrue(portableSource.contains("PortableTodosFile(generation, exportedAtMillis, bundle.todos)"))
+        assertTrue(portableSource.contains("writeTreeJson(targetFiles, \"\", \"settings.json\", settings)"))
         assertTrue(portableSource.contains("fun writeToTree(treeUri: Uri, bundle: BackupBundle, settings: UserPrefs.Snapshot)"))
         assertTrue(portableSource.contains("\"text/markdown\""))
         assertTrue(portableSource.contains("noteAttachmentGateway.importAttachment("))
@@ -140,7 +140,8 @@ class BackupManagerSourceTest {
         val portableSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/PortableBackupStore.kt").readText()
         val managerSource = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/BackupManager.kt").readText()
 
-        assertTrue(portableSource.contains("runCatching { readUsing("))
+        assertTrue(portableSource.contains("readUsing(slot.files::read)"))
+        assertTrue(portableSource.contains("return runCatching { readUsing(treeFiles::read) }.getOrNull()"))
         assertTrue(portableSource.contains("}.getOrNull()"))
         assertTrue(managerSource.contains("readFromPublicDownloads()?.let"))
         assertTrue(managerSource.indexOf("portableBackupStore.read()") < managerSource.indexOf("readFromPublicDownloads()"))
@@ -149,7 +150,9 @@ class BackupManagerSourceTest {
     @Test
     fun portableBackupUsesManifestIntegritySignalAndWritesManifestLast() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/data/backup/PortableBackupStore.kt").readText()
-        val writeFunction = source.substringAfter("fun write(bundle").substringBefore("\n    fun read()")
+        val writeFunction = source
+            .substringAfter("internal fun writeToTree(")
+            .substringBefore("\n    private fun readableTreeSlots")
         val pendingManifestFileWrite = writeFunction.indexOf("\"manifest.json\"")
         val completeManifestFileWrite = writeFunction.lastIndexOf("\"manifest.json\"")
         val pendingManifestWrite = writeFunction.indexOf("complete = false")
@@ -161,6 +164,7 @@ class BackupManagerSourceTest {
 
         assertTrue(source.contains("val generation ="))
         assertTrue(source.contains("generation = generation"))
+        assertTrue(source.contains("sequence = sequence"))
         assertTrue(source.contains("if (!manifest.complete) return false"))
         assertTrue(pendingManifestWrite >= 0)
         assertTrue(completeManifestWrite >= 0)
