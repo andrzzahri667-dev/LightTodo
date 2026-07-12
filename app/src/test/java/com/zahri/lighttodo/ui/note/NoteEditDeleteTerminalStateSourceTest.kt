@@ -41,4 +41,24 @@ class NoteEditDeleteTerminalStateSourceTest {
             screenSource.contains("onDispose {\n            vm.save()\n        }")
         )
     }
+
+    @Test
+    fun backNavigationWaitsForTheCurrentNoteSave() {
+        val viewModelSource = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditViewModel.kt"
+        ).readText()
+        val screenSource = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditScreen.kt"
+        ).readText()
+
+        assertTrue(viewModelSource.contains("suspend fun flushAndAwait()"))
+        assertTrue(viewModelSource.contains("saveJob?.join()"))
+        val leaveBody = screenSource
+            .substringAfter("fun leaveNote()")
+            .substringBefore("LaunchedEffect(Unit)")
+        val flush = leaveBody.indexOf("vm.flushAndAwait()")
+        val navigate = leaveBody.indexOf("onBack()")
+        assertTrue(leaveBody.contains("scope.launch"))
+        assertTrue(flush >= 0 && flush < navigate)
+    }
 }

@@ -128,6 +128,11 @@ class NoteEditViewModel(
         }
     }
 
+    suspend fun flushAndAwait() {
+        save()
+        saveJob?.join()
+    }
+
     fun delete(onDone: () -> Unit) {
         val id = noteId ?: run { onDone(); return }
         viewModelScope.launch {

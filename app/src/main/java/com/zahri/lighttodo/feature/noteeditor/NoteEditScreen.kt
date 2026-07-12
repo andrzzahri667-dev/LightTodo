@@ -134,6 +134,7 @@ fun NoteEditScreen(
     var previewImageRef by remember { mutableStateOf<String?>(null) }
     var pendingDeleteAttachment by remember { mutableStateOf<NoteAttachmentMarkdown.Attachment?>(null) }
     var pendingKeyboardMediaDelete by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    var leaving by remember { mutableStateOf(false) }
     val formatMode = remember { mutableStateOf(false) }
     var styleState by remember { mutableStateOf(MarkdownStyleState()) }
     val formattingController = remember { MarkdownFormattingController() }
@@ -281,9 +282,13 @@ fun NoteEditScreen(
     }
 
     fun leaveNote() {
+        if (leaving) return
         hideNoteKeyboard(context, view, focusedEditor)
-        vm.save()
-        onBack()
+        leaving = true
+        scope.launch {
+            vm.flushAndAwait()
+            onBack()
+        }
     }
 
     LaunchedEffect(Unit) { vm.load(editingId) }
