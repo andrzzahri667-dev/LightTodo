@@ -28,6 +28,20 @@ class TodoWidgetProviderSourceTest {
     }
 
     @Test
+    fun widgetCompletionCommitsBeforeAnimationDelay() {
+        val source = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/integration/widget/WidgetActionReceiver.kt"
+        ).readText()
+        val completion = source
+            .substringAfter("private fun startCompleteAnimation(")
+            .substringBefore("private fun launchAsync(")
+        val commit = completion.indexOf("completeTodo(todoId, true)")
+        val delay = completion.indexOf("delay(STRIKE_DISPLAY_MS)")
+
+        assertTrue(commit >= 0 && commit < delay)
+    }
+
+    @Test
     fun providerDoesNotKeepDebugLogsInReleasePath() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/integration/widget/TodoWidgetProvider.kt")
             .readText()

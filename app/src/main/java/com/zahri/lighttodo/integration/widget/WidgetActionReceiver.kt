@@ -104,9 +104,9 @@ class WidgetActionReceiver : BroadcastReceiver() {
                 rv.setImageViewResource(CHECK_IDS[rowIndex], R.drawable.widget_checkbox_checked)
                 applyPartialUpdate(appCtx, widgetId, rv)
 
-                delay(STRIKE_DISPLAY_MS)
                 appCtx.container.todoUseCases.completeTodo(todoId, true)
                 savedDone = true
+                delay(STRIKE_DISPLAY_MS)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
             } finally {
