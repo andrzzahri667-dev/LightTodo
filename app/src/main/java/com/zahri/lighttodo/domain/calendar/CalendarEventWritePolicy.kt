@@ -1,18 +1,22 @@
 package com.zahri.lighttodo.domain.calendar
 
+import com.zahri.lighttodo.util.DateUtils
+import java.time.ZoneId
+
 internal data class CalendarEventDraft(
     val title: String,
     val description: String?,
     val startMillis: Long,
     val endMillis: Long,
     val allDay: Boolean,
+    val timezoneId: String,
     val completed: Boolean
 )
 
 data class CalendarEventTodo(
     val title: String?,
     val note: String?,
-    val dateMillis: Long?,
+    val date: Int?,
     val startHour: Int?,
     val startMinute: Int?,
     val deadlineHour: Int?,
@@ -21,22 +25,36 @@ data class CalendarEventTodo(
 )
 
 internal object CalendarEventWritePolicy {
-    const val DayMillis = 86_400_000L
     private const val MinimumTimedDurationMillis = 15 * 60_000L
+    private val Utc = ZoneId.of("UTC")
 
-    fun draftFor(todo: CalendarEventTodo): CalendarEventDraft? {
-        val dateMillis = todo.dateMillis ?: return null
+    fun draftFor(
+        todo: CalendarEventTodo,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): CalendarEventDraft? {
+        val dayKey = todo.date ?: return null
+        val date = DateUtils.fromDayKey(dayKey)
         val allDay = todo.startHour == null || todo.startMinute == null ||
             todo.deadlineHour == null || todo.deadlineMinute == null
         val startMillis = if (allDay) {
-            dateMillis
+            date.atStartOfDay(Utc).toInstant().toEpochMilli()
         } else {
-            millisAt(dateMillis, todo.startHour, todo.startMinute)
+            DateUtils.timeOnDayMillis(
+                dayKey,
+                requireNotNull(todo.startHour),
+                requireNotNull(todo.startMinute),
+                zoneId
+            )
         }
         val endMillis = if (allDay) {
-            dateMillis + DayMillis
+            date.plusDays(1).atStartOfDay(Utc).toInstant().toEpochMilli()
         } else {
-            val rawEnd = millisAt(dateMillis, todo.deadlineHour, todo.deadlineMinute)
+            val rawEnd = DateUtils.timeOnDayMillis(
+                dayKey,
+                requireNotNull(todo.deadlineHour),
+                requireNotNull(todo.deadlineMinute),
+                zoneId
+            )
             if (rawEnd > startMillis) rawEnd else startMillis + MinimumTimedDurationMillis
         }
         return CalendarEventDraft(
@@ -45,13 +63,8 @@ internal object CalendarEventWritePolicy {
             startMillis = startMillis,
             endMillis = endMillis,
             allDay = allDay,
+            timezoneId = if (allDay) Utc.id else zoneId.id,
             completed = todo.done
         )
-    }
-
-    private fun millisAt(dateMillis: Long, hour: Int?, minute: Int?): Long {
-        val h = requireNotNull(hour)
-        val m = requireNotNull(minute)
-        return dateMillis + h * 3_600_000L + m * 60_000L
     }
 }

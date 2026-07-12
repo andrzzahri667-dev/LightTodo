@@ -21,7 +21,10 @@ object DateUtils {
         d.atTime(LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
 
     fun timeOnDayMillis(dayKey: Int, hour: Int, minute: Int): Long =
-        fromDayKey(dayKey).atTime(hour, minute).atZone(zone).toInstant().toEpochMilli()
+        timeOnDayMillis(dayKey, hour, minute, zone)
+
+    fun timeOnDayMillis(dayKey: Int, hour: Int, minute: Int, zoneId: ZoneId): Long =
+        fromDayKey(dayKey).atTime(hour, minute).atZone(zoneId).toInstant().toEpochMilli()
 
     fun fromDayKey(key: Int): LocalDate {
         val y = key / 10000

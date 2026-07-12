@@ -13,7 +13,7 @@ import com.zahri.lighttodo.domain.calendar.CalendarEventTodo
 import com.zahri.lighttodo.domain.calendar.CalendarEventWritePolicy
 import com.zahri.lighttodo.domain.calendar.CalendarSyncPolicy
 import com.zahri.lighttodo.usecase.todo.TodoRecord
-import java.util.TimeZone
+import java.time.ZoneId
 
 internal object CalendarEventWriter {
     fun upsertFromTodo(
@@ -21,7 +21,10 @@ internal object CalendarEventWriter {
         todo: TodoRecord,
         userFilter: String
     ): Long? {
-        val draft = CalendarEventWritePolicy.draftFor(todo.toCalendarEventTodo()) ?: return null
+        val draft = CalendarEventWritePolicy.draftFor(
+            todo.toCalendarEventTodo(),
+            ZoneId.systemDefault()
+        ) ?: return null
         if (!hasReadPermission(context) || !hasWritePermission(context)) return todo.calendarEventId
 
         val cr = context.contentResolver
@@ -84,8 +87,8 @@ internal object CalendarEventWriter {
             put(CalendarContract.Events.DTSTART, draft.startMillis)
             put(CalendarContract.Events.DTEND, draft.endMillis)
             put(CalendarContract.Events.ALL_DAY, if (draft.allDay) 1 else 0)
-            put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
-            put(CalendarContract.Events.EVENT_END_TIMEZONE, TimeZone.getDefault().id)
+            put(CalendarContract.Events.EVENT_TIMEZONE, draft.timezoneId)
+            put(CalendarContract.Events.EVENT_END_TIMEZONE, draft.timezoneId)
             put(
                 CalendarContract.Events.STATUS,
                 if (draft.completed) CalendarContract.Events.STATUS_CANCELED
@@ -136,7 +139,7 @@ internal object CalendarEventWriter {
         CalendarEventTodo(
             title = title,
             note = note,
-            dateMillis = dateMillis,
+            date = date,
             startHour = startHour,
             startMinute = startMinute,
             deadlineHour = deadlineHour,
