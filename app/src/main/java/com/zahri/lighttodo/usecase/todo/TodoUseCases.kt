@@ -282,7 +282,9 @@ class SaveTodoUseCase(
     private suspend fun mirrorTodoToCalendar(todo: TodoRecord, prefs: TodoPreferencesSnapshot): TodoRecord {
         if (!prefs.calendarSyncEnabled) return todo
         if (todo.dateMillis == null) {
-            todo.calendarEventId?.let { calendarGateway.deleteEvent(it) }
+            if (todo.calendarCreatedByApp) {
+                todo.calendarEventId?.let { calendarGateway.deleteEvent(it) }
+            }
             return todo.copy(calendarEventId = null, calendarCreatedByApp = false)
         }
         val eventId = calendarGateway.upsertFromTodo(todo, prefs.calendarAccountName)
@@ -351,7 +353,9 @@ class DeleteTodoUseCase(
         val prefsSnapshot = repository.prefsSnapshot()
         if (prefsSnapshot.calendarSyncEnabled) {
             calendarGateway.withSyncLock {
-                repository.findTodoById(id)?.calendarEventId?.let { eventId ->
+                repository.findTodoById(id)
+                    ?.takeIf { it.calendarCreatedByApp }
+                    ?.calendarEventId?.let { eventId ->
                     calendarGateway.deleteEvent(eventId)
                 }
                 deleteLocalTodo(id)
@@ -367,6 +371,7 @@ class DeleteTodoUseCase(
         if (prefsSnapshot.calendarSyncEnabled) {
             calendarGateway.withSyncLock {
                 val calendarEventIds = repository.findTodosByIds(ids)
+                    .filter { it.calendarCreatedByApp }
                     .mapNotNull { it.calendarEventId }
                 calendarEventIds.forEach { calendarGateway.deleteEvent(it) }
                 deleteLocalTodos(ids)
@@ -382,7 +387,8 @@ class DeleteTodoUseCase(
             calendarGateway.withSyncLock {
                 val doneTodos = repository.listDoneTodos()
                 val doneReminderIds = repository.listDoneTodoIdsWithReminders()
-                doneTodos.mapNotNull { it.calendarEventId }
+                doneTodos.filter { it.calendarCreatedByApp }
+                    .mapNotNull { it.calendarEventId }
                     .forEach { calendarGateway.deleteEvent(it) }
                 repository.deleteAllDoneTodos()
                 doneReminderIds.forEach(reminderGateway::cancel)
