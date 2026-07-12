@@ -52,6 +52,7 @@ class NoteEditViewModel(
     private var loaded = false
     private var saveJob: Job? = null
     private var saveAgainAfterCurrentJob = false
+    private var deleteCompleted = false
     private var lastSavedTitle = ""
     private var lastSavedContent = ""
     private var recorder: MediaRecorder? = null
@@ -93,6 +94,7 @@ class NoteEditViewModel(
 
     /** 自动保存：有内容时写库 */
     fun save() {
+        if (deleteCompleted) return
         if (saveJob?.isActive == true) {
             saveAgainAfterCurrentJob = true
             return
@@ -132,6 +134,7 @@ class NoteEditViewModel(
             withContext(NonCancellable + Dispatchers.IO) {
                 noteUseCases.deleteNote.delete(id, fallbackContent = _content.value)
             }
+            deleteCompleted = true
             onDone()
         }
     }
