@@ -71,6 +71,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout-compose:1.1.1")
     implementation("com.airbnb.android:lottie-compose:6.7.1")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
     val roomVersion = "2.6.1"

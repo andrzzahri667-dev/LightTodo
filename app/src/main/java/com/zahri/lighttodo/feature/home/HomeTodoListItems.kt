@@ -4,6 +4,12 @@ import com.zahri.lighttodo.usecase.todo.HomeTodo
 
 sealed interface HomeTodoListItem {
     val key: String
+    val contentType: ContentType
+
+    enum class ContentType {
+        HEADER,
+        TODO_ROW
+    }
 
     data class Header(
         val sectionKey: String,
@@ -13,6 +19,7 @@ sealed interface HomeTodoListItem {
         val doneSection: Boolean = false
     ) : HomeTodoListItem {
         override val key: String = if (doneSection) "done-header" else "header-$sectionKey"
+        override val contentType: ContentType = ContentType.HEADER
     }
 
     data class TodoRow(
@@ -22,6 +29,7 @@ sealed interface HomeTodoListItem {
         val visible: Boolean
     ) : HomeTodoListItem {
         override val key: String = if (strikeThrough) "done-${todo.id}" else "todo-${todo.id}"
+        override val contentType: ContentType = ContentType.TODO_ROW
     }
 }
 

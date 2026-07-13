@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -193,13 +195,22 @@ private fun AppNavHost(
         popEnterTransition = { motionRoutePopEnterTransition() },
         popExitTransition = { motionRoutePopExitTransition() }
     ) {
-        composable(Routes.Home) {
+        composable(Routes.Home) { entry ->
+            val homeLifecycleState by entry.lifecycle.currentStateFlow
+                .collectAsStateWithLifecycle()
             HomeScreen(
                 onAdd = { nav.navigate(Routes.edit()) },
                 onEdit = { id -> nav.navigate(Routes.edit(id)) },
                 onNoteEdit = onNoteEdit,
                 hiddenNoteSource = hiddenNoteSource,
-                onSettings = { nav.navigate(Routes.Settings) }
+                settingsEnabled = homeLifecycleState == Lifecycle.State.RESUMED,
+                onSettings = {
+                    if (entry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                        nav.navigate(Routes.Settings) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
             )
         }
         composable(

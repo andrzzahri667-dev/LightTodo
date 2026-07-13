@@ -24,7 +24,7 @@ class MainActivityMotionSourceTest {
     }
 
     @Test
-    fun routeTransitionsAreCentralizedOutsideMainActivity() {
+    fun routeTransitionsPreserveTheCentralizedMotionDesign() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/MainActivity.kt").readText()
         val routeSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionRouteTransitions.kt").readText()
 
@@ -42,5 +42,16 @@ class MainActivityMotionSourceTest {
         assertTrue(routeSource.contains("slideIntoContainer("))
         assertTrue(routeSource.contains("slideOutOfContainer("))
         assertTrue(routeSource.contains("AppMotion.routeTween()"))
+        assertFalse(routeSource.contains("EnterTransition.None"))
+        assertFalse(routeSource.contains("ExitTransition.None"))
+    }
+
+    @Test
+    fun settingsRouteDoesNotInterruptAnExistingNavigationTransition() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/MainActivity.kt").readText()
+
+        assertTrue(source.contains("homeLifecycleState == Lifecycle.State.RESUMED"))
+        assertTrue(source.contains("entry.lifecycle.currentState == Lifecycle.State.RESUMED"))
+        assertTrue(source.contains("launchSingleTop = true"))
     }
 }

@@ -3,6 +3,7 @@ package com.zahri.lighttodo.feature.home
 import com.zahri.lighttodo.usecase.todo.HomeTodo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,6 +63,24 @@ class HomeTodoListItemsTest {
         assertTrue(firstDone.visible)
         assertFalse(lastDone.showDivider)
         assertTrue(firstDone.strikeThrough)
+    }
+
+    @Test
+    fun homeTodoListItemsExposeCompatibleLazyContentTypes() {
+        val items = buildHomeTodoListItems(
+            HomeUiState(
+                groups = listOf(TagGroup(tagId = 2L, name = "Today", items = listOf(todo(10L)))),
+                doneItems = emptyList(),
+                collapsedTagIds = emptySet(),
+                doneExpanded = false
+            )
+        )
+        val contentTypeGetter = HomeTodoListItem::class.java.methods
+            .singleOrNull { it.name == "getContentType" }
+
+        assertNotNull(contentTypeGetter)
+        assertEquals("HEADER", contentTypeGetter?.invoke(items[0]).toString())
+        assertEquals("TODO_ROW", contentTypeGetter?.invoke(items[1]).toString())
     }
 
     private fun todo(id: Long, done: Boolean = false): HomeTodo =

@@ -18,6 +18,7 @@ class MotionScrollSourceTest {
         assertFalse(homeSource.contains("import com.zahri.lighttodo.ui.motion.components.motionHomePagerScrollToPage"))
         assertFalse(homeSource.contains("pagerState.motionHomePagerScrollToPage(index)"))
         assertTrue(homeSource.contains("pagerState.animateScrollToPage(index)"))
+        assertFalse(homeSource.contains("pagerState.scrollToPage(index)"))
         assertFalse(sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components").walk().any {
             it.name == "MotionScroll.kt"
         })

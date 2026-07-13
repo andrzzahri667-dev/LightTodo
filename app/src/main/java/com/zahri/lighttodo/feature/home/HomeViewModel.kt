@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zahri.lighttodo.R
+import com.zahri.lighttodo.feature.home.note.NoteGridItem
+import com.zahri.lighttodo.feature.home.note.NoteGridItemMemoizer
 import com.zahri.lighttodo.usecase.note.DeleteNoteUseCase
 import com.zahri.lighttodo.usecase.note.NoteListItem
 import com.zahri.lighttodo.usecase.note.ObserveNotesUseCase
@@ -12,6 +14,7 @@ import com.zahri.lighttodo.usecase.todo.DeleteTodoUseCase
 import com.zahri.lighttodo.usecase.todo.HomeTodo
 import com.zahri.lighttodo.usecase.todo.ObserveHomeUseCase
 import com.zahri.lighttodo.usecase.todo.UpdateHomePreferencesUseCase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class TagGroup(
     val tagId: Long?,
@@ -32,6 +36,11 @@ data class HomeUiState(
     val doneItems: List<HomeTodo>,
     val collapsedTagIds: Set<String>,
     val doneExpanded: Boolean
+)
+
+data class HomeNotesUiState(
+    val notes: List<NoteListItem>,
+    val gridItems: List<NoteGridItem>
 )
 
 class HomeViewModel(
@@ -59,9 +68,23 @@ class HomeViewModel(
             )
 
     // ── Notes ────────────────────────────────────────────────
-    val notes: StateFlow<List<NoteListItem>> =
+    private val noteGridItemMemoizer = NoteGridItemMemoizer()
+
+    val noteUiState: StateFlow<HomeNotesUiState> =
         observeNotes()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+            .map { notes ->
+                withContext(Dispatchers.Default) {
+                    HomeNotesUiState(
+                        notes = notes,
+                        gridItems = noteGridItemMemoizer.itemsFor(notes)
+                    )
+                }
+            }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                HomeNotesUiState(emptyList(), emptyList())
+            )
 
     private val _noteSelectedIds = MutableStateFlow<Set<Long>>(emptySet())
     val noteSelectedIds: StateFlow<Set<Long>> = _noteSelectedIds.asStateFlow()

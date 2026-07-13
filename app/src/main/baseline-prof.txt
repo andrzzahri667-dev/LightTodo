@@ -1,0 +1,17 @@
+HSPLcom/zahri/lighttodo/App;->**(**)**
+HSPLcom/zahri/lighttodo/AppContainer;->**(**)**
+HSPLcom/zahri/lighttodo/AppContainerKt;->**(**)**
+HSPLcom/zahri/lighttodo/MainActivity;->**(**)**
+HSPLcom/zahri/lighttodo/MainActivityKt;->**(**)**
+HSPLcom/zahri/lighttodo/data/local/**->**(**)**
+HSPLcom/zahri/lighttodo/data/note/**->**(**)**
+HSPLcom/zahri/lighttodo/data/prefs/**->**(**)**
+HSPLcom/zahri/lighttodo/data/settings/**->**(**)**
+HSPLcom/zahri/lighttodo/data/todo/**->**(**)**
+HSPLcom/zahri/lighttodo/feature/home/**->**(**)**
+HSPLcom/zahri/lighttodo/feature/settings/**->**(**)**
+HSPLcom/zahri/lighttodo/ui/motion/**->**(**)**
+HSPLcom/zahri/lighttodo/ui/theme/**->**(**)**
+HSPLcom/zahri/lighttodo/usecase/note/**->**(**)**
+HSPLcom/zahri/lighttodo/usecase/settings/**->**(**)**
+HSPLcom/zahri/lighttodo/usecase/todo/**->**(**)**

@@ -26,14 +26,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
-import com.zahri.lighttodo.usecase.note.NoteListItem
 import com.zahri.lighttodo.ui.motion.components.motionNoteGridItem
 import com.zahri.lighttodo.ui.motion.components.motionNoteSourceVisibilityLayer
 import com.zahri.lighttodo.ui.motion.components.rememberMotionNoteCardSelectionColor
@@ -48,16 +48,13 @@ private const val GRID_COLUMNS = 2
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NoteGridPage(
-    notes: List<NoteListItem>,
+    noteItems: List<NoteGridItem>,
     selectedIds: Set<Long>,
     hiddenNoteSource: NoteSourceAnimationKey?,
     onNoteClick: (Long, Rect?) -> Unit,
     onNoteLongClick: (Long) -> Unit
 ) {
-    val noteItemMemoizer = remember { NoteGridItemMemoizer() }
-    val noteItems = remember(notes) { noteItemMemoizer.itemsFor(notes) }
-
-    if (notes.isEmpty()) {
+    if (noteItems.isEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -105,7 +102,7 @@ private fun NoteCard(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val sourceBounds = remember { NoteSourceBounds() }
+    val sourceCoordinates = remember { NoteSourceCoordinates() }
     val cardBackground by rememberMotionNoteCardSelectionColor(
         selected = selected,
         selectedColor = AppColors.Brand.copy(alpha = 0.15f),
@@ -119,9 +116,12 @@ private fun NoteCard(
             .defaultMinSize(minHeight = CARD_MIN_HEIGHT)
             .clip(RoundedCornerShape(12.dp))
             .background(cardBackground)
-            .onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }
+            .onPlaced(sourceCoordinates::update)
             .motionNoteSourceVisibilityLayer(hidden)
-            .combinedClickable(onLongClick = onLongClick, onClick = { onClick(sourceBounds.bounds) })
+            .combinedClickable(
+                onLongClick = onLongClick,
+                onClick = { onClick(sourceCoordinates.boundsInRootOrNull()) }
+            )
             .padding(12.dp)
     ) {
         if (note.title != null) {
@@ -149,6 +149,13 @@ private fun NoteCard(
     }
 }
 
-private class NoteSourceBounds {
-    var bounds: Rect? = null
+private class NoteSourceCoordinates {
+    private var coordinates: LayoutCoordinates? = null
+
+    fun update(value: LayoutCoordinates) {
+        coordinates = value
+    }
+
+    fun boundsInRootOrNull(): Rect? =
+        coordinates?.takeIf { it.isAttached }?.boundsInRoot()
 }

@@ -100,7 +100,8 @@ fun TodoPage(
 
         items(
             items = listItems,
-            key = { it.key }
+            key = { it.key },
+            contentType = { it.contentType }
         ) { item ->
             when (item) {
                 is HomeTodoListItem.Header -> {

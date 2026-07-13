@@ -32,6 +32,15 @@ object MarkdownSpanApplier {
     private val OrderedListRegex = Regex("^(\\s*)(\\d+)[.)]\\s+(.+)$")
     private val UnorderedListRegex = Regex("^(\\s*)[-*+]\\s+(.+)$")
     private val TaskListRegex = Regex("^(\\s*)[-*+]\\s+\\[([ xX]?)]\\s*(.*)$")
+    private val InlineLinkRegex = Regex("\\[([^\\]]+)]\\([^)]*\\)")
+    private val InlineCodeRegex = Regex("`([^`]+)`")
+    private val InlineBoldAsteriskRegex = Regex("\\*\\*([^*]+)\\*\\*")
+    private val InlineBoldUnderscoreRegex = Regex("__([^_]+)__")
+    private val InlineDoubleStrikeRegex = Regex("~~([^~]+)~~")
+    private val InlineSingleStrikeRegex = Regex("~([^~]+)~")
+    private val InlineUnderlineRegex = Regex("<u>(.*?)</u>")
+    private val InlineItalicAsteriskRegex = Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)")
+    private val InlineItalicUnderscoreRegex = Regex("(?<!_)_([^_]+)_(?!_)")
 
     data class LinkRange(
         val textStart: Int,
@@ -70,15 +79,15 @@ object MarkdownSpanApplier {
 
     private fun stripInlineMarkdown(text: String): String {
         return text
-            .replace(Regex("\\[([^\\]]+)]\\([^)]*\\)"), "$1")
-            .replace(Regex("`([^`]+)`"), "$1")
-            .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
-            .replace(Regex("__([^_]+)__"), "$1")
-            .replace(Regex("~~([^~]+)~~"), "$1")
-            .replace(Regex("~([^~]+)~"), "$1")
-            .replace(Regex("<u>(.*?)</u>"), "$1")
-            .replace(Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)"), "$1")
-            .replace(Regex("(?<!_)_([^_]+)_(?!_)"), "$1")
+            .replace(InlineLinkRegex, "$1")
+            .replace(InlineCodeRegex, "$1")
+            .replace(InlineBoldAsteriskRegex, "$1")
+            .replace(InlineBoldUnderscoreRegex, "$1")
+            .replace(InlineDoubleStrikeRegex, "$1")
+            .replace(InlineSingleStrikeRegex, "$1")
+            .replace(InlineUnderlineRegex, "$1")
+            .replace(InlineItalicAsteriskRegex, "$1")
+            .replace(InlineItalicUnderscoreRegex, "$1")
     }
 
     /** Managed span types — removed and re-applied each pass. */

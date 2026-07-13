@@ -31,6 +31,15 @@ class NoteGridPageSourceTest {
     }
 
     @Test
+    fun noteCardsResolveGlobalBoundsOnlyForClicks() {
+        val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
+
+        assertTrue(source.contains(".onPlaced(sourceCoordinates::update)"))
+        assertTrue(source.contains("onClick(sourceCoordinates.boundsInRootOrNull())"))
+        assertFalse(source.contains(".onGloballyPositioned { sourceBounds.bounds = it.boundsInRoot() }"))
+    }
+
+    @Test
     fun noteGridPlacementUsesCurrentLazyItemMotionApi() {
         val source = sourceFile("app/src/main/java/com/zahri/lighttodo/feature/home/note/NoteGridPage.kt").readText()
         val placementSource = sourceFile("app/src/main/java/com/zahri/lighttodo/ui/motion/components/MotionNoteGridItemPlacement.kt").readText()

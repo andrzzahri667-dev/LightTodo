@@ -29,15 +29,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,6 +58,7 @@ import com.zahri.lighttodo.feature.noteeditor.NoteEditLaunchSeed
 import com.zahri.lighttodo.feature.noteeditor.NoteSourceAnimationKey
 import com.zahri.lighttodo.ui.theme.AppColors
 import com.zahri.lighttodo.ui.theme.AppType
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Page indices for the home pager. */
@@ -70,6 +75,7 @@ fun HomeScreen(
     onEdit: (Long) -> Unit,
     onNoteEdit: (Long?, Rect?, Float, NoteEditLaunchSeed?) -> Unit,
     onSettings: () -> Unit,
+    settingsEnabled: Boolean = true,
     hiddenNoteSource: NoteSourceAnimationKey? = null,
     vm: HomeViewModel = viewModel(factory = lightTodoViewModelFactory())
 ) {
@@ -78,25 +84,32 @@ fun HomeScreen(
     val pendingCompleteIds by vm.pendingCompleteIds.collectAsStateWithLifecycle()
     val inSelection = selectedIds.isNotEmpty()
 
-    val notes by vm.notes.collectAsStateWithLifecycle()
+    val noteUiState by vm.noteUiState.collectAsStateWithLifecycle()
+    val notes = noteUiState.notes
     val noteSelectedIds by vm.noteSelectedIds.collectAsStateWithLifecycle()
     val noteInSelection = noteSelectedIds.isNotEmpty()
 
     val pagerState = rememberPagerState(initialPage = HomePagerPages.NOTE) { HomePagerPages.COUNT }
     val scope = rememberCoroutineScope()
     val currentPage by remember { derivedStateOf { pagerState.currentPage } }
+    var settingsNavigationPending by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
             val anySelection = inSelection || noteInSelection
             if (!anySelection) {
                 val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-                val noteSourceBounds = remember { HomeNoteSourceBounds() }
+                val noteSourceCoordinates = remember { HomeNoteSourceCoordinates() }
                 val scale by rememberMotionPressScale(interaction)
                 FloatingActionButton(
                     onClick = {
                         when (currentPage) {
-                            HomePagerPages.NOTE -> onNoteEdit(null, noteSourceBounds.bounds, scale, null)
+                            HomePagerPages.NOTE -> onNoteEdit(
+                                null,
+                                noteSourceCoordinates.boundsInRootOrNull(),
+                                scale,
+                                null
+                            )
                             HomePagerPages.TODO -> onAdd()
                         }
                     },
@@ -105,7 +118,7 @@ fun HomeScreen(
                     interactionSource = interaction,
                     modifier = Modifier
                         .size(56.dp)
-                        .onGloballyPositioned { noteSourceBounds.bounds = it.boundsInRoot() }
+                        .onPlaced(noteSourceCoordinates::update)
                         .motionPressScaleLayer(scale)
                         .motionNoteSourceVisibilityLayer(hiddenNoteSource?.matches(null) == true)
                 ) {
@@ -205,7 +218,8 @@ fun HomeScreen(
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(
                                 interactionSource = tabInteraction,
-                                indication = null
+                                indication = null,
+                                enabled = !settingsNavigationPending
                             ) {
                                 scope.launch { pagerState.animateScrollToPage(index) }
                             }
@@ -214,7 +228,23 @@ fun HomeScreen(
                     if (index < tabLabels.lastIndex) Spacer(Modifier.width(12.dp))
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = onSettings) {
+                IconButton(
+                    enabled = settingsEnabled && !settingsNavigationPending,
+                    onClick = {
+                        if (!settingsNavigationPending) {
+                            settingsNavigationPending = true
+                            scope.launch {
+                                try {
+                                    snapshotFlow { pagerState.isScrollInProgress }
+                                        .first { inProgress -> !inProgress }
+                                    onSettings()
+                                } finally {
+                                    settingsNavigationPending = false
+                                }
+                            }
+                        }
+                    }
+                ) {
                     Icon(
                         Icons.Default.Settings,
                         contentDescription = stringResource(R.string.home_settings),
@@ -226,11 +256,12 @@ fun HomeScreen(
             // ── Pager ────────────────────────────────────────────
             HorizontalPager(
                 state = pagerState,
+                userScrollEnabled = !settingsNavigationPending,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 when (page) {
                     HomePagerPages.NOTE -> NoteGridPage(
-                        notes = notes,
+                        noteItems = noteUiState.gridItems,
                         selectedIds = noteSelectedIds,
                         hiddenNoteSource = hiddenNoteSource,
                         onNoteClick = { id, sourceBounds ->
@@ -266,6 +297,13 @@ fun HomeScreen(
     }
 }
 
-private class HomeNoteSourceBounds {
-    var bounds: Rect? = null
+private class HomeNoteSourceCoordinates {
+    private var coordinates: LayoutCoordinates? = null
+
+    fun update(value: LayoutCoordinates) {
+        coordinates = value
+    }
+
+    fun boundsInRootOrNull(): Rect? =
+        coordinates?.takeIf { it.isAttached }?.boundsInRoot()
 }
