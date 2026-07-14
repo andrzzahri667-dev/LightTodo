@@ -36,4 +36,19 @@ class MarkdownSpanSourceTest {
         assertTrue(source.contains("val italicAsteriskRanges = MarkdownTextTransforms.findInlineStyleRanges("))
         assertTrue(source.contains("val range = boldAsteriskRanges[i]"))
     }
+
+    @Test
+    fun activeHeadingKeepsTypographyWhileExposingItsMarker() {
+        val source = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/noteeditor/MarkdownSpanApplier.kt"
+        ).readText()
+        val activeLine = source
+            .substringAfter("private fun applyActiveLine(")
+            .substringBefore("private fun lineRangeAt(")
+
+        assertTrue(activeLine.contains("HeadingRegex.matchEntire(line)"))
+        assertTrue(activeLine.contains("MarkdownHeadingSpan(level)"))
+        assertTrue(activeLine.contains("StyleSpan(Typeface.BOLD)"))
+        assertFalse(activeLine.contains("MarkdownSyntaxSpan()"))
+    }
 }

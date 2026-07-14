@@ -5,9 +5,11 @@ import android.widget.EditText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,22 +21,29 @@ import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.FormatStrikethrough
 import androidx.compose.material.icons.filled.FormatUnderlined
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zahri.lighttodo.R
 import com.zahri.lighttodo.domain.markdown.MarkdownTextTransforms
-
-private val FormattingAccent = Color(0xFF007AFF)
+import com.zahri.lighttodo.ui.theme.AppColors
 
 enum class MarkdownFormatAction {
     Bold,
@@ -123,53 +132,110 @@ fun MarkdownFormattingToolbar(
                 .horizontalScroll(rememberScrollState())
         ) {
             FormatActionSlot {
-                FormatIconButton(Icons.Default.FormatBold, styleState.bold) {
+                FormatIconButton(
+                    icon = Icons.Default.FormatBold,
+                    contentDescription = stringResource(R.string.note_format_bold),
+                    active = styleState.bold
+                ) {
                     onAction(MarkdownFormatAction.Bold)
                 }
             }
             FormatActionSlot {
-                FormatIconButton(Icons.Default.FormatItalic, styleState.italic) {
+                FormatIconButton(
+                    icon = Icons.Default.FormatItalic,
+                    contentDescription = stringResource(R.string.note_format_italic),
+                    active = styleState.italic
+                ) {
                     onAction(MarkdownFormatAction.Italic)
                 }
             }
             FormatActionSlot {
-                FormatIconButton(Icons.Default.FormatStrikethrough, styleState.strikethrough) {
+                FormatIconButton(
+                    icon = Icons.Default.FormatStrikethrough,
+                    contentDescription = stringResource(R.string.note_format_strikethrough),
+                    active = styleState.strikethrough
+                ) {
                     onAction(MarkdownFormatAction.Strikethrough)
                 }
             }
             FormatActionSlot {
-                FormatTextButton("H1", styleState.h1) { onAction(MarkdownFormatAction.H1) }
+                FormatIconButton(
+                    icon = Icons.Default.FormatUnderlined,
+                    contentDescription = stringResource(R.string.note_format_underline),
+                    active = styleState.underline
+                ) {
+                    onAction(MarkdownFormatAction.Underline)
+                }
+            }
+            FormatGroupDivider()
+            FormatActionSlot {
+                FormatTextButton(
+                    text = "H1",
+                    contentDescription = stringResource(R.string.note_format_heading_1),
+                    active = styleState.h1
+                ) { onAction(MarkdownFormatAction.H1) }
             }
             FormatActionSlot {
-                FormatTextButton("H2", styleState.h2) { onAction(MarkdownFormatAction.H2) }
+                FormatTextButton(
+                    text = "H2",
+                    contentDescription = stringResource(R.string.note_format_heading_2),
+                    active = styleState.h2
+                ) { onAction(MarkdownFormatAction.H2) }
             }
             FormatActionSlot {
-                FormatTextButton("H3", styleState.h3) { onAction(MarkdownFormatAction.H3) }
+                FormatTextButton(
+                    text = "H3",
+                    contentDescription = stringResource(R.string.note_format_heading_3),
+                    active = styleState.h3
+                ) { onAction(MarkdownFormatAction.H3) }
             }
+            FormatGroupDivider()
             FormatActionSlot {
-                FormatIconButton(Icons.AutoMirrored.Filled.FormatListBulleted, styleState.bullet) {
+                FormatIconButton(
+                    icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                    contentDescription = stringResource(R.string.note_format_bullet_list),
+                    active = styleState.bullet
+                ) {
                     onAction(MarkdownFormatAction.Bullet)
                 }
             }
             FormatActionSlot {
-                FormatIconButton(Icons.Default.FormatListNumbered, styleState.orderedList) {
+                FormatIconButton(
+                    icon = Icons.Default.FormatListNumbered,
+                    contentDescription = stringResource(R.string.note_format_numbered_list),
+                    active = styleState.orderedList
+                ) {
                     onAction(MarkdownFormatAction.OrderedList)
                 }
             }
             FormatActionSlot {
-                FormatTextButton("[]", styleState.checkbox) { onAction(MarkdownFormatAction.Checkbox) }
+                FormatIconButton(
+                    icon = Icons.Default.CheckBox,
+                    contentDescription = stringResource(R.string.note_format_checkbox),
+                    active = styleState.checkbox
+                ) {
+                    onAction(MarkdownFormatAction.Checkbox)
+                }
             }
             FormatActionSlot {
-                FormatTextButton(">", styleState.quote) { onAction(MarkdownFormatAction.Quote) }
-            }
-            FormatActionSlot {
-                FormatIconButton(Icons.Default.FormatUnderlined, styleState.underline) {
-                    onAction(MarkdownFormatAction.Underline)
+                FormatIconButton(
+                    icon = Icons.Default.FormatQuote,
+                    contentDescription = stringResource(R.string.note_format_quote),
+                    active = styleState.quote
+                ) {
+                    onAction(MarkdownFormatAction.Quote)
                 }
             }
         }
+        FormatGroupDivider()
         FormatActionSlot {
-            FormatIconButton(Icons.AutoMirrored.Filled.ArrowBack, active = false, onClick = onBack)
+            FormatIconButton(
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = stringResource(R.string.note_format_back),
+                active = false,
+                reportsSelection = false,
+                onClick = onBack
+            )
         }
     }
 }
@@ -185,36 +251,70 @@ private fun FormatActionSlot(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun FormatIconButton(icon: ImageVector, active: Boolean, onClick: () -> Unit) {
-    val bg = if (active) FormattingAccent.copy(alpha = 0.12f) else Color.Transparent
-    val tint = if (active) FormattingAccent else MaterialTheme.colorScheme.onSurfaceVariant
+private fun FormatGroupDivider() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .width(1.dp)
+            .height(20.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    )
+}
+
+@Composable
+private fun FormatIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    active: Boolean,
+    reportsSelection: Boolean = true,
+    onClick: () -> Unit
+) {
+    val bg = if (active) AppColors.Brand.copy(alpha = 0.14f) else Color.Transparent
+    val tint = if (active) formattingActiveColor() else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(bg)
-            .clickable(onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+                if (reportsSelection) selected = active
+            }
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
     }
 }
 
 @Composable
-private fun FormatTextButton(text: String, active: Boolean, onClick: () -> Unit) {
-    val bg = if (active) FormattingAccent.copy(alpha = 0.12f) else Color.Transparent
-    val color = if (active) FormattingAccent else MaterialTheme.colorScheme.onSurfaceVariant
+private fun FormatTextButton(
+    text: String,
+    contentDescription: String,
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    val bg = if (active) AppColors.Brand.copy(alpha = 0.14f) else Color.Transparent
+    val color = if (active) formattingActiveColor() else MaterialTheme.colorScheme.onSurfaceVariant
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(44.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(bg)
-            .clickable(onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+                selected = active
+            }
+            .clickable(role = Role.Button, onClick = onClick)
     ) {
         Text(text, color = color, fontSize = 16.sp)
     }
 }
+
+@Composable
+private fun formattingActiveColor(): Color =
+    if (isSystemInDarkTheme()) AppColors.BrandForegroundDark else AppColors.BrandForegroundLight
 
 object MarkdownToolbarHelper {
     fun apply(edit: EditText, action: MarkdownFormatAction) {

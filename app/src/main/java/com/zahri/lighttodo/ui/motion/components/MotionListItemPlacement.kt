@@ -10,7 +10,7 @@ fun LazyItemScope.motionSectionItemPlacement(
     modifier: Modifier = Modifier
 ): Modifier =
     modifier.animateItem(
-        fadeInSpec = null,
+        fadeInSpec = AppMotion.sectionItemFadeIn(),
         placementSpec = AppMotion.listPlacementSpring(),
-        fadeOutSpec = null
+        fadeOutSpec = AppMotion.sectionItemFadeOut()
     )

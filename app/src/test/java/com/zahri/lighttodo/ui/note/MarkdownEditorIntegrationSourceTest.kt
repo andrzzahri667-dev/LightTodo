@@ -60,4 +60,25 @@ class MarkdownEditorIntegrationSourceTest {
         assertTrue(applierSource.contains("fun applyChangedLine("))
         assertTrue(applierSource.contains("fun applyActiveLineChange("))
     }
+
+    @Test
+    fun editorMetadataCountsRenderedMarkdownText() {
+        val screenSource = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/noteeditor/NoteEditScreen.kt"
+        ).readText()
+
+        assertTrue(screenSource.contains("MarkdownSpanApplier.visibleCharacterCount(title, content)"))
+        assertFalse(screenSource.contains("title.length + content.length"))
+    }
+
+    @Test
+    fun editorConstructionUsesRenderStyleFallbackForSuperclassCallbacks() {
+        assertTrue(editorSource.contains("private var renderStyle: MarkdownRenderStyle? = null"))
+        assertTrue(
+            editorSource.contains(
+                "get() = renderStyle ?: MarkdownRenderStyle.forDarkMode(false)"
+            )
+        )
+        assertTrue(editorSource.contains("renderStyle = initialStyle"))
+    }
 }

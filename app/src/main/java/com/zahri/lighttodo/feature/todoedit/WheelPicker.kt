@@ -13,7 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.ui.motion.WheelPickerTextMotion
 import com.zahri.lighttodo.ui.motion.WheelPickerMotionPolicy
 import com.zahri.lighttodo.ui.motion.components.motionWheelPickerItemLayer
-import com.zahri.lighttodo.ui.motion.components.rememberWheelPickerItemMotion
+import com.zahri.lighttodo.ui.motion.components.wheelPickerItemMotion
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
@@ -41,6 +45,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * @param items list of display strings
  * @param selectedIndex initial / externally-controlled index
  * @param onSelectedChanged called when the centered item changes
+ * @param onScrollSettled called with the centered item after scrolling stops
  * @param loopThreshold items.size <= this → enable circular looping
  * @param loopRepetitions how many times to repeat the list (odd, large)
  */
@@ -50,6 +55,7 @@ fun WheelPicker(
     items: List<String>,
     selectedIndex: Int,
     onSelectedChanged: (Int) -> Unit,
+    onScrollSettled: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     itemHeight: Dp = 48.dp,
     visibleCount: Int = 3,
@@ -70,9 +76,9 @@ fun WheelPicker(
         selectedIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0))
     }
 
-    val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = mappedInitial
-    )
+    val listState = key(items.size, looping) {
+        rememberLazyListState(initialFirstVisibleItemIndex = mappedInitial)
+    }
 
     val totalHeight = itemHeight * visibleCount
     val density = LocalDensity.current
@@ -81,7 +87,14 @@ fun WheelPicker(
     }
 
     // Absolute centered index in the expanded list
-    val centeredAbsIndex by remember {
+    val centeredAbsIndex by remember(
+        listState,
+        looping,
+        totalItems,
+        items.size,
+        mappedInitial,
+        halfVisible
+    ) {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val viewportCenter = layoutInfo.viewportStartOffset +
@@ -95,26 +108,41 @@ fun WheelPicker(
     }
 
     // Map absolute → logical index — MUST be derivedStateOf so snapshotFlow can observe it
-    val logicalIndex by remember {
+    val logicalIndex by remember(looping, items.size) {
         derivedStateOf {
             val abs = centeredAbsIndex
             if (looping) ((abs % items.size) + items.size) % items.size else abs
         }
     }
 
+    val currentOnSelectedChanged by rememberUpdatedState(onSelectedChanged)
+    val currentOnScrollSettled by rememberUpdatedState(onScrollSettled)
+    val currentItemCount by rememberUpdatedState(items.size)
+    var programmaticScrollTarget by remember { mutableStateOf<Int?>(null) }
+
     // Notify parent
-    LaunchedEffect(Unit) {
+    LaunchedEffect(listState) {
         snapshotFlow { logicalIndex }
             .distinctUntilChanged()
             .collect { idx ->
-                if (idx in items.indices) {
-                    onSelectedChanged(idx)
+                if (idx in 0 until currentItemCount && programmaticScrollTarget == null) {
+                    currentOnSelectedChanged(idx)
+                }
+            }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to logicalIndex }
+            .distinctUntilChanged()
+            .collect { (isScrolling, idx) ->
+                if (!isScrolling && idx in 0 until currentItemCount) {
+                    currentOnScrollSettled(idx)
                 }
             }
     }
 
     // External scroll with spring animation
-    LaunchedEffect(selectedIndex) {
+    LaunchedEffect(selectedIndex, items.size) {
         if (logicalIndex != selectedIndex && selectedIndex in items.indices) {
             val target = if (looping) {
                 val currentAbs = centeredAbsIndex
@@ -124,7 +152,14 @@ fun WheelPicker(
                     .minByOrNull { kotlin.math.abs(it - currentAbs) }
                     ?: targetBase
             } else selectedIndex
-            listState.animateScrollToItem(target)
+            programmaticScrollTarget = selectedIndex
+            try {
+                listState.animateScrollToItem(target)
+            } finally {
+                if (programmaticScrollTarget == selectedIndex) {
+                    programmaticScrollTarget = null
+                }
+            }
         }
     }
 
@@ -165,7 +200,7 @@ fun WheelPicker(
                     }
                 }
                 val proximity = WheelPickerMotionPolicy.proximityForDistance(distanceFromCenter, proximityRadiusPx)
-                val itemMotion = rememberWheelPickerItemMotion(proximity)
+                val itemMotion = wheelPickerItemMotion(proximity)
                 val fontSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, proximity)
                 val color = WheelPickerMotionPolicy.colorForProximity(
                     selectedColor = selectedColor,

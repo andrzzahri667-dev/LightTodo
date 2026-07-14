@@ -40,7 +40,7 @@ class WheelPickerMotionPolicyTest {
     }
 
     @Test
-    fun textAndColorRespondContinuouslyToProximity() {
+    fun textWeightAndColorRespondContinuouslyToProximity() {
         val textMotion = WheelPickerMotionPolicy.TimeColumnTextMotion
         val farSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, 0f)
         val nearSize = WheelPickerMotionPolicy.fontSizeForProximity(textMotion, 0.5f)

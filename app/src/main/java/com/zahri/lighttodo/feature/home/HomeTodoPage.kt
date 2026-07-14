@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.sp
 import com.zahri.lighttodo.R
 import com.zahri.lighttodo.domain.todo.TodoDisplayText
 import com.zahri.lighttodo.usecase.todo.HomeTodo
-import com.zahri.lighttodo.ui.motion.components.MotionSectionVisibility
 import com.zahri.lighttodo.ui.motion.components.TodoCompletionIndicator
 import com.zahri.lighttodo.ui.motion.components.motionCompletionSettleLayer
 import com.zahri.lighttodo.ui.motion.components.motionExpansionRotationLayer
@@ -121,26 +120,21 @@ fun TodoPage(
                 }
                 is HomeTodoListItem.TodoRow -> {
                     val todo = item.todo
-                    MotionSectionVisibility(
-                        visible = item.visible,
-                        modifier = motionSectionItemPlacement()
-                    ) {
-                        TodoRow(
-                            todo = todo,
-                            selected = todo.id in selectedIds,
-                            inSelectionMode = inSelection,
-                            onToggle = { vm.toggleDone(todo.id, !item.strikeThrough) },
-                            onClick = {
-                                if (inSelection) vm.toggleSelection(todo.id)
-                                else onEdit(todo.id)
-                            },
-                            onLongClick = { vm.toggleSelection(todo.id) },
-                            strikeThrough = item.strikeThrough,
-                            animating = todo.id in pendingCompleteIds,
-                            showDivider = item.showDivider,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
+                    TodoRow(
+                        todo = todo,
+                        selected = todo.id in selectedIds,
+                        inSelectionMode = inSelection,
+                        onDoneChange = { done -> vm.toggleDone(todo.id, done) },
+                        onClick = {
+                            if (inSelection) vm.toggleSelection(todo.id)
+                            else onEdit(todo.id)
+                        },
+                        onLongClick = { vm.toggleSelection(todo.id) },
+                        strikeThrough = item.strikeThrough,
+                        animating = todo.id in pendingCompleteIds,
+                        showDivider = item.showDivider,
+                        modifier = motionSectionItemPlacement().padding(bottom = 8.dp)
+                    )
                 }
             }
         }
@@ -194,7 +188,7 @@ private fun TodoRow(
     todo: HomeTodo,
     selected: Boolean = false,
     inSelectionMode: Boolean = false,
-    onToggle: () -> Unit,
+    onDoneChange: (Boolean) -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     strikeThrough: Boolean = false,
@@ -231,15 +225,13 @@ private fun TodoRow(
                 .fillMaxWidth()
                 .background(selectedBackground)
                 .combinedClickable(onLongClick = onLongClick, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 4.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (inSelectionMode) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(if (selected) AppColors.Brand else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                        .size(48.dp)
                         .semantics {
                             contentDescription = context.getString(
                                 if (selected) {
@@ -252,26 +244,36 @@ private fun TodoRow(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selected) Text("✓", color = Color.Black, fontSize = 13.sp)
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (selected) AppColors.Brand
+                                else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selected) Text("✓", color = Color.Black, fontSize = 13.sp)
+                    }
                 }
             } else {
                 TodoCompletionIndicator(
                     displayDone = displayDone,
-                    animating = animating,
-                    enabled = !animating,
                     contentDescription = context.getString(
                         if (displayDone) R.string.home_mark_active else R.string.home_mark_done,
                         titleText
                     ),
-                    onToggle = onToggle
+                    onToggle = { onDoneChange(!displayDone) }
                 )
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(0.dp))
 
             Column(
                 Modifier
                     .weight(1f)
+                    .padding(vertical = 12.dp)
                     .motionCompletionSettleLayer(completionSettle)
             ) {
                 Text(

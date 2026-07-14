@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val CompletionFeedbackMillis = 240L
+
 data class TagGroup(
     val tagId: Long?,
     val name: String,
@@ -53,6 +55,10 @@ class HomeViewModel(
     private val deleteNote: DeleteNoteUseCase
 ) : ViewModel() {
     private val appContext: Context = runCatching { context.applicationContext }.getOrNull() ?: context
+    private val completionSequencer = TodoCompletionSequencer(viewModelScope) { id, done ->
+        completeTodo(id, done)
+    }
+    private val completionFeedbackTokens = mutableMapOf<Long, Any>()
 
     val state: StateFlow<HomeUiState> =
         observeHome().distinctUntilChanged().map { data ->
@@ -112,18 +118,27 @@ class HomeViewModel(
      */
     fun toggleDone(id: Long, done: Boolean) {
         if (!done) {
-            viewModelScope.launch { completeTodo(id, false) }
+            completionFeedbackTokens.remove(id)
+            _pendingCompleteIds.value = _pendingCompleteIds.value - id
+            completionSequencer.submit(id, false)
             return
         }
         // 已经在动画中,忽略重复点击
         if (id in _pendingCompleteIds.value) return
+        val feedbackToken = Any()
+        completionFeedbackTokens[id] = feedbackToken
         _pendingCompleteIds.value = _pendingCompleteIds.value + id
+        val mutation = completionSequencer.submit(id, true)
         viewModelScope.launch {
             try {
-                completeTodo(id, true)
-                kotlinx.coroutines.delay(320)
+                mutation.join()
+                if (mutation.isCancelled) return@launch
+                kotlinx.coroutines.delay(CompletionFeedbackMillis)
             } finally {
-                _pendingCompleteIds.value = _pendingCompleteIds.value - id
+                if (completionFeedbackTokens[id] === feedbackToken) {
+                    completionFeedbackTokens.remove(id)
+                    _pendingCompleteIds.value = _pendingCompleteIds.value - id
+                }
             }
         }
     }

@@ -72,6 +72,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick as semanticsOnClick
+import androidx.compose.ui.semantics.onLongClick as semanticsOnLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -90,7 +96,6 @@ import com.zahri.lighttodo.domain.note.NoteContentBlock
 import com.zahri.lighttodo.domain.note.NoteContentBlockUiKeys
 import com.zahri.lighttodo.domain.note.NoteContentBlocks
 import com.zahri.lighttodo.ui.motion.components.MotionTransientVisibility
-import com.zahri.lighttodo.ui.motion.components.motionNoteContentSize
 import com.zahri.lighttodo.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -382,7 +387,7 @@ fun NoteEditScreen(
                         text = stringResource(
                             R.string.note_meta,
                             fmt.format(Date(metaTime)),
-                            (title.length + content.length)
+                            MarkdownSpanApplier.visibleCharacterCount(title, content)
                         ),
                         style = TextStyle(fontSize = 12.sp, lineHeight = 24.sp),
                         color = Color(0xFF9A9A9A)
@@ -395,7 +400,6 @@ fun NoteEditScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .motionNoteContentSize()
                         ) {
                             when (block) {
                                 is NoteContentBlock.Text -> NoteTextBlockEditor(
@@ -457,6 +461,7 @@ fun NoteEditScreen(
                                     durationLabel = block.durationLabel,
                                     playing = mediaState.playingAudioRef == block.ref,
                                     selected = pendingKeyboardMediaDelete?.second == block.ref,
+                                    isDark = isDark,
                                     onPlayPause = { playAudio(block.ref) },
                                     onDelete = {
                                         pendingDeleteAttachment = NoteAttachmentMarkdown.Attachment(
@@ -571,9 +576,7 @@ private fun NoteTextBlockEditor(
             .fillMaxWidth()
             .defaultMinSize(minHeight = minHeight),
         update = { view ->
-            val textColor = if (isDark) 0xFFFFFFFF.toInt() else 0xFF202124.toInt()
-            view.setTextColor(textColor)
-            view.setHintTextColor(0xFF8E8E93.toInt())
+            view.setMarkdownAppearance(isDark)
             view.hint = hint
             view.isCursorVisible = cursorVisible
             view.contentUpdateCallback = { onTextChanged(index, it) }
@@ -624,6 +627,9 @@ private fun NoteImageBlock(
 ) {
     val density = LocalDensity.current
     val shape = RoundedCornerShape(12.dp)
+    val imageDescription = stringResource(R.string.note_image_attachment)
+    val openImageLabel = stringResource(R.string.note_image_open)
+    val deleteLabel = stringResource(R.string.note_delete_attachment)
 
     BoxWithConstraints(
         modifier = Modifier
@@ -656,12 +662,14 @@ private fun NoteImageBlock(
                     .aspectRatio(loadedImage.aspectRatio)
                     .clip(shape)
                     .then(mediaSelectionModifier(selected, shape))
-                    .pointerInput(ref) {
-                        detectTapGestures(
-                            onTap = { onOpen() },
-                            onLongPress = { onDelete() }
-                        )
-                    },
+                    .mediaInteractionModifier(
+                        gestureKey = ref,
+                        description = imageDescription,
+                        clickLabel = openImageLabel,
+                        onActivate = onOpen,
+                        longClickLabel = deleteLabel,
+                        onLongPress = onDelete
+                    ),
                 contentScale = ContentScale.Fit
             )
         } else {
@@ -672,9 +680,14 @@ private fun NoteImageBlock(
                     .clip(shape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .then(mediaSelectionModifier(selected, shape))
-                    .pointerInput(ref) {
-                        detectTapGestures(onLongPress = { onDelete() })
-                    },
+                    .mediaInteractionModifier(
+                        gestureKey = ref,
+                        description = stringResource(R.string.note_image_missing),
+                        clickLabel = null,
+                        onActivate = null,
+                        longClickLabel = deleteLabel,
+                        onLongPress = onDelete
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -692,39 +705,49 @@ private fun NoteAudioBlock(
     durationLabel: String,
     playing: Boolean,
     selected: Boolean,
+    isDark: Boolean,
     onPlayPause: () -> Unit,
     onDelete: () -> Unit
 ) {
     val shape = RoundedCornerShape(12.dp)
+    val renderStyle = remember(isDark) { MarkdownRenderStyle.forDarkMode(isDark) }
+    val clickLabel = stringResource(
+        if (playing) R.string.note_audio_pause else R.string.note_audio_play
+    )
     Row(
         modifier = Modifier
             .padding(vertical = 5.dp)
             .clip(shape)
-            .background(if (playing) Color(0xFFFFE4B8) else Color(0xFFFFF1DA))
-            .then(mediaSelectionModifier(selected, shape))
-            .height(44.dp)
-            .pointerInput(durationLabel, playing) {
-                detectTapGestures(
-                    onTap = { onPlayPause() },
-                    onLongPress = { onDelete() }
+            .background(
+                Color(
+                    if (playing) renderStyle.audioActiveBackgroundColor
+                    else renderStyle.audioBackgroundColor
                 )
-            }
+            )
+            .then(mediaSelectionModifier(selected, shape))
+            .height(48.dp)
+            .mediaInteractionModifier(
+                gestureKey = durationLabel to playing,
+                description = stringResource(R.string.note_audio_attachment, durationLabel),
+                clickLabel = clickLabel,
+                onActivate = onPlayPause,
+                longClickLabel = stringResource(R.string.note_delete_attachment),
+                onLongPress = onDelete
+            )
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Icon(
             imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = stringResource(
-                if (playing) R.string.note_audio_pause else R.string.note_audio_play
-            ),
-            tint = Color(0xFFFF9F0A),
+            contentDescription = null,
+            tint = Color(renderStyle.audioAccentColor),
             modifier = Modifier.size(24.dp)
         )
-        AudioWaveBars()
+        AudioWaveBars(color = Color(renderStyle.audioWaveColor))
         Text(
             text = durationLabel,
-            color = Color(0xFF5C4A26),
+            color = Color(renderStyle.audioTextColor),
             style = TextStyle(fontSize = 15.sp, lineHeight = 20.sp)
         )
     }
@@ -735,15 +758,49 @@ private fun mediaSelectionModifier(
     selected: Boolean,
     shape: RoundedCornerShape
 ): Modifier {
+    val selectionColor = if (androidx.compose.foundation.isSystemInDarkTheme()) {
+        AppColors.BrandForegroundDark
+    } else {
+        AppColors.BrandForegroundLight
+    }
     return if (selected) {
-        Modifier.border(width = 2.dp, color = Color(0xFFFFC400), shape = shape)
+        Modifier.border(width = 2.dp, color = selectionColor, shape = shape)
     } else {
         Modifier
     }
 }
 
+private fun Modifier.mediaInteractionModifier(
+    gestureKey: Any,
+    description: String,
+    clickLabel: String?,
+    onActivate: (() -> Unit)?,
+    longClickLabel: String,
+    onLongPress: () -> Unit
+): Modifier = this
+    .semantics(mergeDescendants = true) {
+        this.contentDescription = description
+        role = Role.Button
+        if (onActivate != null && clickLabel != null) {
+            semanticsOnClick(label = clickLabel) {
+                onActivate()
+                true
+            }
+        }
+        semanticsOnLongClick(label = longClickLabel) {
+            onLongPress()
+            true
+        }
+    }
+    .pointerInput(gestureKey, onActivate, onLongPress) {
+        detectTapGestures(
+            onTap = onActivate?.let { action -> { _ -> action() } },
+            onLongPress = { onLongPress() }
+        )
+    }
+
 @Composable
-private fun AudioWaveBars() {
+private fun AudioWaveBars(color: Color) {
     val heights = listOf(12.dp, 20.dp, 16.dp, 26.dp, 14.dp, 22.dp, 12.dp)
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -755,7 +812,7 @@ private fun AudioWaveBars() {
                     .width(3.dp)
                     .height(height)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color(0xFFFFB340))
+                    .background(color)
             )
         }
     }

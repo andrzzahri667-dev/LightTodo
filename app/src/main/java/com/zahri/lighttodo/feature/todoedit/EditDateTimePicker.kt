@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +45,12 @@ internal fun formatDateForWheel(date: LocalDate): String {
     val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
     return "$dayOfWeek, ${date.monthValue}/${date.dayOfMonth}"
 }
+
+internal fun generateAllDayPickerDayLabels(month: LocalDate): List<String> =
+    (1..month.lengthOfMonth()).map(Int::toString)
+
+internal fun clampDayIndexToMonth(dayIndex: Int, month: LocalDate): Int =
+    dayIndex.coerceIn(0, month.lengthOfMonth() - 1)
 
 @Composable
 internal fun WheelDateTimePickerDialog(
@@ -306,8 +311,8 @@ fun WheelTimePickerDialog(
  * 仅含日期的滚轮选择器(两列:年月 + 日)。
  *
  * 用于"全天任务"切换日期 —— 全天没有时分概念,把时分列去掉避免误导。
- * 切换月份时,日期列动态根据当月天数(28/29/30/31)重建,初始
- * 选中的日如果超过新月最大天数,自动夹到月底。
+ * 月份滑动时保留上一个停稳月份的合法日期列表,避免连续重建造成闪跳。
+ * 新月份停稳后再一次更新为 28/29/30/31 天,并把越界日期夹到月底。
  */
 @Composable
 fun WheelDatePickerDialog(
@@ -334,24 +339,15 @@ fun WheelDatePickerDialog(
 
     var selectedMonthIndex by remember { mutableIntStateOf(initialMonthIndex) }
     var liveMonthIndex by remember { mutableIntStateOf(initialMonthIndex) }
+    var settledMonthIndex by remember { mutableIntStateOf(initialMonthIndex) }
 
-    val daysInMonth by remember(liveMonthIndex) {
-        derivedStateOf { monthList[liveMonthIndex].lengthOfMonth() }
-    }
-    val dayLabels by remember(daysInMonth) {
-        derivedStateOf { (1..daysInMonth).map { it.toString() } }
+    val dayLabels = remember(settledMonthIndex) {
+        generateAllDayPickerDayLabels(monthList[settledMonthIndex])
     }
 
-    // 选中的日(0-based 索引);切月后若超过当月最大天数,夹到月底
+    // 选中的日(0-based 索引)
     var selectedDayIndex by remember { mutableIntStateOf(initialDate.dayOfMonth - 1) }
     var liveDayIndex by remember { mutableIntStateOf(initialDate.dayOfMonth - 1) }
-
-    LaunchedEffect(daysInMonth) {
-        if (selectedDayIndex >= daysInMonth) {
-            selectedDayIndex = daysInMonth - 1
-            liveDayIndex = daysInMonth - 1
-        }
-    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -374,8 +370,9 @@ fun WheelDatePickerDialog(
             Spacer(Modifier.height(6.dp))
 
             val headerMonth = monthList[liveMonthIndex]
+            val headerDayIndex = clampDayIndexToMonth(liveDayIndex, headerMonth)
             Text(
-                text = ymdFmt.format(headerMonth.year, headerMonth.monthValue, liveDayIndex + 1),
+                text = ymdFmt.format(headerMonth.year, headerMonth.monthValue, headerDayIndex + 1),
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -393,12 +390,23 @@ fun WheelDatePickerDialog(
                     items = monthLabels,
                     selectedIndex = selectedMonthIndex,
                     onSelectedChanged = { selectedMonthIndex = it; liveMonthIndex = it },
+                    onScrollSettled = { monthIndex ->
+                        settledMonthIndex = monthIndex
+                        val clampedDayIndex = clampDayIndexToMonth(
+                            selectedDayIndex,
+                            monthList[monthIndex]
+                        )
+                        if (clampedDayIndex != selectedDayIndex) {
+                            selectedDayIndex = clampedDayIndex
+                            liveDayIndex = clampedDayIndex
+                        }
+                    },
                     modifier = Modifier.weight(1.4f),
                     textMotion = WheelPickerMotionPolicy.DateColumnTextMotion
                 )
                 val dIdx = WheelPicker(
                     items = dayLabels,
-                    selectedIndex = selectedDayIndex.coerceAtMost(daysInMonth - 1),
+                    selectedIndex = selectedDayIndex.coerceAtMost(dayLabels.lastIndex),
                     onSelectedChanged = { selectedDayIndex = it; liveDayIndex = it },
                     modifier = Modifier.weight(0.8f),
                     textMotion = WheelPickerMotionPolicy.DayColumnTextMotion
@@ -434,8 +442,8 @@ fun WheelDatePickerDialog(
                 Button(
                     onClick = {
                         val month = monthList[liveMonthIndex]
-                        val day = (liveDayIndex + 1).coerceAtMost(month.lengthOfMonth())
-                        onConfirm(month.withDayOfMonth(day))
+                        val dayIndex = clampDayIndexToMonth(liveDayIndex, month)
+                        onConfirm(month.withDayOfMonth(dayIndex + 1))
                     },
                     shape = RoundedCornerShape(50),
                     contentPadding = PaddingValues(0.dp),

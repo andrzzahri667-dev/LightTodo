@@ -1,7 +1,6 @@
 package com.zahri.lighttodo.feature.noteeditor
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.Typeface
 import android.text.Editable
 import android.text.Spanned
@@ -22,11 +21,6 @@ import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
  * Content gets styled with Android spans for native rendering quality.
  */
 object MarkdownSpanApplier {
-
-    // ─── Colors ─────────────────────────────────────────────
-    private const val QUOTE_TEXT_COLOR = "#8E8E93"
-    private const val LINK_COLOR = "#FF9F0A"
-    private const val CODE_BG = 0x0F000000  // very light gray
 
     // ─── Regex (same patterns as old MarkdownParser) ────────
     private val HeadingRegex = Regex("^(\\s*)(#{1,6})\\s+(.+)$")
@@ -59,14 +53,31 @@ object MarkdownSpanApplier {
      * Strip markdown syntax for preview display.
      * Returns plain text suitable for a Text composable.
      */
-    fun stripMarkdown(markdown: String): String {
+    fun stripMarkdown(markdown: String): String = renderedText(
+        markdown = markdown,
+        includeAttachmentLabels = true
+    )
+
+    fun visibleCharacterCount(title: String, markdown: String): Int =
+        title.length + renderedText(markdown, includeAttachmentLabels = false).length
+
+    private fun renderedText(markdown: String, includeAttachmentLabels: Boolean): String {
+        var inCodeBlock = false
         return markdown.lineSequence().mapNotNull { line ->
-            NoteAttachmentMarkdown.parseLine(line)?.let { attachment ->
-                return@mapNotNull NoteAttachmentMarkdown.previewLabel(attachment)
-            }
             val trimmed = line.trimStart()
+            if (trimmed.startsWith("```")) {
+                inCodeBlock = !inCodeBlock
+                return@mapNotNull null
+            }
+            if (inCodeBlock) return@mapNotNull line
+            NoteAttachmentMarkdown.parseLine(line)?.let { attachment ->
+                return@mapNotNull if (includeAttachmentLabels) {
+                    NoteAttachmentMarkdown.previewLabel(attachment)
+                } else {
+                    null
+                }
+            }
             when {
-                trimmed.startsWith("```") -> null
                 HeadingRegex.matchEntire(line) != null ->
                     stripInlineMarkdown(HeadingRegex.matchEntire(line)!!.groupValues[3])
                 HorizontalRuleRegex.matchEntire(line) != null -> null
@@ -129,6 +140,7 @@ object MarkdownSpanApplier {
         editable: Editable,
         activeOffset: Int? = null,
         context: Context? = null,
+        renderStyle: MarkdownRenderStyle = MarkdownRenderStyle.forDarkMode(false),
         resolveAttachment: NoteAttachmentResolver? = null
     ) {
         removeAllManagedSpans(editable)
@@ -147,6 +159,7 @@ object MarkdownSpanApplier {
                 inCodeBlock = inCodeBlock,
                 lineIsActive = lineIsActive,
                 context = context,
+                renderStyle = renderStyle,
                 resolveAttachment = resolveAttachment
             )
             lineStart = lineEnd + 1
@@ -158,6 +171,7 @@ object MarkdownSpanApplier {
         changedOffset: Int,
         activeOffset: Int? = null,
         context: Context? = null,
+        renderStyle: MarkdownRenderStyle = MarkdownRenderStyle.forDarkMode(false),
         resolveAttachment: NoteAttachmentResolver? = null
     ) {
         val range = lineRangeAt(editable, changedOffset)
@@ -169,6 +183,7 @@ object MarkdownSpanApplier {
             inCodeBlock = codeBlockStateBefore(editable, range.start),
             lineIsActive = activeLineStart == range.start,
             context = context,
+            renderStyle = renderStyle,
             resolveAttachment = resolveAttachment
         )
     }
@@ -178,6 +193,7 @@ object MarkdownSpanApplier {
         previousActiveOffset: Int?,
         activeOffset: Int?,
         context: Context? = null,
+        renderStyle: MarkdownRenderStyle = MarkdownRenderStyle.forDarkMode(false),
         resolveAttachment: NoteAttachmentResolver? = null
     ) {
         val previousRange = previousActiveOffset?.let { lineRangeAt(editable, it) }
@@ -195,6 +211,7 @@ object MarkdownSpanApplier {
                 inCodeBlock = codeBlockStateBefore(editable, range.start),
                 lineIsActive = false,
                 context = context,
+                renderStyle = renderStyle,
                 resolveAttachment = resolveAttachment
             )
         }
@@ -205,6 +222,7 @@ object MarkdownSpanApplier {
                 inCodeBlock = codeBlockStateBefore(editable, range.start),
                 lineIsActive = true,
                 context = context,
+                renderStyle = renderStyle,
                 resolveAttachment = resolveAttachment
             )
         }
@@ -253,6 +271,7 @@ object MarkdownSpanApplier {
         inCodeBlock: Boolean,
         lineIsActive: Boolean,
         context: Context?,
+        renderStyle: MarkdownRenderStyle,
         resolveAttachment: NoteAttachmentResolver?
     ): Boolean {
         val lineStart = range.start
@@ -263,15 +282,30 @@ object MarkdownSpanApplier {
         if (trimmed.startsWith("```")) {
             if (!lineIsActive) {
                 editable.setSpan(MarkdownSyntaxSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                editable.setSpan(MarkdownCodeBlockSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(
+                    MarkdownCodeBlockSpan(renderStyle.codeTextColor),
+                    lineStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
             return !inCodeBlock
         }
 
         if (inCodeBlock) {
             if (!lineIsActive) {
-                editable.setSpan(MarkdownCodeBlockSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                editable.setSpan(BackgroundColorSpan(CODE_BG), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(
+                    MarkdownCodeBlockSpan(renderStyle.codeTextColor),
+                    lineStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                editable.setSpan(
+                    BackgroundColorSpan(renderStyle.codeBackgroundColor),
+                    lineStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
             return true
         }
@@ -281,11 +315,20 @@ object MarkdownSpanApplier {
             if (attachment != null) {
                 val span = when (attachment.kind) {
                     NoteAttachmentMarkdown.Kind.Image -> MarkdownImageSpan(
-                        context,
-                        attachment,
-                        resolveAttachment ?: { _: String -> null }
+                        context = context,
+                        attachment = attachment,
+                        resolveAttachment = resolveAttachment ?: { _: String -> null },
+                        placeholderColor = renderStyle.imagePlaceholderColor,
+                        placeholderTextColor = renderStyle.imagePlaceholderTextColor
                     )
-                    NoteAttachmentMarkdown.Kind.Audio -> MarkdownAudioSpan(context, attachment)
+                    NoteAttachmentMarkdown.Kind.Audio -> MarkdownAudioSpan(
+                        context = context,
+                        attachment = attachment,
+                        backgroundColor = renderStyle.audioBackgroundColor,
+                        accentColor = renderStyle.audioAccentColor,
+                        waveColor = renderStyle.audioWaveColor,
+                        textColor = renderStyle.audioTextColor
+                    )
                 }
                 editable.setSpan(span, lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 return false
@@ -293,7 +336,12 @@ object MarkdownSpanApplier {
         }
 
         if (lineIsActive) {
-            applyActiveLineLinks(editable, lineStart, lineEnd)
+            applyActiveLine(
+                editable = editable,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                renderStyle = renderStyle
+            )
             return false
         }
 
@@ -317,7 +365,12 @@ object MarkdownSpanApplier {
 
             HorizontalRuleRegex.matchEntire(line) != null -> {
                 editable.setSpan(MarkdownSyntaxSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                editable.setSpan(MarkdownHrSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(
+                    MarkdownHrSpan(renderStyle.dividerColor),
+                    lineStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
             }
 
             TaskListRegex.matchEntire(line) != null -> {
@@ -332,12 +385,22 @@ object MarkdownSpanApplier {
                 val contentEnd = lineEnd
 
                 editable.setSpan(MarkdownSyntaxSpan(), markerStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                editable.setSpan(MarkdownCheckboxSpan(checked), markerStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(
+                    MarkdownCheckboxSpan(
+                        checked = checked,
+                        fillColor = renderStyle.checkboxFillColor,
+                        outlineColor = renderStyle.checkboxOutlineColor,
+                        markColor = renderStyle.checkboxMarkColor
+                    ),
+                    markerStart,
+                    contentEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
                 if (checked) {
                     editable.setSpan(MarkdownCheckedAlphaSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     editable.setSpan(StrikethroughSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
-                applyInline(editable, contentStart, contentEnd)
+                applyInline(editable, contentStart, contentEnd, renderStyle)
             }
 
             OrderedListRegex.matchEntire(line) != null -> {
@@ -349,7 +412,7 @@ object MarkdownSpanApplier {
                 } + 1 + lineStart
 
                 editable.setSpan(MarkdownOrderedListSpan(), markerStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                applyInline(editable, contentStart, lineEnd)
+                applyInline(editable, contentStart, lineEnd, renderStyle)
             }
 
             UnorderedListRegex.matchEntire(line) != null -> {
@@ -359,8 +422,13 @@ object MarkdownSpanApplier {
                 val contentStart = markerStart + 2
 
                 editable.setSpan(MarkdownSyntaxSpan(), markerStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                editable.setSpan(MarkdownBulletSpan(), markerStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                applyInline(editable, contentStart, lineEnd)
+                editable.setSpan(
+                    MarkdownBulletSpan(renderStyle.bulletColor),
+                    markerStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                applyInline(editable, contentStart, lineEnd, renderStyle)
             }
 
             isQuote(line) -> {
@@ -373,19 +441,52 @@ object MarkdownSpanApplier {
                 val contentStart = lineStart + contentStartInLine
 
                 editable.setSpan(MarkdownSyntaxSpan(), lineStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                editable.setSpan(MarkdownQuoteSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 editable.setSpan(
-                    ForegroundColorSpan(Color.parseColor(QUOTE_TEXT_COLOR)),
+                    MarkdownQuoteSpan(barColor = renderStyle.quoteBarColor),
+                    lineStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                editable.setSpan(
+                    ForegroundColorSpan(renderStyle.quoteTextColor),
                     contentStart,
                     lineEnd,
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
-                applyInline(editable, contentStart, lineEnd)
+                applyInline(editable, contentStart, lineEnd, renderStyle)
             }
 
-            else -> applyInline(editable, lineStart, lineEnd)
+            else -> applyInline(editable, lineStart, lineEnd, renderStyle)
         }
         return false
+    }
+
+    private fun applyActiveLine(
+        editable: Editable,
+        lineStart: Int,
+        lineEnd: Int,
+        renderStyle: MarkdownRenderStyle
+    ) {
+        val line = editable.subSequence(lineStart, lineEnd).toString()
+        val heading = HeadingRegex.matchEntire(line)
+        if (heading != null) {
+            val contentStart = lineStart + heading.groupValues[1].length +
+                heading.groupValues[2].length + 1
+            val level = heading.groupValues[2].length
+            editable.setSpan(
+                MarkdownHeadingSpan(level),
+                contentStart,
+                lineEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            editable.setSpan(
+                StyleSpan(Typeface.BOLD),
+                contentStart,
+                lineEnd,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        applyActiveLineLinks(editable, lineStart, lineEnd, renderStyle)
     }
 
     private fun lineRangeAt(text: CharSequence, offset: Int): LineRange {
@@ -474,7 +575,12 @@ object MarkdownSpanApplier {
         return null
     }
 
-    private fun applyInline(editable: Editable, start: Int, end: Int) {
+    private fun applyInline(
+        editable: Editable,
+        start: Int,
+        end: Int,
+        renderStyle: MarkdownRenderStyle
+    ) {
         if (start >= end) return
         val text = editable.subSequence(start, end)
         val linkRanges = findMarkdownLinkRanges(text.toString()).associateBy { it.textStart - 1 }
@@ -529,7 +635,8 @@ object MarkdownSpanApplier {
                             editable = editable,
                             lineStart = start,
                             range = range,
-                            hideSyntax = true
+                            hideSyntax = true,
+                            renderStyle = renderStyle
                         )
                         i = range.suffixEnd
                         continue
@@ -621,8 +728,18 @@ object MarkdownSpanApplier {
                     val range = inlineCodeRanges[i]
                     if (range != null) {
                         editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownInlineCodeSpan(), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(BackgroundColorSpan(CODE_BG), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(
+                            MarkdownInlineCodeSpan(renderStyle.codeTextColor),
+                            start + range.contentStart,
+                            start + range.contentEnd,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        editable.setSpan(
+                            BackgroundColorSpan(renderStyle.codeBackgroundColor),
+                            start + range.contentStart,
+                            start + range.contentEnd,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
                         editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                         i = range.closeEnd
                         continue
@@ -634,11 +751,22 @@ object MarkdownSpanApplier {
         }
     }
 
-    private fun applyActiveLineLinks(editable: Editable, start: Int, end: Int) {
+    private fun applyActiveLineLinks(
+        editable: Editable,
+        start: Int,
+        end: Int,
+        renderStyle: MarkdownRenderStyle
+    ) {
         if (start >= end) return
         val line = editable.subSequence(start, end).toString()
         findMarkdownLinkRanges(line).forEach { range ->
-            applyLinkRange(editable, start, range, hideSyntax = false)
+            applyLinkRange(
+                editable = editable,
+                lineStart = start,
+                range = range,
+                hideSyntax = false,
+                renderStyle = renderStyle
+            )
         }
     }
 
@@ -646,7 +774,8 @@ object MarkdownSpanApplier {
         editable: Editable,
         lineStart: Int,
         range: LinkRange,
-        hideSyntax: Boolean
+        hideSyntax: Boolean,
+        renderStyle: MarkdownRenderStyle
     ) {
         if (hideSyntax) {
             editable.setSpan(
@@ -663,7 +792,7 @@ object MarkdownSpanApplier {
             )
         }
         editable.setSpan(
-            MarkdownLinkSpan(range.url),
+            MarkdownLinkSpan(range.url, renderStyle.linkColor),
             lineStart + range.textStart,
             lineStart + range.textEnd,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE

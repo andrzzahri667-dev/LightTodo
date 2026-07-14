@@ -54,6 +54,9 @@ class MarkdownEditText(context: Context) : EditText(context) {
     private var pressedAttachment: NoteAttachmentMarkdown.Attachment? = null
     private var longPressTriggered = false
     private var longPressRunnable: Runnable? = null
+    private var renderStyle: MarkdownRenderStyle? = null
+    private val currentRenderStyle: MarkdownRenderStyle
+        get() = renderStyle ?: MarkdownRenderStyle.forDarkMode(false)
     private val taskToggleTouchWidthPx = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,
         64f,
@@ -61,12 +64,14 @@ class MarkdownEditText(context: Context) : EditText(context) {
     )
 
     init {
+        val initialStyle = MarkdownRenderStyle.forDarkMode(false)
+        renderStyle = initialStyle
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
         setLineSpacing(0f, 1.32f)
         setPadding(0, 0, 0, 0)
         setBackgroundColor(Color.TRANSPARENT)
-        setTextColor(Color.BLACK)
-        setHintTextColor(Color.parseColor("#8E8E93"))
+        setTextColor(initialStyle.bodyTextColor)
+        setHintTextColor(initialStyle.hintTextColor)
         filters = arrayOf(InputFilter.LengthFilter(20_000))
         gravity = Gravity.TOP or Gravity.START
         inputType = InputType.TYPE_CLASS_TEXT or
@@ -128,6 +133,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
                             editable = s,
                             activeOffset = activeOffset,
                             context = context,
+                            renderStyle = currentRenderStyle,
                             resolveAttachment = attachmentResolver
                         )
                     } else {
@@ -136,6 +142,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
                             changedOffset = changedOffset,
                             activeOffset = activeOffset,
                             context = context,
+                            renderStyle = currentRenderStyle,
                             resolveAttachment = attachmentResolver
                         )
                     }
@@ -163,6 +170,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 previousActiveOffset = previousActiveOffset,
                 activeOffset = activeOffset,
                 context = context,
+                renderStyle = currentRenderStyle,
                 resolveAttachment = attachmentResolver
             )
         } finally {
@@ -304,6 +312,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 editable = editableText,
                 activeOffset = selection.start,
                 context = context,
+                renderStyle = currentRenderStyle,
                 resolveAttachment = attachmentResolver
             )
             setSelection(selection.start, selection.end)
@@ -325,6 +334,26 @@ class MarkdownEditText(context: Context) : EditText(context) {
         val inserted = "$prefix$markdown$suffix"
         editableText.replace(from, to, inserted)
         setSelection((from + inserted.length).coerceIn(0, editableText.length))
+    }
+
+    fun setMarkdownAppearance(isDark: Boolean) {
+        val nextStyle = MarkdownRenderStyle.forDarkMode(isDark)
+        if (renderStyle == nextStyle) return
+        renderStyle = nextStyle
+        setTextColor(nextStyle.bodyTextColor)
+        setHintTextColor(nextStyle.hintTextColor)
+        isApplyingSpans = true
+        try {
+            MarkdownSpanApplier.apply(
+                editable = editableText,
+                activeOffset = selectionStart.takeIf { it >= 0 },
+                context = context,
+                renderStyle = nextStyle,
+                resolveAttachment = attachmentResolver
+            )
+        } finally {
+            isApplyingSpans = false
+        }
     }
 
     fun removeAttachment(ref: String) {

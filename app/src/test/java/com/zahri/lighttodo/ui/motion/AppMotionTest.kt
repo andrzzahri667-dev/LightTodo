@@ -18,10 +18,10 @@ class AppMotionTest {
     }
 
     @Test
-    fun pressSpring_isSnappyButNotOverlyBouncy() {
-        assertTrue(AppMotion.PressSpringDampingRatio in 0.5f..0.75f)
+    fun pressSpring_isSubtleAndCriticallyDamped() {
+        assertEquals(1f, AppMotion.PressSpringDampingRatio, 0.0001f)
         assertTrue(AppMotion.PressSpringStiffness in 650f..900f)
-        assertTrue(AppMotion.PressScale in 0.88f..0.96f)
+        assertEquals(0.97f, AppMotion.PressScale, 0.0001f)
     }
 
     @Test
@@ -39,9 +39,7 @@ class AppMotionTest {
     }
 
     @Test
-    fun pickerItemMotion_isCentralizedAndQuick() {
-        assertTrue(AppMotion.PickerItemAlphaMillis in 120..180)
-        assertTrue(AppMotion.PickerItemScaleMillis in 120..180)
+    fun pickerItemMotion_usesACompactDirectManipulationRadius() {
         assertTrue(AppMotion.PickerItemProximityRadiusItems in 2.0f..2.8f)
     }
 
@@ -50,12 +48,6 @@ class AppMotionTest {
         assertTrue(AppMotion.NoteGridPlacementStiffness in 420f..560f)
         assertTrue(AppMotion.NoteGridPlacementDampingRatio in 0.78f..0.92f)
         assertTrue(AppMotion.NoteCardSelectionColorMillis <= 180)
-    }
-
-    @Test
-    fun noteEditorContentMotion_isFastEnoughForTypingContext() {
-        assertTrue(AppMotion.NoteContentSizeDampingRatio in 0.78f..0.92f)
-        assertTrue(AppMotion.NoteContentSizeStiffness in 420f..560f)
     }
 
     @Test

@@ -53,6 +53,8 @@ fun LightTodoTheme(content: @Composable () -> Unit) {
 // ─── App-wide color tokens ───────────────────────────────────────
 object AppColors {
     val Brand: Color = BrandOrange
+    val BrandForegroundLight: Color = Color(0xFF8A4B00)
+    val BrandForegroundDark: Color = Color(0xFFFFB340)
     val Overdue: Color = OverdueRed
     val DoneGreen: Color = Color(0xFF30D158)  // iOS system green for completion
 }

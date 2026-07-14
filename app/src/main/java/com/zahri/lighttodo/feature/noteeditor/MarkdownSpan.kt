@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
@@ -69,6 +68,7 @@ class MarkdownHeadingSpan(val level: Int) : RelativeSizeSpan(
 
 /** Draws a small filled circle as bullet marker. */
 class MarkdownBulletSpan(
+    @ColorInt private val bulletColor: Int,
     private val bulletRadius: Float = 8f,
     private val margin: Int = 50
 ) : LeadingMarginSpan, MarkdownSpan {
@@ -86,7 +86,7 @@ class MarkdownBulletSpan(
         val color = paint.color
         val alpha = paint.alpha
         paint.style = Paint.Style.FILL
-        paint.color = Color.parseColor("#202124")
+        paint.color = bulletColor
         paint.alpha = 255
         val cx = x + dir * (margin * 0.34f)
         val cy = baseline + (paint.fontMetrics.ascent + paint.fontMetrics.descent) / 2f
@@ -116,6 +116,9 @@ class MarkdownOrderedListSpan(
 /** Draws a rounded-rect checkbox. Checked items get strikethrough + low alpha. */
 class MarkdownCheckboxSpan(
     val checked: Boolean,
+    @ColorInt private val fillColor: Int,
+    @ColorInt private val outlineColor: Int,
+    @ColorInt private val markColor: Int,
     private val boxSize: Float = 40f,
     private val margin: Int = 68
 ) : LeadingMarginSpan, MarkdownSpan {
@@ -142,7 +145,7 @@ class MarkdownCheckboxSpan(
         if (checked) {
             // Filled checkbox with brand orange
             paint.style = Paint.Style.FILL
-            paint.color = Color.parseColor("#FF9F0A")
+            paint.color = fillColor
             paint.alpha = 255
             path.addRoundRect(rect, r, r, Path.Direction.CW)
             canvas.drawPath(path, paint)
@@ -150,7 +153,7 @@ class MarkdownCheckboxSpan(
             // Checkmark
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 3f
-            paint.color = Color.WHITE
+            paint.color = markColor
             val s = half * 0.55f
             canvas.drawLine(cx - s * 0.6f, cy, cx - s * 0.1f, cy + s * 0.6f, paint)
             canvas.drawLine(cx - s * 0.1f, cy + s * 0.6f, cx + s * 0.7f, cy - s * 0.5f, paint)
@@ -158,7 +161,7 @@ class MarkdownCheckboxSpan(
             // Empty checkbox
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 2.4f
-            paint.color = Color.parseColor("#D0D0D0")
+            paint.color = outlineColor
             paint.alpha = 255
             path.addRoundRect(rect, r, r, Path.Direction.CW)
             canvas.drawPath(path, paint)
@@ -183,7 +186,7 @@ class MarkdownCheckedAlphaSpan : CharacterStyle(), MarkdownSpan {
 class MarkdownQuoteSpan(
     private val barWidth: Float = 3f * 2f,  // 3dp @2x
     private val margin: Int = 40,
-    @ColorInt private val barColor: Int = Color.parseColor("#C7C7CC")
+    @ColorInt private val barColor: Int
 ) : LeadingMarginSpan, MarkdownSpan {
 
     override fun getLeadingMargin(first: Boolean): Int = margin
@@ -209,7 +212,7 @@ class MarkdownQuoteSpan(
 
 /** Draws a full-width thin line. The --- text in the buffer is hidden via MarkdownSyntaxSpan. */
 class MarkdownHrSpan(
-    @ColorInt private val lineColor: Int = Color.parseColor("#D6D6D6")
+    @ColorInt private val lineColor: Int
 ) : LeadingMarginSpan, MarkdownSpan {
 
     override fun getLeadingMargin(first: Boolean): Int = 0
@@ -239,20 +242,24 @@ class MarkdownHrSpan(
 // ─── Inline code ───────────────────────────────────────────────
 
 /** Monospace font + muted gray text for inline code. */
-class MarkdownInlineCodeSpan : CharacterStyle(), MarkdownSpan {
+class MarkdownInlineCodeSpan(
+    @ColorInt private val textColor: Int
+) : CharacterStyle(), MarkdownSpan {
     override fun updateDrawState(tp: TextPaint) {
         tp.typeface = Typeface.MONOSPACE
-        tp.color = Color.parseColor("#636366")
+        tp.color = textColor
     }
 }
 
 // ─── Code block ────────────────────────────────────────────────
 
 /** Monospace font + muted gray text for fenced code blocks. */
-class MarkdownCodeBlockSpan : CharacterStyle(), MarkdownSpan {
+class MarkdownCodeBlockSpan(
+    @ColorInt private val textColor: Int
+) : CharacterStyle(), MarkdownSpan {
     override fun updateDrawState(tp: TextPaint) {
         tp.typeface = Typeface.MONOSPACE
-        tp.color = Color.parseColor("#636366")
+        tp.color = textColor
     }
 }
 
@@ -284,14 +291,15 @@ class MarkdownLinkUrlSpan : ReplacementSpan(), MarkdownSpan {
 
 /** Clickable link span storing a URL for click dispatch. */
 class MarkdownLinkSpan(
-    val url: String
+    val url: String,
+    @ColorInt private val linkColor: Int
 ) : android.text.style.ClickableSpan(), MarkdownSpan {
     override fun onClick(widget: View) {
         // no-op; click handled by MarkdownEditText.onTouchEvent -> findLinkSpanAt
     }
 
     override fun updateDrawState(ds: TextPaint) {
-        ds.color = Color.parseColor("#FF9F0A")
+        ds.color = linkColor
         ds.isUnderlineText = true
     }
 }
@@ -299,7 +307,9 @@ class MarkdownLinkSpan(
 class MarkdownImageSpan(
     private val context: Context,
     val attachment: NoteAttachmentMarkdown.Attachment,
-    private val resolveAttachment: NoteAttachmentResolver
+    private val resolveAttachment: NoteAttachmentResolver,
+    @ColorInt private val placeholderColor: Int,
+    @ColorInt private val placeholderTextColor: Int
 ) : ReplacementSpan(), MarkdownSpan {
     private val density = context.resources.displayMetrics.density
     private val maxBoxWidthPx = minOf(
@@ -350,7 +360,7 @@ class MarkdownImageSpan(
         val oldStyle = paint.style
         val oldColor = paint.color
         paint.style = Paint.Style.FILL
-        paint.color = Color.parseColor("#F1F1F3")
+        paint.color = placeholderColor
         canvas.drawRoundRect(rect, radiusPx, radiusPx, paint)
 
         val bitmap = MarkdownBitmapCache.get(attachment.ref, size.first, resolveAttachment)
@@ -362,7 +372,7 @@ class MarkdownImageSpan(
             canvas.drawBitmap(bitmap, src, rect, paint)
             canvas.restore()
         } else {
-            paint.color = Color.parseColor("#8E8E93")
+            paint.color = placeholderTextColor
             paint.textSize = 14f * density
             val label = "Image"
             canvas.drawText(label, rect.left + 16f * density, rect.centerY() - (paint.ascent() + paint.descent()) / 2f, paint)
@@ -387,7 +397,11 @@ class MarkdownImageSpan(
 
 class MarkdownAudioSpan(
     private val context: Context,
-    val attachment: NoteAttachmentMarkdown.Attachment
+    val attachment: NoteAttachmentMarkdown.Attachment,
+    @ColorInt private val backgroundColor: Int,
+    @ColorInt private val accentColor: Int,
+    @ColorInt private val waveColor: Int,
+    @ColorInt private val textColor: Int
 ) : ReplacementSpan(), MarkdownSpan {
     private val density = context.resources.displayMetrics.density
     private val widthPx = (220f * density).roundToInt()
@@ -427,12 +441,12 @@ class MarkdownAudioSpan(
         val oldColor = paint.color
         val oldStroke = paint.strokeWidth
         paint.style = Paint.Style.FILL
-        paint.color = Color.parseColor("#FFF1DA")
+        paint.color = backgroundColor
         canvas.drawRoundRect(rect, heightPx / 2f, heightPx / 2f, paint)
 
         val cx = rect.left + 28f * density
         val cy = rect.centerY()
-        paint.color = Color.parseColor("#FF9F0A")
+        paint.color = accentColor
         val triangle = Path().apply {
             moveTo(cx - 5f * density, cy - 9f * density)
             lineTo(cx - 5f * density, cy + 9f * density)
@@ -443,7 +457,7 @@ class MarkdownAudioSpan(
 
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = 3f * density
-        paint.color = Color.parseColor("#FFB340")
+        paint.color = waveColor
         var waveX = rect.left + 58f * density
         val waveHeights = intArrayOf(10, 18, 14, 24, 12, 20, 10)
         for (waveHeight in waveHeights) {
@@ -453,7 +467,7 @@ class MarkdownAudioSpan(
         }
 
         paint.style = Paint.Style.FILL
-        paint.color = Color.parseColor("#5C4A26")
+        paint.color = textColor
         paint.textSize = 15f * density
         canvas.drawText(attachment.label, rect.right - 56f * density, cy - (paint.ascent() + paint.descent()) / 2f, paint)
 

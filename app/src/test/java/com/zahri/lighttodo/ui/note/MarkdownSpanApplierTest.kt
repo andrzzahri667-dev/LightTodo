@@ -6,6 +6,39 @@ import org.junit.Test
 class MarkdownSpanApplierTest {
 
     @Test
+    fun visibleCharacterCount_usesRenderedTextInsteadOfMarkdownSource() {
+        val count = MarkdownSpanApplier.visibleCharacterCount(
+            title = "T",
+            markdown = "**bold**\n- [ ] task"
+        )
+
+        assertEquals(10, count)
+    }
+
+    @Test
+    fun visibleCharacterCount_keepsLiteralMarkdownInsideCodeFences() {
+        assertEquals(
+            5,
+            MarkdownSpanApplier.visibleCharacterCount(
+                title = "",
+                markdown = "```\n**x**\n```"
+            )
+        )
+    }
+
+    @Test
+    fun visibleCharacterCount_excludesAttachmentSourceAndLabels() {
+        assertEquals(
+            12,
+            MarkdownSpanApplier.visibleCharacterCount(
+                title = "",
+                markdown = "Before\n![image](attachments/image/a.jpg)\n" +
+                    "[audio 00:08](attachments/audio/a.m4a)\nAfter"
+            )
+        )
+    }
+
+    @Test
     fun stripMarkdown_removesBlockMarkersForCardPreview() {
         val preview = MarkdownSpanApplier.stripMarkdown(
             "# 人\n" +
