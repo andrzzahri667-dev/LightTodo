@@ -15,6 +15,13 @@ object MarkdownTextTransforms {
         val cursorAfter: Int
     )
 
+    data class InlineStyleRange(
+        val openStart: Int,
+        val contentStart: Int,
+        val contentEnd: Int,
+        val closeEnd: Int
+    )
+
     fun markdownLinkForPastedText(text: String): String? {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return null
@@ -28,6 +35,65 @@ object MarkdownTextTransforms {
         val match = TaskListLineRegex.matchEntire(line) ?: return null
         val nextMarker = if (match.groupValues[2].equals("x", ignoreCase = true)) " " else "x"
         return match.groupValues[1] + nextMarker + match.groupValues[3]
+    }
+
+    fun findInlineStyleRanges(
+        text: CharSequence,
+        openMarker: String,
+        closeMarker: String
+    ): List<InlineStyleRange> {
+        require(openMarker.isNotEmpty() && closeMarker.isNotEmpty())
+        val ranges = mutableListOf<InlineStyleRange>()
+        var lineStart = 0
+        while (lineStart <= text.length) {
+            val lineEnd = text.indexOf('\n', lineStart).let {
+                if (it == -1) text.length else it
+            }
+            findInlineStyleRangesInLine(
+                text = text,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                openMarker = openMarker,
+                closeMarker = closeMarker,
+                destination = ranges
+            )
+            if (lineEnd == text.length) break
+            lineStart = lineEnd + 1
+        }
+        ranges.sortBy(InlineStyleRange::openStart)
+        return ranges
+    }
+
+    fun isSelectionInsideInlineStyle(
+        text: CharSequence,
+        selectionStart: Int,
+        selectionEnd: Int,
+        openMarker: String,
+        closeMarker: String
+    ): Boolean {
+        val start = minOf(selectionStart, selectionEnd).coerceIn(0, text.length)
+        val end = maxOf(selectionStart, selectionEnd).coerceIn(0, text.length)
+        val lineStart = if (start == 0) {
+            0
+        } else {
+            text.lastIndexOf('\n', start - 1).let { if (it == -1) 0 else it + 1 }
+        }
+        val lineEnd = text.indexOf('\n', start).let { if (it == -1) text.length else it }
+        if (end > lineEnd) return false
+        val ranges = mutableListOf<InlineStyleRange>()
+        findInlineStyleRangesInLine(
+            text = text,
+            lineStart = lineStart,
+            lineEnd = lineEnd,
+            openMarker = openMarker,
+            closeMarker = closeMarker,
+            destination = ranges
+        )
+        return if (start == end) {
+            ranges.any { start >= it.contentStart && start <= it.contentEnd }
+        } else {
+            ranges.any { start == it.contentStart && end == it.contentEnd }
+        }
     }
 
     fun toggleLinePrefix(text: String, cursor: Int, prefix: String): Edit? {
@@ -158,6 +224,184 @@ object MarkdownTextTransforms {
             if (it == -1) text.length else it
         }
         return lineStart to lineEnd
+    }
+
+    private fun findInlineStyleRangesInLine(
+        text: CharSequence,
+        lineStart: Int,
+        lineEnd: Int,
+        openMarker: String,
+        closeMarker: String,
+        destination: MutableList<InlineStyleRange>
+    ) {
+        if (openMarker == closeMarker) {
+            findSymmetricStyleRangesInLine(
+                text = text,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                marker = openMarker,
+                destination = destination
+            )
+        } else {
+            findAsymmetricStyleRangesInLine(
+                text = text,
+                lineStart = lineStart,
+                lineEnd = lineEnd,
+                openMarker = openMarker,
+                closeMarker = closeMarker,
+                destination = destination
+            )
+        }
+    }
+
+    private fun findSymmetricStyleRangesInLine(
+        text: CharSequence,
+        lineStart: Int,
+        lineEnd: Int,
+        marker: String,
+        destination: MutableList<InlineStyleRange>
+    ) {
+        val openers = ArrayDeque<Int>()
+
+        fun processToken(index: Int) {
+            if (isEscaped(text, index, lineStart)) return
+            val canOpen = isValidDelimiter(text, index, marker, opening = true)
+            val canClose = isValidDelimiter(text, index, marker, opening = false)
+            if (canClose && openers.isNotEmpty()) {
+                val openStart = openers.removeLast()
+                val contentStart = openStart + marker.length
+                if (contentStart < index) {
+                    destination += InlineStyleRange(
+                        openStart = openStart,
+                        contentStart = contentStart,
+                        contentEnd = index,
+                        closeEnd = index + marker.length
+                    )
+                }
+            } else if (canOpen) {
+                openers.addLast(index)
+            }
+        }
+
+        if (marker.isRepeatedPunctuation()) {
+            val delimiter = marker[0]
+            var index = lineStart
+            while (index < lineEnd) {
+                if (text[index] != delimiter) {
+                    index++
+                    continue
+                }
+                val runStart = index
+                while (index < lineEnd && text[index] == delimiter) index++
+                val runLength = index - runStart
+                when {
+                    marker.length == 1 && runLength == 1 -> processToken(runStart)
+                    marker.length > 1 && runLength % marker.length == 0 -> {
+                        var tokenStart = runStart
+                        while (tokenStart < index) {
+                            processToken(tokenStart)
+                            tokenStart += marker.length
+                        }
+                    }
+                }
+            }
+            return
+        }
+
+        var index = lineStart
+        while (index + marker.length <= lineEnd) {
+            if (text.matchesAt(marker, index, lineEnd)) {
+                processToken(index)
+                index += marker.length
+            } else {
+                index++
+            }
+        }
+    }
+
+    private fun findAsymmetricStyleRangesInLine(
+        text: CharSequence,
+        lineStart: Int,
+        lineEnd: Int,
+        openMarker: String,
+        closeMarker: String,
+        destination: MutableList<InlineStyleRange>
+    ) {
+        val openers = ArrayDeque<Int>()
+        var index = lineStart
+        while (index < lineEnd) {
+            when {
+                text.matchesAt(closeMarker, index, lineEnd) &&
+                    !isEscaped(text, index, lineStart) -> {
+                    if (openers.isNotEmpty()) {
+                        val openStart = openers.removeLast()
+                        val contentStart = openStart + openMarker.length
+                        if (contentStart < index) {
+                            destination += InlineStyleRange(
+                                openStart = openStart,
+                                contentStart = contentStart,
+                                contentEnd = index,
+                                closeEnd = index + closeMarker.length
+                            )
+                        }
+                    }
+                    index += closeMarker.length
+                }
+
+                text.matchesAt(openMarker, index, lineEnd) &&
+                    !isEscaped(text, index, lineStart) -> {
+                    openers.addLast(index)
+                    index += openMarker.length
+                }
+
+                else -> index++
+            }
+        }
+    }
+
+    private fun CharSequence.matchesAt(marker: String, index: Int, limitExclusive: Int): Boolean {
+        if (index < 0 || index + marker.length > limitExclusive) return false
+        return marker.indices.all { markerIndex -> this[index + markerIndex] == marker[markerIndex] }
+    }
+
+    private fun isEscaped(text: CharSequence, index: Int, lineStart: Int): Boolean {
+        var slashCount = 0
+        var cursor = index - 1
+        while (cursor >= lineStart && text[cursor] == '\\') {
+            slashCount++
+            cursor--
+        }
+        return slashCount % 2 == 1
+    }
+
+    private fun isValidDelimiter(
+        text: CharSequence,
+        index: Int,
+        marker: String,
+        opening: Boolean
+    ): Boolean {
+        val isTag = marker.startsWith('<') && marker.endsWith('>')
+        if (!isTag) {
+            val adjacent = if (opening) {
+                text.getOrNull(index + marker.length)
+            } else {
+                text.getOrNull(index - 1)
+            }
+            if (adjacent == null || adjacent.isWhitespace()) return false
+        }
+
+        if (marker.all { it == '_' }) {
+            if (opening && text.getOrNull(index - 1)?.isLetterOrDigit() == true) return false
+            if (!opening && text.getOrNull(index + marker.length)?.isLetterOrDigit() == true) {
+                return false
+            }
+        }
+        return true
+    }
+
+    private fun String.isRepeatedPunctuation(): Boolean {
+        if (isEmpty()) return false
+        return first() in "*_~`" && all { it == first() }
     }
 
     private fun removeBlockPrefix(line: String): String {

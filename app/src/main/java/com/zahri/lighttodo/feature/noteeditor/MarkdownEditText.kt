@@ -18,6 +18,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputConnectionWrapper
 import android.widget.EditText
+import com.zahri.lighttodo.domain.markdown.MarkdownEditorPolicy
 import com.zahri.lighttodo.domain.markdown.MarkdownKeyboardDeletePolicy
 import com.zahri.lighttodo.domain.markdown.MarkdownTextTransforms
 import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
@@ -29,6 +30,14 @@ import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 @SuppressLint("AppCompatCustomView")
 class MarkdownEditText(context: Context) : EditText(context) {
 
+    private data class PendingTextChange(
+        val start: Int,
+        val removedText: String,
+        val insertedText: String,
+        val beforeLine: String,
+        val afterLine: String
+    )
+
     var contentUpdateCallback: ((String) -> Unit)? = null
     var audioClickCallback: ((String) -> Unit)? = null
     var imageClickCallback: ((String) -> Unit)? = null
@@ -39,7 +48,9 @@ class MarkdownEditText(context: Context) : EditText(context) {
     var attachmentResolver: NoteAttachmentResolver? = null
 
     private var isApplyingSpans = false
-    private var pendingNewlineIndex: Int? = null
+    private var isPasting = false
+    private var pendingTextChange: PendingTextChange? = null
+    private var lastActiveOffset: Int? = null
     private var pressedAttachment: NoteAttachmentMarkdown.Attachment? = null
     private var longPressTriggered = false
     private var longPressRunnable: Runnable? = null
@@ -65,27 +76,70 @@ class MarkdownEditText(context: Context) : EditText(context) {
         hint = ""
 
         addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+                if (isApplyingSpans) return
+                val removedEnd = (start + count).coerceAtMost(s.length)
+                pendingTextChange = PendingTextChange(
+                    start = start,
+                    removedText = s.subSequence(start, removedEnd).toString(),
+                    insertedText = "",
+                    beforeLine = lineTextAt(s, start),
+                    afterLine = ""
+                )
+            }
+
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                if (isApplyingSpans || count <= 0) return
+                if (isApplyingSpans) return
                 val insertedEnd = (start + count).coerceAtMost(s.length)
-                val newlineOffset = s.subSequence(start, insertedEnd).indexOf('\n')
-                if (newlineOffset >= 0) {
-                    pendingNewlineIndex = start + newlineOffset
-                }
+                val previous = pendingTextChange
+                pendingTextChange = PendingTextChange(
+                    start = start,
+                    removedText = previous?.removedText.orEmpty(),
+                    insertedText = s.subSequence(start, insertedEnd).toString(),
+                    beforeLine = previous?.beforeLine.orEmpty(),
+                    afterLine = lineTextAt(s, start)
+                )
             }
 
             override fun afterTextChanged(s: Editable) {
                 if (isApplyingSpans) return
+                val change = pendingTextChange
+                pendingTextChange = null
                 isApplyingSpans = true
                 try {
-                    applyPendingListContinuation(s)
-                    MarkdownSpanApplier.apply(
-                        editable = s,
-                        activeOffset = selectionStart.takeIf { it >= 0 },
-                        context = context,
-                        resolveAttachment = attachmentResolver
+                    val newlineIndex = change?.let {
+                        MarkdownEditorPolicy.continuationNewlineIndex(
+                            changeStart = it.start,
+                            insertedText = it.insertedText,
+                            isPaste = isPasting
+                        )
+                    }
+                    if (newlineIndex != null) applyPendingListContinuation(s, newlineIndex)
+                    val fullRefresh = change == null || MarkdownEditorPolicy.requiresFullSpanRefresh(
+                        removedText = change.removedText,
+                        insertedText = change.insertedText,
+                        beforeLine = change.beforeLine,
+                        afterLine = change.afterLine
                     )
+                    val activeOffset = selectionStart.takeIf { it >= 0 }
+                    val changedOffset = change?.start
+                    if (fullRefresh || changedOffset == null) {
+                        MarkdownSpanApplier.apply(
+                            editable = s,
+                            activeOffset = activeOffset,
+                            context = context,
+                            resolveAttachment = attachmentResolver
+                        )
+                    } else {
+                        MarkdownSpanApplier.applyChangedLine(
+                            editable = s,
+                            changedOffset = changedOffset,
+                            activeOffset = activeOffset,
+                            context = context,
+                            resolveAttachment = attachmentResolver
+                        )
+                    }
+                    lastActiveOffset = activeOffset
                     contentUpdateCallback?.invoke(s.toString())
                 } finally {
                     isApplyingSpans = false
@@ -98,11 +152,16 @@ class MarkdownEditText(context: Context) : EditText(context) {
         super.onSelectionChanged(selStart, selEnd)
         if (isApplyingSpans) return
         selectionChangedCallback?.invoke(selStart.coerceAtLeast(0), selEnd.coerceAtLeast(0))
+        val previousActiveOffset = lastActiveOffset
+        val activeOffset = selStart.takeIf { it >= 0 }
+        lastActiveOffset = activeOffset
+        if (pendingTextChange != null) return
         isApplyingSpans = true
         try {
-            MarkdownSpanApplier.apply(
+            MarkdownSpanApplier.applyActiveLineChange(
                 editable = editableText,
-                activeOffset = selStart.takeIf { it >= 0 },
+                previousActiveOffset = previousActiveOffset,
+                activeOffset = activeOffset,
                 context = context,
                 resolveAttachment = attachmentResolver
             )
@@ -156,6 +215,9 @@ class MarkdownEditText(context: Context) : EditText(context) {
             val layout = layout
             if (layout != null) {
                 val vertical = (event.y + scrollY - totalPaddingTop).toInt()
+                if (!MarkdownEditorPolicy.containsVertical(vertical, layout.height)) {
+                    return super.onTouchEvent(event)
+                }
                 val lineIndex = layout.getLineForVertical(vertical)
                 val lineStart = layout.getLineStart(lineIndex)
                 val rawLineEnd = layout.getLineEnd(lineIndex)
@@ -171,12 +233,6 @@ class MarkdownEditText(context: Context) : EditText(context) {
                 val toggled = MarkdownTextTransforms.toggleTaskListLine(line)
                 if (toggled != null) {
                     editableText.replace(lineStart, lineEnd, toggled)
-                    MarkdownSpanApplier.apply(
-                        editable = editableText,
-                        activeOffset = selectionStart.takeIf { it >= 0 },
-                        context = context,
-                        resolveAttachment = attachmentResolver
-                    )
                     return true
                 }
             }
@@ -192,17 +248,20 @@ class MarkdownEditText(context: Context) : EditText(context) {
     }
 
     override fun onTextContextMenuItem(id: Int): Boolean {
-        if (id == android.R.id.paste || id == android.R.id.pasteAsPlainText) {
-            val clipboard = context.getSystemService(ClipboardManager::class.java)
-            val pasted = clipboard
-                ?.primaryClip
-                ?.takeIf { it.itemCount > 0 }
-                ?.getItemAt(0)
-                ?.coerceToText(context)
-                ?.toString()
-            if (replaceSelectionWithPastedMarkdownLink(pasted)) return true
+        val pasteAction = id == android.R.id.paste || id == android.R.id.pasteAsPlainText
+        if (!pasteAction) return super.onTextContextMenuItem(id)
+
+        isPasting = true
+        return try {
+            val pasted = clipboardText()
+            if (replaceSelectionWithPastedMarkdownLink(pasted)) {
+                true
+            } else {
+                super.onTextContextMenuItem(id)
+            }
+        } finally {
+            isPasting = false
         }
-        return super.onTextContextMenuItem(id)
     }
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
@@ -235,15 +294,20 @@ class MarkdownEditText(context: Context) : EditText(context) {
     fun setContentWithoutTrigger(text: String) {
         isApplyingSpans = true
         try {
-            val sel = selectionStart.coerceAtMost(text.length).coerceAtLeast(0)
+            val selection = MarkdownEditorPolicy.clampSelection(
+                start = selectionStart,
+                end = selectionEnd,
+                textLength = text.length
+            )
             setText(text)
             MarkdownSpanApplier.apply(
                 editable = editableText,
-                activeOffset = sel,
+                activeOffset = selection.start,
                 context = context,
                 resolveAttachment = attachmentResolver
             )
-            setSelection(sel)
+            setSelection(selection.start, selection.end)
+            lastActiveOffset = selection.start
         } finally {
             isApplyingSpans = false
         }
@@ -280,6 +344,16 @@ class MarkdownEditText(context: Context) : EditText(context) {
         return true
     }
 
+    private fun clipboardText(): String? {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        return clipboard
+            ?.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(context)
+            ?.toString()
+    }
+
     private fun tryDeletePreviousMediaFromKeyboard(): Boolean {
         val text = editableText.toString()
         if (!MarkdownKeyboardDeletePolicy.shouldRequestPreviousMediaDelete(
@@ -293,9 +367,7 @@ class MarkdownEditText(context: Context) : EditText(context) {
         return deletePreviousMediaCallback?.invoke() == true
     }
 
-    private fun applyPendingListContinuation(s: Editable) {
-        val newlineIndex = pendingNewlineIndex ?: return
-        pendingNewlineIndex = null
+    private fun applyPendingListContinuation(s: Editable, newlineIndex: Int) {
         val edit = MarkdownTextTransforms.listContinuationAfterNewline(s.toString(), newlineIndex) ?: return
         s.replace(edit.start, edit.end, edit.replacement)
         val cursor = edit.cursorAfter.coerceIn(0, s.length)
@@ -311,27 +383,42 @@ class MarkdownEditText(context: Context) : EditText(context) {
     private fun <T> findSpanAt(event: MotionEvent, type: Class<T>): T? {
         val layout = layout ?: return null
         val vertical = (event.y + scrollY - totalPaddingTop).toInt()
+        if (!MarkdownEditorPolicy.containsVertical(vertical, layout.height)) return null
         val lineIndex = layout.getLineForVertical(vertical)
         val offset = layout.getOffsetForHorizontal(lineIndex, event.x)
         val spans = editableText.getSpans(0, editableText.length, type)
         return spans.firstOrNull { span ->
             val start = editableText.getSpanStart(span as Any)
             val end = editableText.getSpanEnd(span as Any)
-            offset in start..end
+            MarkdownEditorPolicy.containsOffset(offset, start, end)
         }
     }
 
     private fun findLinkSpanAt(event: MotionEvent): String? {
         val layout = layout ?: return null
         val vertical = (event.y + scrollY - totalPaddingTop).toInt()
+        if (!MarkdownEditorPolicy.containsVertical(vertical, layout.height)) return null
         val lineIndex = layout.getLineForVertical(vertical)
         val offset = layout.getOffsetForHorizontal(lineIndex, event.x)
         val spans = editableText.getSpans(0, editableText.length, MarkdownLinkSpan::class.java)
         return spans.firstOrNull { span ->
             val start = editableText.getSpanStart(span)
             val end = editableText.getSpanEnd(span)
-            offset in start..end
+            MarkdownEditorPolicy.containsOffset(offset, start, end)
         }?.url
+    }
+
+    private fun lineTextAt(text: CharSequence, offset: Int): String {
+        val safeOffset = offset.coerceIn(0, text.length)
+        val lineStart = if (safeOffset == 0) {
+            0
+        } else {
+            text.lastIndexOf('\n', safeOffset - 1).let { if (it == -1) 0 else it + 1 }
+        }
+        val lineEnd = text.indexOf('\n', safeOffset).let {
+            if (it == -1) text.length else it
+        }
+        return text.subSequence(lineStart, lineEnd).toString()
     }
 
     private fun cancelAttachmentLongPress() {

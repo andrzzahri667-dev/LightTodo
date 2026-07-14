@@ -23,4 +23,8 @@ release/
 xiaomi_notes_decompiled/
 xiaomi_notes_extracted/
 tmp/
-docs/plans/
+docs/
+*.md
+*.tar
+*.zpaq
+*.zst

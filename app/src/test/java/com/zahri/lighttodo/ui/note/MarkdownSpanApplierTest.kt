@@ -79,4 +79,43 @@ class MarkdownSpanApplierTest {
             ranges
         )
     }
+
+    @Test
+    fun findMarkdownLinkRanges_keepsBalancedParenthesesInsideUrl() {
+        val ranges = MarkdownSpanApplier.findMarkdownLinkRanges(
+            "[math](https://host/wiki/Foo_(bar))"
+        )
+
+        assertEquals(
+            listOf(
+                MarkdownSpanApplier.LinkRange(
+                    textStart = 1,
+                    textEnd = 5,
+                    suffixStart = 5,
+                    suffixEnd = 35,
+                    url = "https://host/wiki/Foo_(bar)"
+                )
+            ),
+            ranges
+        )
+    }
+
+    @Test
+    fun stripMarkdown_keepsBalancedLinkUrlOutOfCardPreview() {
+        val preview = MarkdownSpanApplier.stripMarkdown(
+            "See [math](https://host/wiki/Foo_(bar)) today"
+        )
+
+        assertEquals("See math today", preview)
+    }
+
+    @Test
+    fun stripMarkdown_preservesIdentifierUnderscores() {
+        assertEquals("foo_bar_baz", MarkdownSpanApplier.stripMarkdown("foo_bar_baz"))
+    }
+
+    @Test
+    fun stripMarkdown_stillRemovesStandaloneUnderscoreItalicMarkers() {
+        assertEquals("italic", MarkdownSpanApplier.stripMarkdown("_italic_"))
+    }
 }

@@ -21,7 +21,19 @@ class MarkdownSpanSourceTest {
             "app/src/main/java/com/zahri/lighttodo/feature/noteeditor/MarkdownSpanApplier.kt"
         ).readText()
 
-        assertTrue(source.contains("private val InlineLinkRegex"))
+        assertTrue(source.contains("private val InlineCodeRegex"))
+        assertTrue(source.contains("stripMarkdownLinks(text)"))
         assertFalse(source.contains(".replace(Regex("))
+    }
+
+    @Test
+    fun inlineSpansReusePairedDelimiterRanges() {
+        val source = sourceFile(
+            "app/src/main/java/com/zahri/lighttodo/feature/noteeditor/MarkdownSpanApplier.kt"
+        ).readText()
+
+        assertTrue(source.contains("val boldAsteriskRanges = MarkdownTextTransforms.findInlineStyleRanges("))
+        assertTrue(source.contains("val italicAsteriskRanges = MarkdownTextTransforms.findInlineStyleRanges("))
+        assertTrue(source.contains("val range = boldAsteriskRanges[i]"))
     }
 }

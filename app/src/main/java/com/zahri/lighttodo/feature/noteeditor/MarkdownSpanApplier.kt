@@ -10,6 +10,8 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
+import com.zahri.lighttodo.domain.markdown.MarkdownEditorPolicy
+import com.zahri.lighttodo.domain.markdown.MarkdownTextTransforms
 import com.zahri.lighttodo.domain.note.NoteAttachmentMarkdown
 
 /**
@@ -32,15 +34,18 @@ object MarkdownSpanApplier {
     private val OrderedListRegex = Regex("^(\\s*)(\\d+)[.)]\\s+(.+)$")
     private val UnorderedListRegex = Regex("^(\\s*)[-*+]\\s+(.+)$")
     private val TaskListRegex = Regex("^(\\s*)[-*+]\\s+\\[([ xX]?)]\\s*(.*)$")
-    private val InlineLinkRegex = Regex("\\[([^\\]]+)]\\([^)]*\\)")
     private val InlineCodeRegex = Regex("`([^`]+)`")
     private val InlineBoldAsteriskRegex = Regex("\\*\\*([^*]+)\\*\\*")
-    private val InlineBoldUnderscoreRegex = Regex("__([^_]+)__")
+    private val InlineBoldUnderscoreRegex = Regex(
+        "(?<![\\p{L}\\p{N}_])__([^_\\n]+)__(?![\\p{L}\\p{N}_])"
+    )
     private val InlineDoubleStrikeRegex = Regex("~~([^~]+)~~")
     private val InlineSingleStrikeRegex = Regex("~([^~]+)~")
     private val InlineUnderlineRegex = Regex("<u>(.*?)</u>")
     private val InlineItalicAsteriskRegex = Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)")
-    private val InlineItalicUnderscoreRegex = Regex("(?<!_)_([^_]+)_(?!_)")
+    private val InlineItalicUnderscoreRegex = Regex(
+        "(?<![\\p{L}\\p{N}_])_([^_\\n]+)_(?![\\p{L}\\p{N}_])"
+    )
 
     data class LinkRange(
         val textStart: Int,
@@ -78,8 +83,7 @@ object MarkdownSpanApplier {
     }
 
     private fun stripInlineMarkdown(text: String): String {
-        return text
-            .replace(InlineLinkRegex, "$1")
+        return stripMarkdownLinks(text)
             .replace(InlineCodeRegex, "$1")
             .replace(InlineBoldAsteriskRegex, "$1")
             .replace(InlineBoldUnderscoreRegex, "$1")
@@ -88,6 +92,22 @@ object MarkdownSpanApplier {
             .replace(InlineUnderlineRegex, "$1")
             .replace(InlineItalicAsteriskRegex, "$1")
             .replace(InlineItalicUnderscoreRegex, "$1")
+    }
+
+    private fun stripMarkdownLinks(text: String): String {
+        val ranges = findMarkdownLinkRanges(text)
+        if (ranges.isEmpty()) return text
+        return buildString(text.length) {
+            var copiedUntil = 0
+            ranges.forEach { range ->
+                val linkStart = range.textStart - 1
+                if (linkStart < copiedUntil) return@forEach
+                append(text, copiedUntil, linkStart)
+                append(text, range.textStart, range.textEnd)
+                copiedUntil = range.suffixEnd
+            }
+            append(text, copiedUntil, text.length)
+        }
     }
 
     /** Managed span types — removed and re-applied each pass. */
@@ -100,172 +120,304 @@ object MarkdownSpanApplier {
         UnderlineSpan::class.java
     )
 
+    private data class LineRange(
+        val start: Int,
+        val endExclusive: Int
+    )
+
     fun apply(
         editable: Editable,
         activeOffset: Int? = null,
         context: Context? = null,
         resolveAttachment: NoteAttachmentResolver? = null
     ) {
-        // 1. Remove all managed spans
+        removeAllManagedSpans(editable)
+
+        var inCodeBlock = false
+        var lineStart = 0
+        while (lineStart <= editable.length) {
+            val lineEnd = editable.indexOf('\n', lineStart).let {
+                if (it == -1) editable.length else it
+            }
+            val range = LineRange(lineStart, lineEnd)
+            val lineIsActive = activeOffset != null && activeOffset in lineStart..lineEnd
+            inCodeBlock = applyLine(
+                editable = editable,
+                range = range,
+                inCodeBlock = inCodeBlock,
+                lineIsActive = lineIsActive,
+                context = context,
+                resolveAttachment = resolveAttachment
+            )
+            lineStart = lineEnd + 1
+        }
+    }
+
+    fun applyChangedLine(
+        editable: Editable,
+        changedOffset: Int,
+        activeOffset: Int? = null,
+        context: Context? = null,
+        resolveAttachment: NoteAttachmentResolver? = null
+    ) {
+        val range = lineRangeAt(editable, changedOffset)
+        removeManagedSpansInRange(editable, range)
+        val activeLineStart = activeOffset?.let { lineRangeAt(editable, it).start }
+        applyLine(
+            editable = editable,
+            range = range,
+            inCodeBlock = codeBlockStateBefore(editable, range.start),
+            lineIsActive = activeLineStart == range.start,
+            context = context,
+            resolveAttachment = resolveAttachment
+        )
+    }
+
+    fun applyActiveLineChange(
+        editable: Editable,
+        previousActiveOffset: Int?,
+        activeOffset: Int?,
+        context: Context? = null,
+        resolveAttachment: NoteAttachmentResolver? = null
+    ) {
+        val previousRange = previousActiveOffset?.let { lineRangeAt(editable, it) }
+        val activeRange = activeOffset?.let { lineRangeAt(editable, it) }
+        if (previousRange?.start == activeRange?.start) return
+
+        listOfNotNull(previousRange, activeRange)
+            .distinctBy(LineRange::start)
+            .forEach { removeManagedSpansInRange(editable, it) }
+
+        previousRange?.let { range ->
+            applyLine(
+                editable = editable,
+                range = range,
+                inCodeBlock = codeBlockStateBefore(editable, range.start),
+                lineIsActive = false,
+                context = context,
+                resolveAttachment = resolveAttachment
+            )
+        }
+        activeRange?.let { range ->
+            applyLine(
+                editable = editable,
+                range = range,
+                inCodeBlock = codeBlockStateBefore(editable, range.start),
+                lineIsActive = true,
+                context = context,
+                resolveAttachment = resolveAttachment
+            )
+        }
+    }
+
+    private fun removeAllManagedSpans(editable: Editable) {
         for (type in MANAGED_SPANS) {
             val spans = editable.getSpans(0, editable.length, type)
             for (span in spans) {
                 editable.removeSpan(span)
             }
         }
+    }
 
-        // 2. Parse line by line
+    private fun removeManagedSpansInRange(editable: Editable, range: LineRange) {
+        for (type in MANAGED_SPANS) {
+            val candidates = linkedSetOf<Any>()
+            editable.getSpans(range.start, range.endExclusive, type).forEach {
+                candidates += it
+            }
+            editable.getSpans(range.start, range.start, type).forEach {
+                candidates += it
+            }
+            editable.getSpans(range.endExclusive, range.endExclusive, type).forEach {
+                candidates += it
+            }
+            for (span in candidates) {
+                val spanStart = editable.getSpanStart(span)
+                val spanEnd = editable.getSpanEnd(span)
+                if (MarkdownEditorPolicy.shouldRemoveSpanOnLineRefresh(
+                        spanStart = spanStart,
+                        spanEnd = spanEnd,
+                        lineStart = range.start,
+                        lineEndExclusive = range.endExclusive
+                    )
+                ) {
+                    editable.removeSpan(span)
+                }
+            }
+        }
+    }
+
+    private fun applyLine(
+        editable: Editable,
+        range: LineRange,
+        inCodeBlock: Boolean,
+        lineIsActive: Boolean,
+        context: Context?,
+        resolveAttachment: NoteAttachmentResolver?
+    ): Boolean {
+        val lineStart = range.start
+        val lineEnd = range.endExclusive
+        val line = editable.subSequence(lineStart, lineEnd).toString()
+        val trimmed = line.trimStart()
+
+        if (trimmed.startsWith("```")) {
+            if (!lineIsActive) {
+                editable.setSpan(MarkdownSyntaxSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(MarkdownCodeBlockSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            return !inCodeBlock
+        }
+
+        if (inCodeBlock) {
+            if (!lineIsActive) {
+                editable.setSpan(MarkdownCodeBlockSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(BackgroundColorSpan(CODE_BG), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            return true
+        }
+
+        if (context != null) {
+            val attachment = NoteAttachmentMarkdown.parseLine(line)
+            if (attachment != null) {
+                val span = when (attachment.kind) {
+                    NoteAttachmentMarkdown.Kind.Image -> MarkdownImageSpan(
+                        context,
+                        attachment,
+                        resolveAttachment ?: { _: String -> null }
+                    )
+                    NoteAttachmentMarkdown.Kind.Audio -> MarkdownAudioSpan(context, attachment)
+                }
+                editable.setSpan(span, lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                return false
+            }
+        }
+
+        if (lineIsActive) {
+            applyActiveLineLinks(editable, lineStart, lineEnd)
+            return false
+        }
+
+        when {
+            HeadingRegex.matchEntire(line) != null -> {
+                val match = HeadingRegex.matchEntire(line)!!
+                val indent = match.groupValues[1].length
+                val marker = match.groupValues[2]
+                val level = marker.length
+                val markerStart = lineStart + indent
+                val markerEnd = markerStart + marker.length + 1
+                val contentStart = markerEnd
+                val contentEnd = lineEnd
+
+                if (markerEnd <= lineEnd) {
+                    editable.setSpan(MarkdownSyntaxSpan(), markerStart, markerEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                editable.setSpan(MarkdownHeadingSpan(level), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(StyleSpan(Typeface.BOLD), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+
+            HorizontalRuleRegex.matchEntire(line) != null -> {
+                editable.setSpan(MarkdownSyntaxSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(MarkdownHrSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+
+            TaskListRegex.matchEntire(line) != null -> {
+                val match = TaskListRegex.matchEntire(line)!!
+                val indent = match.groupValues[1].length
+                val checkedChar = match.groupValues[2]
+                val checked = checkedChar.equals("x", ignoreCase = true)
+
+                val markerStart = lineStart + indent
+                val markerEndInLine = line.contentStartAfterTaskMarker()
+                val contentStart = lineStart + markerEndInLine
+                val contentEnd = lineEnd
+
+                editable.setSpan(MarkdownSyntaxSpan(), markerStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(MarkdownCheckboxSpan(checked), markerStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                if (checked) {
+                    editable.setSpan(MarkdownCheckedAlphaSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    editable.setSpan(StrikethroughSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                applyInline(editable, contentStart, contentEnd)
+            }
+
+            OrderedListRegex.matchEntire(line) != null -> {
+                val match = OrderedListRegex.matchEntire(line)!!
+                val indent = match.groupValues[1].length
+                val markerStart = lineStart + indent
+                val contentStart = line.indexOf(')').let {
+                    if (it == -1) line.indexOf('.') + 1 else it + 1
+                } + 1 + lineStart
+
+                editable.setSpan(MarkdownOrderedListSpan(), markerStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                applyInline(editable, contentStart, lineEnd)
+            }
+
+            UnorderedListRegex.matchEntire(line) != null -> {
+                val match = UnorderedListRegex.matchEntire(line)!!
+                val indent = match.groupValues[1].length
+                val markerStart = lineStart + indent
+                val contentStart = markerStart + 2
+
+                editable.setSpan(MarkdownSyntaxSpan(), markerStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(MarkdownBulletSpan(), markerStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                applyInline(editable, contentStart, lineEnd)
+            }
+
+            isQuote(line) -> {
+                val quotePos = line.indexOf('>')
+                val contentStartInLine = (quotePos + 1).let { index ->
+                    var result = index
+                    while (result < line.length && line[result] == ' ') result++
+                    result
+                }
+                val contentStart = lineStart + contentStartInLine
+
+                editable.setSpan(MarkdownSyntaxSpan(), lineStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(MarkdownQuoteSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                editable.setSpan(
+                    ForegroundColorSpan(Color.parseColor(QUOTE_TEXT_COLOR)),
+                    contentStart,
+                    lineEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                applyInline(editable, contentStart, lineEnd)
+            }
+
+            else -> applyInline(editable, lineStart, lineEnd)
+        }
+        return false
+    }
+
+    private fun lineRangeAt(text: CharSequence, offset: Int): LineRange {
+        val safeOffset = offset.coerceIn(0, text.length)
+        val start = if (safeOffset == 0) {
+            0
+        } else {
+            text.lastIndexOf('\n', safeOffset - 1).let { if (it == -1) 0 else it + 1 }
+        }
+        val end = text.indexOf('\n', safeOffset).let { if (it == -1) text.length else it }
+        return LineRange(start, end)
+    }
+
+    private fun codeBlockStateBefore(text: CharSequence, targetLineStart: Int): Boolean {
         var inCodeBlock = false
         var lineStart = 0
-        val len = editable.length
-
-        while (lineStart <= len) {
-            val lineEnd = editable.indexOf('\n', lineStart).let { if (it == -1) len else it }
-            val line = editable.subSequence(lineStart, lineEnd).toString()
-            val trimmed = line.trimStart()
-            val lineIsActive = activeOffset != null && activeOffset in lineStart..lineEnd
-
-            // Code block fence toggle
-            if (trimmed.startsWith("```")) {
-                if (!lineIsActive) {
-                    editable.setSpan(MarkdownSyntaxSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    editable.setSpan(MarkdownCodeBlockSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-                inCodeBlock = !inCodeBlock
-                lineStart = lineEnd + 1
-                continue
+        while (lineStart < targetLineStart) {
+            val lineEnd = text.indexOf('\n', lineStart).let {
+                if (it == -1) text.length else it
             }
-
-            if (inCodeBlock) {
-                if (!lineIsActive) {
-                    editable.setSpan(MarkdownCodeBlockSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    editable.setSpan(BackgroundColorSpan(CODE_BG), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-                lineStart = lineEnd + 1
-                continue
-            }
-
-            if (context != null) {
-                val attachment = NoteAttachmentMarkdown.parseLine(line)
-                if (attachment != null) {
-                    val span = when (attachment.kind) {
-                        NoteAttachmentMarkdown.Kind.Image -> MarkdownImageSpan(
-                            context,
-                            attachment,
-                            resolveAttachment ?: { _: String -> null }
-                        )
-                        NoteAttachmentMarkdown.Kind.Audio -> MarkdownAudioSpan(context, attachment)
-                    }
-                    editable.setSpan(span, lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    lineStart = lineEnd + 1
-                    continue
-                }
-            }
-
-            if (lineIsActive) {
-                applyActiveLineLinks(editable, lineStart, lineEnd)
-                lineStart = lineEnd + 1
-                continue
-            }
-
-            // Block-level patterns
-            when {
-                HeadingRegex.matchEntire(line) != null -> {
-                    val match = HeadingRegex.matchEntire(line)!!
-                    val indent = match.groupValues[1].length
-                    val marker = match.groupValues[2]
-                    val level = marker.length
-                    val markerStart = lineStart + indent
-                    val markerEnd = markerStart + marker.length + 1 // "# "
-                    val contentStart = markerEnd
-                    val contentEnd = lineEnd
-
-                    // Dim the "# " syntax
-                    if (markerEnd <= lineEnd) {
-                        editable.setSpan(MarkdownSyntaxSpan(), markerStart, markerEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    }
-                    // Style the heading content
-                    editable.setSpan(MarkdownHeadingSpan(level), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    editable.setSpan(StyleSpan(Typeface.BOLD), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-
-                HorizontalRuleRegex.matchEntire(line) != null -> {
-                    // Dim the --- text, draw line via span
-                    editable.setSpan(MarkdownSyntaxSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    editable.setSpan(MarkdownHrSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-
-                TaskListRegex.matchEntire(line) != null -> {
-                    val match = TaskListRegex.matchEntire(line)!!
-                    val indent = match.groupValues[1].length
-                    val checkedChar = match.groupValues[2]
-                    val checked = checkedChar.equals("x", ignoreCase = true)
-
-                    val markerStart = lineStart + indent
-                    val markerEndInLine = line.contentStartAfterTaskMarker()
-                    val contentStart = lineStart + markerEndInLine
-                    val contentEnd = lineEnd
-
-                    // Dim the "- [x] " syntax
-                    editable.setSpan(MarkdownSyntaxSpan(), markerStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    // Checkbox
-                    editable.setSpan(MarkdownCheckboxSpan(checked), markerStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    if (checked) {
-                        editable.setSpan(MarkdownCheckedAlphaSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(StrikethroughSpan(), contentStart, contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    }
-                    // Parse inline within content
-                    applyInline(editable, contentStart, contentEnd)
-                }
-
-                OrderedListRegex.matchEntire(line) != null -> {
-                    val match = OrderedListRegex.matchEntire(line)!!
-                    val indent = match.groupValues[1].length
-                    val markerStart = lineStart + indent
-                    val contentStart = line.indexOf(')').let { if (it == -1) line.indexOf('.') + 1 else it + 1 } + 1 + lineStart
-
-                    editable.setSpan(MarkdownOrderedListSpan(), markerStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    applyInline(editable, contentStart, lineEnd)
-                }
-
-                UnorderedListRegex.matchEntire(line) != null -> {
-                    val match = UnorderedListRegex.matchEntire(line)!!
-                    val indent = match.groupValues[1].length
-                    val markerStart = lineStart + indent
-                    val contentStart = markerStart + 2
-
-                    // Dim "- "
-                    editable.setSpan(MarkdownSyntaxSpan(), markerStart, contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    // Bullet
-                    editable.setSpan(MarkdownBulletSpan(), markerStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    applyInline(editable, contentStart, lineEnd)
-                }
-
-                isQuote(line) -> {
-                    val quotePos = line.indexOf('>')
-                    val contentStartInLine = (quotePos + 1).let { idx ->
-                        var r = idx
-                        while (r < line.length && line[r] == ' ') r++
-                        r
-                    }
-                    val absContentStart = lineStart + contentStartInLine
-
-                    // Dim "> "
-                    editable.setSpan(MarkdownSyntaxSpan(), lineStart, absContentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    // Quote indent + bar
-                    editable.setSpan(MarkdownQuoteSpan(), lineStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    // Muted text color
-                    editable.setSpan(ForegroundColorSpan(Color.parseColor(QUOTE_TEXT_COLOR)), absContentStart, lineEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    applyInline(editable, absContentStart, lineEnd)
-                }
-
-                else -> {
-                    applyInline(editable, lineStart, lineEnd)
-                }
-            }
-
+            if (isCodeFenceLine(text, lineStart, lineEnd)) inCodeBlock = !inCodeBlock
+            if (lineEnd == text.length) break
             lineStart = lineEnd + 1
         }
+        return inCodeBlock
+    }
+
+    private fun isCodeFenceLine(text: CharSequence, start: Int, endExclusive: Int): Boolean {
+        var index = start
+        while (index < endExclusive && text[index].isWhitespace()) index++
+        return index + 2 < endExclusive &&
+            text[index] == '`' && text[index + 1] == '`' && text[index + 2] == '`'
     }
 
     // ─── Inline parsing ─────────────────────────────────────
@@ -277,8 +429,9 @@ object MarkdownSpanApplier {
             if (line[i] == '[') {
                 val closeB = line.indexOf(']', i + 1)
                 if (closeB > i && closeB + 1 < line.length && line[closeB + 1] == '(') {
-                    val closeP = line.indexOf(')', closeB + 2)
-                    if (closeP > closeB) {
+                    val openP = closeB + 1
+                    val closeP = findMatchingCloseParenthesis(line, openP)
+                    if (closeP != null) {
                         ranges += LinkRange(
                             textStart = i + 1,
                             textEnd = closeB,
@@ -296,80 +449,137 @@ object MarkdownSpanApplier {
         return ranges
     }
 
+    private fun findMatchingCloseParenthesis(text: CharSequence, openIndex: Int): Int? {
+        var depth = 0
+        var escaped = false
+        for (index in openIndex until text.length) {
+            val char = text[index]
+            if (escaped) {
+                escaped = false
+                continue
+            }
+            if (char == '\\') {
+                escaped = true
+                continue
+            }
+            when (char) {
+                '(' -> depth++
+                ')' -> {
+                    depth--
+                    if (depth == 0) return index
+                    if (depth < 0) return null
+                }
+            }
+        }
+        return null
+    }
+
     private fun applyInline(editable: Editable, start: Int, end: Int) {
         if (start >= end) return
         val text = editable.subSequence(start, end)
+        val linkRanges = findMarkdownLinkRanges(text.toString()).associateBy { it.textStart - 1 }
+        val boldAsteriskRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "**",
+            closeMarker = "**"
+        ).associateBy { it.openStart }
+        val boldUnderscoreRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "__",
+            closeMarker = "__"
+        ).associateBy { it.openStart }
+        val doubleStrikeRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "~~",
+            closeMarker = "~~"
+        ).associateBy { it.openStart }
+        val singleStrikeRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "~",
+            closeMarker = "~"
+        ).associateBy { it.openStart }
+        val italicAsteriskRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "*",
+            closeMarker = "*"
+        ).associateBy { it.openStart }
+        val italicUnderscoreRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "_",
+            closeMarker = "_"
+        ).associateBy { it.openStart }
+        val underlineRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "<u>",
+            closeMarker = "</u>"
+        ).associateBy { it.openStart }
+        val inlineCodeRanges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = text,
+            openMarker = "`",
+            closeMarker = "`"
+        ).associateBy { it.openStart }
         var i = 0
         while (i < text.length) {
             when {
                 // Link [text](url)
                 text[i] == '[' -> {
-                    val closeB = text.indexOf(']', i + 1)
-                    if (closeB > i && closeB + 1 < text.length && text[closeB + 1] == '(') {
-                        val closeP = text.indexOf(')', closeB + 2)
-                        if (closeP > closeB) {
-                            applyLinkRange(
-                                editable = editable,
-                                lineStart = start,
-                                range = LinkRange(
-                                    textStart = i + 1,
-                                    textEnd = closeB,
-                                    suffixStart = closeB,
-                                    suffixEnd = closeP + 1,
-                                    url = text.substring(closeB + 2, closeP)
-                                ),
-                                hideSyntax = true
-                            )
-                            i = closeP + 1
-                            continue
-                        }
+                    val range = linkRanges[i]
+                    if (range != null) {
+                        applyLinkRange(
+                            editable = editable,
+                            lineStart = start,
+                            range = range,
+                            hideSyntax = true
+                        )
+                        i = range.suffixEnd
+                        continue
                     }
                     i++
                 }
                 // Bold **text**
                 text.startsWith("**", i) -> {
-                    val close = text.indexOf("**", i + 2)
-                    if (close > i) {
-                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(StyleSpan(Typeface.BOLD), start + i + 2, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = close + 2
+                    val range = boldAsteriskRanges[i]
+                    if (range != null) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(StyleSpan(Typeface.BOLD), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = range.closeEnd
                         continue
                     }
                     i++
                 }
                 // Bold __text__
                 text.startsWith("__", i) -> {
-                    val close = text.indexOf("__", i + 2)
-                    if (close > i) {
-                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(StyleSpan(Typeface.BOLD), start + i + 2, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = close + 2
+                    val range = boldUnderscoreRanges[i]
+                    if (range != null) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(StyleSpan(Typeface.BOLD), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = range.closeEnd
                         continue
                     }
                     i++
                 }
                 // Strikethrough ~~text~~
                 text.startsWith("~~", i) -> {
-                    val close = text.indexOf("~~", i + 2)
-                    if (close > i) {
-                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(StrikethroughSpan(), start + i + 2, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = close + 2
+                    val range = doubleStrikeRanges[i]
+                    if (range != null) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(StrikethroughSpan(), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = range.closeEnd
                         continue
                     }
                     i++
                 }
                 // Single ~text~
                 text[i] == '~' -> {
-                    val close = text.indexOf('~', i + 1)
-                    if (close > i + 1) {
-                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(StrikethroughSpan(), start + i + 1, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = close + 1
+                    val range = singleStrikeRanges[i]
+                    if (range != null) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(StrikethroughSpan(), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = range.closeEnd
                         continue
                     }
                     i++
@@ -379,12 +589,16 @@ object MarkdownSpanApplier {
                     val delim = text[i]
                     val isDouble = i + 1 < text.length && text[i + 1] == delim
                     if (!isDouble) {
-                        val close = text.indexOf(delim, i + 1)
-                        if (close > i + 1) {
-                            editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            editable.setSpan(StyleSpan(Typeface.ITALIC), start + i + 1, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                            i = close + 1
+                        val range = if (delim == '*') {
+                            italicAsteriskRanges[i]
+                        } else {
+                            italicUnderscoreRanges[i]
+                        }
+                        if (range != null) {
+                            editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            editable.setSpan(StyleSpan(Typeface.ITALIC), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            i = range.closeEnd
                             continue
                         }
                     }
@@ -392,25 +606,25 @@ object MarkdownSpanApplier {
                 }
                 // Underline <u>text</u>
                 text.startsWith("<u>", i) -> {
-                    val close = text.indexOf("</u>", i + 3)
-                    if (close > i + 3) {
-                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 3, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(UnderlineSpan(), start + i + 3, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 4, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = close + 4
+                    val range = underlineRanges[i]
+                    if (range != null) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(UnderlineSpan(), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = range.closeEnd
                         continue
                     }
                     i++
                 }
                 // Inline code `code`
                 text[i] == '`' -> {
-                    val close = text.indexOf('`', i + 1)
-                    if (close > i) {
-                        editable.setSpan(MarkdownSyntaxSpan(), start + i, start + i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownInlineCodeSpan(), start + i + 1, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(BackgroundColorSpan(CODE_BG), start + i + 1, start + close, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        editable.setSpan(MarkdownSyntaxSpan(), start + close, start + close + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        i = close + 1
+                    val range = inlineCodeRanges[i]
+                    if (range != null) {
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.openStart, start + range.contentStart, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownInlineCodeSpan(), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(BackgroundColorSpan(CODE_BG), start + range.contentStart, start + range.contentEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        editable.setSpan(MarkdownSyntaxSpan(), start + range.contentEnd, start + range.closeEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = range.closeEnd
                         continue
                     }
                     i++

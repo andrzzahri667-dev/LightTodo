@@ -1,7 +1,9 @@
 package com.zahri.lighttodo.domain.markdown
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MarkdownTextTransformsTest {
@@ -237,5 +239,117 @@ class MarkdownTextTransformsTest {
         val edit = MarkdownTextTransforms.listContinuationAfterNewline("1. 111\n2. \n", newlineIndex = 10)
 
         assertEquals(MarkdownTextTransforms.Edit(7, 10, "", 7), edit)
+    }
+
+    @Test
+    fun inlineStyleRangesPairIndependentBoldRunsSeparately() {
+        val ranges = MarkdownTextTransforms.findInlineStyleRanges(
+            text = "**one** plain **two**",
+            openMarker = "**",
+            closeMarker = "**"
+        )
+
+        assertEquals(
+            listOf(
+                MarkdownTextTransforms.InlineStyleRange(0, 2, 5, 7),
+                MarkdownTextTransforms.InlineStyleRange(14, 16, 19, 21)
+            ),
+            ranges
+        )
+    }
+
+    @Test
+    fun styleDetectionDoesNotBridgeIndependentBoldRuns() {
+        val text = "**one** plain **two**"
+
+        assertFalse(
+            MarkdownTextTransforms.isSelectionInsideInlineStyle(
+                text = text,
+                selectionStart = 10,
+                selectionEnd = 10,
+                openMarker = "**",
+                closeMarker = "**"
+            )
+        )
+        assertTrue(
+            MarkdownTextTransforms.isSelectionInsideInlineStyle(
+                text = text,
+                selectionStart = 3,
+                selectionEnd = 3,
+                openMarker = "**",
+                closeMarker = "**"
+            )
+        )
+    }
+
+    @Test
+    fun inlineStyleRangesDoNotTreatIdentifierUnderscoresAsItalic() {
+        assertEquals(
+            emptyList<MarkdownTextTransforms.InlineStyleRange>(),
+            MarkdownTextTransforms.findInlineStyleRanges(
+                text = "foo_bar_baz",
+                openMarker = "_",
+                closeMarker = "_"
+            )
+        )
+    }
+
+    @Test
+    fun inlineStyleRangesStillRecognizeStandaloneUnderscoreItalic() {
+        assertEquals(
+            listOf(MarkdownTextTransforms.InlineStyleRange(0, 1, 7, 8)),
+            MarkdownTextTransforms.findInlineStyleRanges(
+                text = "_italic_",
+                openMarker = "_",
+                closeMarker = "_"
+            )
+        )
+    }
+
+    @Test
+    fun inlineStyleRangesPreferTheNewestValidOpenerAfterAnUnmatchedMarker() {
+        assertEquals(
+            listOf(MarkdownTextTransforms.InlineStyleRange(11, 13, 17, 19)),
+            MarkdownTextTransforms.findInlineStyleRanges(
+                text = "**unclosed **good**",
+                openMarker = "**",
+                closeMarker = "**"
+            )
+        )
+    }
+
+    @Test
+    fun inlineStyleRangesPairAdjacentBoldRunsIndependently() {
+        assertEquals(
+            listOf(
+                MarkdownTextTransforms.InlineStyleRange(0, 2, 5, 7),
+                MarkdownTextTransforms.InlineStyleRange(7, 9, 12, 14)
+            ),
+            MarkdownTextTransforms.findInlineStyleRanges(
+                text = "**one****two**",
+                openMarker = "**",
+                closeMarker = "**"
+            )
+        )
+    }
+
+    @Test
+    fun inlineStyleRangesIgnoreEscapedAndTripleAsteriskRuns() {
+        assertEquals(
+            emptyList<MarkdownTextTransforms.InlineStyleRange>(),
+            MarkdownTextTransforms.findInlineStyleRanges(
+                text = "\\**literal**",
+                openMarker = "**",
+                closeMarker = "**"
+            )
+        )
+        assertEquals(
+            emptyList<MarkdownTextTransforms.InlineStyleRange>(),
+            MarkdownTextTransforms.findInlineStyleRanges(
+                text = "***bold***",
+                openMarker = "**",
+                closeMarker = "**"
+            )
+        )
     }
 }

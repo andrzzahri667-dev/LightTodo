@@ -242,13 +242,37 @@ object MarkdownToolbarHelper {
         val (lineStart, lineEnd) = findLineRange(text, cursor)
         val line = text.subSequence(lineStart, lineEnd).toString()
         val trimmed = line.trimStart()
-        val bold = isWrappedBy(text, start, end, "**")
+        val bold = MarkdownTextTransforms.isSelectionInsideInlineStyle(
+            text = text,
+            selectionStart = start,
+            selectionEnd = end,
+            openMarker = "**",
+            closeMarker = "**"
+        )
 
         return MarkdownStyleState(
             bold = bold,
-            italic = !bold && isWrappedBy(text, start, end, "*"),
-            strikethrough = isWrappedBy(text, start, end, "~~"),
-            underline = isWrappedBy(text, start, end, "<u>", "</u>"),
+            italic = !bold && MarkdownTextTransforms.isSelectionInsideInlineStyle(
+                text = text,
+                selectionStart = start,
+                selectionEnd = end,
+                openMarker = "*",
+                closeMarker = "*"
+            ),
+            strikethrough = MarkdownTextTransforms.isSelectionInsideInlineStyle(
+                text = text,
+                selectionStart = start,
+                selectionEnd = end,
+                openMarker = "~~",
+                closeMarker = "~~"
+            ),
+            underline = MarkdownTextTransforms.isSelectionInsideInlineStyle(
+                text = text,
+                selectionStart = start,
+                selectionEnd = end,
+                openMarker = "<u>",
+                closeMarker = "</u>"
+            ),
             h1 = trimmed.startsWith("# ") && !trimmed.startsWith("## "),
             h2 = trimmed.startsWith("## ") && !trimmed.startsWith("### "),
             h3 = trimmed.startsWith("### "),
@@ -341,39 +365,6 @@ object MarkdownToolbarHelper {
             text.replace(lineStart, lineEnd, newLine)
             edit.setSelection((lineStart + newLine.length).coerceIn(0, text.length))
         }
-    }
-
-    private fun isWrappedBy(text: Editable, start: Int, end: Int, marker: String): Boolean =
-        isWrappedBy(text, start, end, marker, marker)
-
-    private fun isWrappedBy(
-        text: Editable,
-        start: Int,
-        end: Int,
-        openMarker: String,
-        closeMarker: String
-    ): Boolean {
-        val openLen = openMarker.length
-        val closeLen = closeMarker.length
-        if (start != end) {
-            if (start < openLen || end + closeLen > text.length) return false
-            return text.subSequence(start - openLen, start).toString() == openMarker &&
-                text.subSequence(end, end + closeLen).toString() == closeMarker
-        }
-
-        for (i in (start - openLen) downTo 0) {
-            if (text.subSequence(i, (i + openLen).coerceAtMost(text.length)).toString() == openMarker) {
-                for (j in start until text.length) {
-                    if (text.subSequence(j, (j + closeLen).coerceAtMost(text.length)).toString() == closeMarker) {
-                        return true
-                    }
-                    if (text[j] == '\n') break
-                }
-                return false
-            }
-            if (i < text.length && text[i] == '\n') break
-        }
-        return false
     }
 
     private fun findLineRange(text: Editable, pos: Int): Pair<Int, Int> {
